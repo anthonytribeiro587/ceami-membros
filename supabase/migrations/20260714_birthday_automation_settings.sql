@@ -35,6 +35,8 @@ on conflict (id) do update set
   last_sent_date = null,
   updated_at = now();
 
+grant select, update on public.birthday_automation_settings to authenticated;
+
 alter table public.birthday_automation_settings enable row level security;
 
 drop policy if exists birthday_settings_select on public.birthday_automation_settings;

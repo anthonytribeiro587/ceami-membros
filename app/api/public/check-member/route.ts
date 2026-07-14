@@ -10,7 +10,22 @@ type MemberCandidate = {
   birth_date: string | null;
   phone: string | null;
   email: string | null;
+  address: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  marital_status: string | null;
+  spouse_name: string | null;
+  has_children: boolean | null;
+  children_names: string | null;
+  water_baptized: boolean | null;
+  holy_spirit_baptized: boolean | null;
+  fundamentos_fe: boolean | null;
+  talents: string | null;
+  ministry: string | null;
 };
+
+type SummaryStatus = 'filled' | 'partial' | 'missing';
+type SummaryField = { value: string; status: SummaryStatus };
 
 const HIDDEN_DEPARTMENTS = new Set(['comunicação', 'diaconato', 'dança', 'liderança', 'técnica']);
 
@@ -30,16 +45,59 @@ function abbreviatedNameMatches(input: string, stored: string) {
 }
 
 function nameScore(input: string, stored: string) {
-  const a = normalize(input).split(' ').filter(word => word.length > 1);
-  const b = normalize(stored).split(' ').filter(word => word.length > 1);
-  if (!a.length || !b.length) return 0;
-  return a.filter(word => b.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate))).length / Math.max(a.length, b.length);
+  const inputWords = normalize(input).split(' ').filter(word => word.length > 1);
+  const storedWords = normalize(stored).split(' ').filter(word => word.length > 1);
+  if (!inputWords.length || !storedWords.length) return 0;
+  return inputWords.filter(word => storedWords.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate))).length / Math.max(inputWords.length, storedWords.length);
 }
 
 function maskName(fullName: string) {
   const words = fullName.trim().split(/\s+/).filter(Boolean);
   if (words.length <= 1) return words[0] || 'Membro localizado';
   return `${words[0]} ${words.slice(1).map(word => `${word.charAt(0).toUpperCase()}.`).join(' ')}`;
+}
+
+function maskPhone(phone: string | null): SummaryField {
+  const digits = onlyDigits(phone || '');
+  return digits.length >= 4
+    ? { value: `Cadastrado • final ${digits.slice(-4)}`, status: 'filled' }
+    : { value: 'Não informado', status: 'missing' };
+}
+
+function maskEmail(email: string | null): SummaryField {
+  const clean = String(email || '').trim();
+  const [local, domain] = clean.split('@');
+  return local && domain
+    ? { value: `${local.charAt(0)}***@${domain}`, status: 'filled' }
+    : { value: 'Não informado', status: 'missing' };
+}
+
+function booleanSummary(value: boolean | null): SummaryField {
+  if (value == null) return { value: 'Não informado', status: 'missing' };
+  return { value: value ? 'Sim' : 'Não', status: 'filled' };
+}
+
+function addressSummary(member: MemberCandidate): SummaryField {
+  const fields = [member.address, member.neighborhood, member.city];
+  const completed = fields.filter(value => String(value || '').trim()).length;
+  if (completed === 0) return { value: 'Não informado', status: 'missing' };
+  if (completed === fields.length) return { value: 'Completo', status: 'filled' };
+  const missing = ['endereço', 'bairro', 'cidade'].filter((_, index) => !String(fields[index] || '').trim());
+  return { value: `Incompleto • falta ${missing.join(' e ')}`, status: 'partial' };
+}
+
+function familySummary(member: MemberCandidate): SummaryField {
+  const parts: string[] = [];
+  if (member.marital_status) parts.push(member.marital_status);
+  if (member.spouse_name) parts.push('cônjuge cadastrado');
+  if (member.has_children === false) parts.push('sem filhos');
+  if (member.has_children === true) {
+    const count = String(member.children_names || '').split(/\n|,|;/).map(item => item.trim()).filter(Boolean).length;
+    parts.push(count > 0 ? `${count} ${count === 1 ? 'filho cadastrado' : 'filhos cadastrados'}` : 'filhos informados');
+  }
+  return parts.length
+    ? { value: parts.join(' • '), status: 'filled' }
+    : { value: 'Não informado', status: 'missing' };
 }
 
 function sign(memberId: string, secret: string) {
@@ -71,7 +129,7 @@ export async function POST(request: Request) {
 
     const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     const [{ data, error }, { data: departments }] = await Promise.all([
-      supabase.from('members').select('id, full_name, birth_date, phone, email').limit(500),
+      supabase.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(500),
       supabase.from('departments').select('name').order('name', { ascending: true }),
     ]);
     if (error) return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
@@ -92,16 +150,9 @@ export async function POST(request: Request) {
       const birthAndNameMatch = Boolean(birthMatches && abbreviatedMatch);
       return { member, confirmations, exactName, abbreviatedMatch, uniqueContact, birthAndNameMatch, score: nameScore(name, member.full_name) };
     }).filter(item => item.confirmations > 0 && (
-      item.exactName ||
-      item.birthAndNameMatch ||
-      (item.uniqueContact && item.abbreviatedMatch) ||
-      (item.confirmations >= 2 && item.score >= 0.65)
+      item.exactName || item.birthAndNameMatch || (item.uniqueContact && item.abbreviatedMatch) || (item.confirmations >= 2 && item.score >= 0.65)
     )).sort((a, b) =>
-      Number(b.exactName) - Number(a.exactName) ||
-      Number(b.birthAndNameMatch) - Number(a.birthAndNameMatch) ||
-      Number(b.uniqueContact) - Number(a.uniqueContact) ||
-      b.confirmations - a.confirmations ||
-      b.score - a.score
+      Number(b.exactName) - Number(a.exactName) || Number(b.birthAndNameMatch) - Number(a.birthAndNameMatch) || Number(b.uniqueContact) - Number(a.uniqueContact) || b.confirmations - a.confirmations || b.score - a.score
     );
 
     const best = candidates[0];
@@ -114,13 +165,41 @@ export async function POST(request: Request) {
       .map(item => String(item.name || '').trim())
       .filter(nameValue => nameValue && !HIDDEN_DEPARTMENTS.has(nameValue.toLocaleLowerCase('pt-BR')))));
 
+    const { data: links } = await supabase
+      .from('member_functions')
+      .select('ministry_functions(ministry_areas(departments(name)))')
+      .eq('member_id', best.member.id)
+      .eq('active', true);
+
+    const importedMinistries = ((links || []) as any[])
+      .map(link => link?.ministry_functions?.ministry_areas?.departments?.name)
+      .filter(Boolean)
+      .map(String);
+    const manualMinistries = String(best.member.ministry || '').split(',').map(item => item.trim()).filter(Boolean);
+    const currentMinistries = Array.from(new Set([...importedMinistries, ...manualMinistries]));
+
+    const summary: Record<string, SummaryField> = {
+      birthDate: best.member.birth_date ? { value: 'Cadastrada', status: 'filled' } : { value: 'Não informada', status: 'missing' },
+      phone: maskPhone(best.member.phone),
+      email: maskEmail(best.member.email),
+      address: addressSummary(best.member),
+      family: familySummary(best.member),
+      waterBaptized: booleanSummary(best.member.water_baptized),
+      holySpiritBaptized: booleanSummary(best.member.holy_spirit_baptized),
+      fundamentosFe: booleanSummary(best.member.fundamentos_fe),
+      talents: best.member.talents ? { value: 'Preenchido', status: 'filled' } : { value: 'Não informado', status: 'missing' },
+      ministries: currentMinistries.length ? { value: currentMinistries.join(', '), status: 'filled' } : { value: 'Nenhum informado', status: 'missing' },
+    };
+
     return NextResponse.json({
       found: true,
       token: sign(best.member.id, key),
       ministryOptions,
-      member: { displayName: maskName(best.member.full_name) },
+      currentMinistries,
+      member: { displayName: maskName(best.member.full_name), summary },
     });
-  } catch {
+  } catch (error) {
+    console.error('Public member lookup error:', error);
     return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
   }
 }

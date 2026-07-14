@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     if ('ministries' in changes) {
       if (!Array.isArray(changes.ministries)) return NextResponse.json({ error: 'Seleção de ministérios inválida.' }, { status: 400 });
-      proposedData.ministry = changes.ministries.map(item => String(item).trim()).filter(Boolean).slice(0, 20);
+      proposedData.ministry = changes.ministries.map((item: unknown) => String(item).trim()).filter(Boolean).slice(0, 20);
     }
 
     const notes = cleanText(body?.notes, 1000);

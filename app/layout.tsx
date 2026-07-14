@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './ceami.css';
+import './modal-fixes.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Membros',

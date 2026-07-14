@@ -31,8 +31,9 @@ export async function POST(request: Request) {
     const memberId = verifyToken(token, serviceRoleKey);
     if (!memberId) return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
 
+    const phone = String(body.phone || '').trim();
     const payload = {
-      phone: String(body.phone || '').trim() || null,
+      phone: phone || null,
       email: String(body.email || '').trim() || null,
       address: String(body.address || '').trim() || null,
       neighborhood: String(body.neighborhood || '').trim() || null,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       water_baptized: Boolean(body.waterBaptized),
       holy_spirit_baptized: Boolean(body.holySpiritBaptized),
       fundamentos_fe: Boolean(body.fundamentosFe),
-      whatsapp_consent: Boolean(body.whatsappConsent),
+      whatsapp_consent: Boolean(phone),
       updated_at: new Date().toISOString(),
     };
 

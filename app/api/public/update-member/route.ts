@@ -25,6 +25,10 @@ function cleanText(value: unknown, max = 500) {
   return text ? text.slice(0, max) : null;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -35,29 +39,70 @@ export async function POST(request: Request) {
     const memberId = verifyToken(String(body?.token ?? ''), key);
     if (!memberId) return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
 
-    const proposedData = {
-      birth_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.birthDate || '')) ? String(body.birthDate) : null,
-      phone: cleanText(body.phone, 30),
-      email: cleanText(body.email, 160),
-      address: cleanText(body.address, 250),
-      neighborhood: cleanText(body.neighborhood, 120),
-      city: cleanText(body.city, 120),
-      marital_status: cleanText(body.maritalStatus, 50),
-      spouse_name: cleanText(body.spouseName, 180),
-      has_children: body.hasChildren === '' || body.hasChildren == null ? null : Boolean(body.hasChildren),
-      children_names: cleanText(body.childrenNames, 500),
-      water_baptized: body.waterBaptized === '' || body.waterBaptized == null ? null : Boolean(body.waterBaptized),
-      holy_spirit_baptized: body.holySpiritBaptized === '' || body.holySpiritBaptized == null ? null : Boolean(body.holySpiritBaptized),
-      fundamentos_fe: body.fundamentosFe === '' || body.fundamentosFe == null ? null : Boolean(body.fundamentosFe),
-      talents: cleanText(body.talents, 1000),
-      ministry: Array.isArray(body.ministries)
-        ? body.ministries.map((item: unknown) => String(item).trim()).filter(Boolean).slice(0, 20)
-        : [],
-      notes: cleanText(body.notes, 1000),
-    };
+    const changes = isPlainObject(body?.changes) ? body.changes : {};
+    const proposedData: Record<string, unknown> = {};
 
-    const hasAnyProposal = Object.values(proposedData).some(value => Array.isArray(value) ? value.length > 0 : value !== null && value !== '');
-    if (!hasAnyProposal) return NextResponse.json({ error: 'Informe ao menos um dado para atualização.' }, { status: 400 });
+    if ('birthDate' in changes) {
+      const value = String(changes.birthDate || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return NextResponse.json({ error: 'Informe uma data de nascimento válida.' }, { status: 400 });
+      proposedData.birth_date = value;
+    }
+
+    if ('phone' in changes) {
+      const value = cleanText(changes.phone, 30);
+      if (!value) return NextResponse.json({ error: 'Informe o novo WhatsApp.' }, { status: 400 });
+      proposedData.phone = value;
+    }
+
+    if ('email' in changes) {
+      const value = cleanText(changes.email, 160);
+      if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return NextResponse.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
+      proposedData.email = value.toLowerCase();
+    }
+
+    if ('address' in changes) {
+      const value = isPlainObject(changes.address) ? changes.address : {};
+      const address = cleanText(value.address, 250);
+      const neighborhood = cleanText(value.neighborhood, 120);
+      const city = cleanText(value.city, 120);
+      if (!address && !neighborhood && !city) return NextResponse.json({ error: 'Informe ao menos uma informação de endereço.' }, { status: 400 });
+      proposedData.address = address;
+      proposedData.neighborhood = neighborhood;
+      proposedData.city = city;
+    }
+
+    if ('family' in changes) {
+      const value = isPlainObject(changes.family) ? changes.family : {};
+      proposedData.marital_status = cleanText(value.maritalStatus, 50);
+      proposedData.spouse_name = cleanText(value.spouseName, 180);
+      if (typeof value.hasChildren === 'boolean') proposedData.has_children = value.hasChildren;
+      proposedData.children_names = cleanText(value.childrenNames, 500);
+    }
+
+    const booleanFields: Array<[string, string]> = [
+      ['waterBaptized', 'water_baptized'],
+      ['holySpiritBaptized', 'holy_spirit_baptized'],
+      ['fundamentosFe', 'fundamentos_fe'],
+    ];
+    for (const [requestKey, databaseKey] of booleanFields) {
+      if (requestKey in changes) {
+        if (typeof changes[requestKey] !== 'boolean') return NextResponse.json({ error: 'Selecione Sim ou Não nos campos escolhidos.' }, { status: 400 });
+        proposedData[databaseKey] = changes[requestKey];
+      }
+    }
+
+    if ('talents' in changes) proposedData.talents = cleanText(changes.talents, 1000);
+
+    if ('ministries' in changes) {
+      if (!Array.isArray(changes.ministries)) return NextResponse.json({ error: 'Seleção de ministérios inválida.' }, { status: 400 });
+      proposedData.ministry = changes.ministries.map(item => String(item).trim()).filter(Boolean).slice(0, 20);
+    }
+
+    const notes = cleanText(body?.notes, 1000);
+    if (notes) proposedData.notes = notes;
+
+    const changedKeys = Object.keys(proposedData).filter(keyName => keyName !== 'notes');
+    if (!changedKeys.length) return NextResponse.json({ error: 'Selecione pelo menos uma informação para corrigir ou completar.' }, { status: 400 });
 
     const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: existing } = await supabase
@@ -67,8 +112,13 @@ export async function POST(request: Request) {
       .eq('status', 'pending')
       .maybeSingle();
 
+    const requestPayload = {
+      proposed_data: proposedData,
+      updated_at: new Date().toISOString(),
+    };
+
     const query = existing
-      ? supabase.from('member_update_requests').update({ proposed_data: proposedData, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      ? supabase.from('member_update_requests').update(requestPayload).eq('id', existing.id)
       : supabase.from('member_update_requests').insert({ member_id: memberId, proposed_data: proposedData, status: 'pending', source: 'public_lookup' });
 
     const { error } = await query;
@@ -78,7 +128,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ok: true, pendingReview: true });
-  } catch {
+  } catch (error) {
+    console.error('Member update request error:', error);
     return NextResponse.json({ error: 'Não foi possível enviar sua solicitação.' }, { status: 500 });
   }
 }

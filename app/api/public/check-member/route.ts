@@ -15,11 +15,6 @@ type MemberCandidate = {
   city: string | null;
   marital_status: string | null;
   spouse_name: string | null;
-  has_children: boolean | null;
-  children_names: string | null;
-  water_baptized: boolean | null;
-  holy_spirit_baptized: boolean | null;
-  fundamentos_fe: boolean | null;
 };
 
 function normalize(value: string) {
@@ -41,17 +36,19 @@ function nameScore(input: string, stored: string) {
   const inputWords = normalize(input).split(' ').filter(word => word.length > 1);
   const storedWords = normalize(stored).split(' ').filter(word => word.length > 1);
   if (!inputWords.length || !storedWords.length) return 0;
-
-  const exact = inputWords.filter(word => storedWords.includes(word)).length;
-  const partial = inputWords.filter(word => storedWords.some(candidate => candidate.startsWith(word) || word.startsWith(candidate))).length;
-  return Math.max(exact / inputWords.length, partial / inputWords.length * 0.9);
+  const matched = inputWords.filter(word => storedWords.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate))).length;
+  return matched / Math.max(inputWords.length, storedWords.length);
 }
 
 function sign(memberId: string, secret: string) {
-  const expiresAt = Date.now() + 30 * 60 * 1000;
+  const expiresAt = Date.now() + 20 * 60 * 1000;
   const payload = `${memberId}.${expiresAt}`;
   const signature = createHmac('sha256', secret).update(payload).digest('hex');
   return Buffer.from(`${payload}.${signature}`).toString('base64url');
+}
+
+function isBlank(value: unknown) {
+  return value == null || String(value).trim() === '';
 }
 
 export async function POST(request: Request) {
@@ -64,11 +61,11 @@ export async function POST(request: Request) {
 
     const validBirthDate = /^\d{4}-\d{2}-\d{2}$/.test(birthDate);
     const validPhone = onlyDigits(phone).length >= 8;
-    const validEmail = email.includes('@') && email.includes('.');
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    if (name.length < 3 || (!validBirthDate && !validPhone && !validEmail)) {
+    if (name.length < 5 || (!validBirthDate && !validPhone && !validEmail)) {
       return NextResponse.json(
-        { found: false, error: 'Informe seu nome e pelo menos uma confirmação: nascimento, telefone ou e-mail.' },
+        { found: false, error: 'Informe seu nome completo e pelo menos uma confirmação: nascimento, telefone ou e-mail.' },
         { status: 400 },
       );
     }
@@ -85,7 +82,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase
       .from('members')
-      .select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe')
+      .select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name')
       .limit(500);
 
     if (error) {
@@ -93,6 +90,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
     }
 
+    const normalizedInputName = normalize(name);
     const candidates = ((data || []) as MemberCandidate[])
       .map(member => {
         const confirmationMatches = [
@@ -100,19 +98,18 @@ export async function POST(request: Request) {
           validPhone && onlyDigits(member.phone || '') === onlyDigits(phone),
           validEmail && String(member.email || '').trim().toLowerCase() === email,
         ].filter(Boolean).length;
-
-        return {
-          member,
-          confirmationMatches,
-          score: nameScore(name, member.full_name),
-        };
+        const exactName = normalize(member.full_name) === normalizedInputName;
+        return { member, confirmationMatches, exactName, score: nameScore(name, member.full_name) };
       })
-      .filter(candidate => candidate.confirmationMatches > 0 && candidate.score >= 0.55)
-      .sort((a, b) => b.confirmationMatches - a.confirmationMatches || b.score - a.score);
+      .filter(candidate =>
+        candidate.confirmationMatches > 0 &&
+        (candidate.exactName || (candidate.confirmationMatches >= 2 && candidate.score >= 0.65)),
+      )
+      .sort((a, b) => Number(b.exactName) - Number(a.exactName) || b.confirmationMatches - a.confirmationMatches || b.score - a.score);
 
     const best = candidates[0];
     const second = candidates[1];
-    if (!best || (second && best.confirmationMatches === second.confirmationMatches && Math.abs(best.score - second.score) < 0.08)) {
+    if (!best || (second && best.exactName === second.exactName && best.confirmationMatches === second.confirmationMatches)) {
       return NextResponse.json({ found: false });
     }
 
@@ -121,20 +118,17 @@ export async function POST(request: Request) {
       found: true,
       token: sign(member.id, serviceRoleKey),
       member: {
-        fullName: member.full_name || '',
-        birthDate: member.birth_date || '',
-        phone: member.phone || '',
-        email: member.email || '',
-        address: member.address || '',
-        neighborhood: member.neighborhood || '',
-        city: member.city || '',
-        maritalStatus: member.marital_status || '',
-        spouseName: member.spouse_name || '',
-        hasChildren: Boolean(member.has_children),
-        childrenNames: member.children_names || '',
-        waterBaptized: Boolean(member.water_baptized),
-        holySpiritBaptized: Boolean(member.holy_spirit_baptized),
-        fundamentosFe: Boolean(member.fundamentos_fe),
+        fullName: member.full_name,
+        missing: {
+          birthDate: isBlank(member.birth_date),
+          phone: isBlank(member.phone),
+          email: isBlank(member.email),
+          address: isBlank(member.address),
+          neighborhood: isBlank(member.neighborhood),
+          city: isBlank(member.city),
+          maritalStatus: isBlank(member.marital_status),
+          spouseName: isBlank(member.spouse_name),
+        },
       },
     });
   } catch {

@@ -2,43 +2,236 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Bell, Cake, Check, ChevronRight, LayoutDashboard, Menu, MessageCircle, Plus, Search, Settings, Users, X } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 type Screen = 'dashboard' | 'members' | 'birthdays' | 'messages' | 'settings';
 type Filter = 'all' | 'birthday' | 'baptized' | 'fundamentos';
-type Member = { id:number; name:string; phone:string; email:string; birthDate:string; birthdayLabel:string; ministry:string; status:'Ativo'|'Acompanhamento'; initials:string; address:string; neighborhood:string; city:string; maritalStatus:string; spouseName:string; hasChildren:boolean; childrenNames:string; previousChurch:boolean; previousChurchName:string; waterBaptized:boolean; baptismChurch:string; baptismDate:string; holySpiritBaptized:boolean; fundamentosFe:boolean; fundamentosDate:string; talents:string; notes:string; whatsappConsent:boolean };
-type Draft = Omit<Member,'id'|'initials'|'status'|'birthdayLabel'>;
 
-const emptyDraft:Draft={name:'',phone:'',email:'',birthDate:'',ministry:'Sem ministério',address:'',neighborhood:'',city:'',maritalStatus:'',spouseName:'',hasChildren:false,childrenNames:'',previousChurch:false,previousChurchName:'',waterBaptized:false,baptismChurch:'',baptismDate:'',holySpiritBaptized:false,fundamentosFe:false,fundamentosDate:'',talents:'',notes:'',whatsappConsent:false};
-const initialMembers:Member[]=[
-{id:1,name:'Ana Carolina',phone:'(51) 99999-1234',email:'ana@email.com',birthDate:'1997-07-13',birthdayLabel:'Hoje',ministry:'Louvor',status:'Ativo',initials:'AC',address:'Rua das Flores, 120',neighborhood:'Centro',city:'Sapucaia do Sul/RS',maritalStatus:'Casada',spouseName:'Carlos',hasChildren:false,childrenNames:'',previousChurch:false,previousChurchName:'',waterBaptized:true,baptismChurch:'CEAMI',baptismDate:'2021-08-15',holySpiritBaptized:true,fundamentosFe:true,fundamentosDate:'2022-03-10',talents:'Vocal e recepção',notes:'',whatsappConsent:true},
-{id:2,name:'Gabriel Lima',phone:'(51) 98888-4321',email:'',birthDate:'1994-07-15',birthdayLabel:'15 jul',ministry:'Jovens',status:'Ativo',initials:'GL',address:'',neighborhood:'',city:'Sapucaia do Sul/RS',maritalStatus:'Solteiro',spouseName:'',hasChildren:false,childrenNames:'',previousChurch:true,previousChurchName:'Igreja Batista',waterBaptized:true,baptismChurch:'Igreja Batista',baptismDate:'2016-04-10',holySpiritBaptized:false,fundamentosFe:true,fundamentosDate:'2024-05-12',talents:'Liderança',notes:'',whatsappConsent:true},
-{id:3,name:'Mariane Souza',phone:'(51) 97777-8877',email:'',birthDate:'2001-07-22',birthdayLabel:'22 jul',ministry:'Infantil',status:'Acompanhamento',initials:'MS',address:'',neighborhood:'',city:'Esteio/RS',maritalStatus:'Solteira',spouseName:'',hasChildren:false,childrenNames:'',previousChurch:false,previousChurchName:'',waterBaptized:false,baptismChurch:'',baptismDate:'',holySpiritBaptized:false,fundamentosFe:false,fundamentosDate:'',talents:'Crianças e ensino',notes:'Aguardando Fundamentos da Fé',whatsappConsent:true}
-];
-const nav=[['dashboard','Início',LayoutDashboard],['members','Membros',Users],['birthdays','Aniversários',Cake],['messages','Mensagens',MessageCircle],['settings','Ajustes',Settings]] as const;
+type Member = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  birthDate: string;
+  birthdayLabel: string;
+  ministry: string;
+  roles: string[];
+  status: string;
+  initials: string;
+  address: string;
+  neighborhood: string;
+  city: string;
+  maritalStatus: string;
+  waterBaptized: boolean;
+  holySpiritBaptized: boolean;
+  fundamentosFe: boolean;
+  notes: string;
+};
 
-export default function Home(){
- const [members,setMembers]=useState(initialMembers);const [screen,setScreen]=useState<Screen>('dashboard');const [menuOpen,setMenuOpen]=useState(false);const [query,setQuery]=useState('');const [filter,setFilter]=useState<Filter>('all');const [profileId,setProfileId]=useState<number|null>(null);const [formOpen,setFormOpen]=useState(false);const [editingId,setEditingId]=useState<number|null>(null);const [step,setStep]=useState(1);const [draft,setDraft]=useState<Draft>(emptyDraft);const [toast,setToast]=useState('');
- const selected=members.find(m=>m.id===profileId)||null;const overlayOpen=formOpen||menuOpen;
- useEffect(()=>{if(!overlayOpen)return;const y=window.scrollY;document.body.style.position='fixed';document.body.style.top=`-${y}px`;document.body.style.width='100%';return()=>{document.body.style.position='';document.body.style.top='';document.body.style.width='';window.scrollTo(0,y)}},[overlayOpen]);
- useEffect(()=>{if(!formOpen||editingId)return;localStorage.setItem('ceami-member-draft',JSON.stringify(draft))},[draft,formOpen,editingId]);
- useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),2500);return()=>clearTimeout(t)},[toast]);
- const filtered=useMemo(()=>members.filter(m=>{const matches=`${m.name} ${m.phone} ${m.ministry}`.toLowerCase().includes(query.toLowerCase());if(!matches)return false;if(filter==='birthday')return m.birthdayLabel==='Hoje';if(filter==='baptized')return m.waterBaptized;if(filter==='fundamentos')return !m.fundamentosFe;return true}),[members,query,filter]);
- function openNew(){const saved=localStorage.getItem('ceami-member-draft');setDraft(saved?{...emptyDraft,...JSON.parse(saved)}:emptyDraft);setEditingId(null);setStep(1);setFormOpen(true)}
- function openEdit(member:Member){const {id,initials,status,birthdayLabel,...data}=member;void id;void initials;void status;void birthdayLabel;setDraft(data);setEditingId(member.id);setProfileId(null);setStep(1);setFormOpen(true)}
- function closeForm(){setFormOpen(false);setStep(1)}
- function update<K extends keyof Draft>(key:K,value:Draft[K]){setDraft(v=>({...v,[key]:value}))}
- function saveMember(){if(!draft.name.trim()){setToast('Informe o nome do membro');setStep(1);return}const initials=draft.name.split(' ').filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();if(editingId){setMembers(list=>list.map(m=>m.id===editingId?{...m,...draft,initials}:m));setToast('Alterações salvas')}else{setMembers(list=>[{...draft,id:Date.now(),initials,status:'Ativo',birthdayLabel:formatBirthday(draft.birthDate)},...list]);localStorage.removeItem('ceami-member-draft');setToast('Membro cadastrado')}setFormOpen(false);setEditingId(null);setScreen('members')}
- if(selected)return <MemberProfile member={selected} onBack={()=>setProfileId(null)} onEdit={()=>openEdit(selected)}/>;
- return <main className="app-shell"><aside className={`sidebar ${menuOpen?'open':''}`}><div className="brand"><div className="brand-symbol">CE</div><div><strong>CEAMI</strong><span>Membros</span></div><button onClick={()=>setMenuOpen(false)}><X/></button></div><nav>{nav.map(([key,label,Icon])=><button key={key} className={screen===key?'active':''} onClick={()=>{setScreen(key);setMenuOpen(false)}}><Icon size={19}/>{label}</button>)}</nav><small>Comunidade Evangélica<br/>Amigo Mais Que Irmão</small></aside><section className="content"><header className="topbar"><button className="menu-button" onClick={()=>setMenuOpen(true)}><Menu/></button><div><span>CEAMI MEMBROS</span><h1>{screen==='dashboard'?'Visão geral':screen==='members'?'Membros':screen==='birthdays'?'Aniversariantes':screen==='messages'?'Mensagens':'Configurações'}</h1></div><button className="bell"><Bell size={19}/></button></header>{screen==='dashboard'&&<Dashboard members={members} onNew={openNew} onOpen={setProfileId}/>} {screen==='members'&&<MembersPage members={filtered} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onNew={openNew} onOpen={setProfileId}/>} {screen==='birthdays'&&<SimplePage title="Aniversariantes"><div className="list">{members.map(m=><MemberRow key={m.id} member={m} onOpen={()=>setProfileId(m.id)}/>)}</div></SimplePage>}{screen==='messages'&&<SimplePage title="Mensagens automáticas"><div className="empty"><MessageCircle/><h3>Nenhuma mensagem enviada ainda</h3><p>O histórico de parabéns aparecerá aqui.</p></div></SimplePage>}{screen==='settings'&&<SimplePage title="Configurações"><div className="settings"><label>Horário de envio<input type="time" defaultValue="08:00"/></label><label>Mensagem padrão<textarea defaultValue="Hoje celebramos a sua vida! Que Deus continue abençoando sua caminhada. Feliz aniversário! 🎉"/></label><button className="primary">Salvar configurações</button></div></SimplePage>}</section><div className="bottom-nav">{nav.slice(0,4).map(([key,label,Icon])=><button key={key} className={screen===key?'active':''} onClick={()=>setScreen(key)}><Icon size={20}/><span>{label}</span></button>)}</div>{menuOpen&&<button className="menu-overlay" onClick={()=>setMenuOpen(false)} aria-label="Fechar menu"/>}{formOpen&&<MemberWizard draft={draft} update={update} step={step} setStep={setStep} onClose={closeForm} onSave={saveMember} editing={!!editingId}/>} {toast&&<div className="toast"><Check size={18}/>{toast}</div>}</main>
+type MemberRowDb = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  birth_date: string | null;
+  ministry: string | null;
+  status: string | null;
+  address: string | null;
+  neighborhood: string | null;
+  city?: string | null;
+  marital_status: string | null;
+  baptism_date: string | null;
+  water_baptized?: boolean | null;
+  holy_spirit_baptized?: boolean | null;
+  fundamentos_fe?: boolean | null;
+  notes: string | null;
+};
+
+const nav = [
+  ['dashboard', 'Início', LayoutDashboard],
+  ['members', 'Membros', Users],
+  ['birthdays', 'Aniversários', Cake],
+  ['messages', 'Mensagens', MessageCircle],
+  ['settings', 'Ajustes', Settings],
+] as const;
+
+function initials(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 }
 
-function Dashboard({members,onNew,onOpen}:{members:Member[];onNew:()=>void;onOpen:(id:number)=>void}){const pending=members.filter(m=>!m.fundamentosFe).length;return <><section className="welcome"><div><span>HOJE NA CEAMI</span><h2>Cuidar bem começa com informação simples.</h2><p>{pending} membros ainda precisam concluir Fundamentos da Fé.</p></div><button onClick={onNew}><Plus size={18}/>Novo membro</button></section><section className="stats"><article><Users/><div><small>Membros</small><strong>{members.length}</strong></div></article><article><Cake/><div><small>Aniversários hoje</small><strong>{members.filter(m=>m.birthdayLabel==='Hoje').length}</strong></div></article><article><Check/><div><small>Fundamentos pendente</small><strong>{pending}</strong></div></article></section><section className="panel"><div className="panel-head"><div><h3>Membros recentes</h3><p>Acesse a ficha completa com um toque.</p></div></div><div className="list">{members.slice(0,4).map(m=><MemberRow key={m.id} member={m} onOpen={()=>onOpen(m.id)}/>)}</div></section></>}
-function MembersPage({members,query,setQuery,filter,setFilter,onNew,onOpen}:{members:Member[];query:string;setQuery:(v:string)=>void;filter:Filter;setFilter:(v:Filter)=>void;onNew:()=>void;onOpen:(id:number)=>void}){return <section className="panel members-page"><div className="panel-head"><div><h2>Membros cadastrados</h2><p>Pesquise e acompanhe cada pessoa.</p></div><button className="square" onClick={onNew}><Plus/></button></div><div className="search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar por nome ou telefone"/></div><div className="chips"><button className={filter==='all'?'active':''} onClick={()=>setFilter('all')}>Todos</button><button className={filter==='birthday'?'active':''} onClick={()=>setFilter('birthday')}>Aniversário hoje</button><button className={filter==='baptized'?'active':''} onClick={()=>setFilter('baptized')}>Batizados</button><button className={filter==='fundamentos'?'active':''} onClick={()=>setFilter('fundamentos')}>Fundamentos pendente</button></div><div className="list">{members.map(m=><MemberRow key={m.id} member={m} onOpen={()=>onOpen(m.id)}/>)}</div></section>}
-function MemberRow({member,onOpen}:{member:Member;onOpen:()=>void}){return <button className="member-row" onClick={onOpen}><div className="member-avatar">{member.initials}</div><div><strong>{member.name}</strong><span>{member.phone} · {member.ministry}</span></div><ChevronRight/></button>}
-function SimplePage({title,children}:{title:string;children:React.ReactNode}){return <section className="panel simple-page"><h2>{title}</h2>{children}</section>}
-function MemberProfile({member,onBack,onEdit}:{member:Member;onBack:()=>void;onEdit:()=>void}){return <main className="profile-page"><header><button onClick={onBack}><ArrowLeft/></button><span>Ficha do membro</span><button onClick={onEdit}>Editar</button></header><section className="profile-hero"><div className="profile-avatar">{member.initials}</div><h1>{member.name}</h1><p>{member.ministry} · {member.status}</p></section><section className="profile-sections"><Info title="Contato" rows={[["WhatsApp",member.phone],["E-mail",member.email||'Não informado'],["Nascimento",member.birthDate||'Não informado']]}/><Info title="Família e endereço" rows={[["Estado civil",member.maritalStatus||'Não informado'],["Cônjuge",member.spouseName||'Não informado'],["Filhos",member.hasChildren?member.childrenNames||'Sim':'Não'],["Endereço",[member.address,member.neighborhood,member.city].filter(Boolean).join(', ')||'Não informado']]}/><Info title="Vida cristã" rows={[["Batizado nas águas",member.waterBaptized?'Sim':'Não'],["Batizado no Espírito Santo",member.holySpiritBaptized?'Sim':'Não'],["Fundamentos da Fé",member.fundamentosFe?'Concluído':'Pendente'],["Igreja anterior",member.previousChurch?member.previousChurchName||'Sim':'Não']]}/><Info title="Ministério" rows={[["Ministério",member.ministry],["Talentos",member.talents||'Não informado'],["Observações",member.notes||'Sem observações']]}/></section></main>}
-function Info({title,rows}:{title:string;rows:string[][]}){return <article className="info-card"><div className="info-title"><h2>{title}</h2></div>{rows.map(([a,b])=><div className="info-row" key={a}><span>{a}</span><strong>{b}</strong></div>)}</article>}
-function MemberWizard({draft,update,step,setStep,onClose,onSave,editing}:{draft:Draft;update:<K extends keyof Draft>(k:K,v:Draft[K])=>void;step:number;setStep:(n:number)=>void;onClose:()=>void;onSave:()=>void;editing:boolean}){const titles=['Dados pessoais','Família e endereço','Vida cristã','Ministério'];return <div className="wizard-overlay"><section className="wizard"><header><div><small>ETAPA {step} DE 4</small><h2>{editing?'Editar membro':'Novo membro'}</h2><p>{titles[step-1]}</p></div><button onClick={onClose}><X/></button></header><div className="progress"><i style={{width:`${step*25}%`}}/></div><div className="wizard-body">{step===1&&<><Field label="Nome completo"><input value={draft.name} onChange={e=>update('name',e.target.value)} autoFocus/></Field><Field label="WhatsApp"><input value={draft.phone} onChange={e=>update('phone',e.target.value)} inputMode="tel"/></Field><Field label="E-mail"><input value={draft.email} onChange={e=>update('email',e.target.value)} type="email"/></Field><Field label="Data de nascimento"><input value={draft.birthDate} onChange={e=>update('birthDate',e.target.value)} type="date"/></Field><Field label="Estado civil"><select value={draft.maritalStatus} onChange={e=>update('maritalStatus',e.target.value)}><option value="">Selecione</option><option>Solteiro</option><option>Casado</option><option>Separado</option><option>Divorciado</option><option>Viúvo</option><option>União estável</option></select></Field>{['Casado','União estável'].includes(draft.maritalStatus)&&<Field label="Nome do cônjuge"><input value={draft.spouseName} onChange={e=>update('spouseName',e.target.value)}/></Field>}</>}{step===2&&<><Field label="Endereço"><input value={draft.address} onChange={e=>update('address',e.target.value)}/></Field><div className="two"><Field label="Bairro"><input value={draft.neighborhood} onChange={e=>update('neighborhood',e.target.value)}/></Field><Field label="Cidade"><input value={draft.city} onChange={e=>update('city',e.target.value)}/></Field></div><Toggle checked={draft.hasChildren} onChange={v=>update('hasChildren',v)} label="Tem filhos"/>{draft.hasChildren&&<Field label="Nome dos filhos"><textarea value={draft.childrenNames} onChange={e=>update('childrenNames',e.target.value)} placeholder="Um nome por linha"/></Field>}</>}{step===3&&<><Toggle checked={draft.previousChurch} onChange={v=>update('previousChurch',v)} label="Veio de outra igreja"/>{draft.previousChurch&&<Field label="Qual igreja?"><input value={draft.previousChurchName} onChange={e=>update('previousChurchName',e.target.value)}/></Field>}<Toggle checked={draft.waterBaptized} onChange={v=>update('waterBaptized',v)} label="Batizado nas águas"/>{draft.waterBaptized&&<div className="two"><Field label="Igreja"><input value={draft.baptismChurch} onChange={e=>update('baptismChurch',e.target.value)}/></Field><Field label="Data"><input type="date" value={draft.baptismDate} onChange={e=>update('baptismDate',e.target.value)}/></Field></div>}<Toggle checked={draft.holySpiritBaptized} onChange={v=>update('holySpiritBaptized',v)} label="Batizado no Espírito Santo"/><Toggle checked={draft.fundamentosFe} onChange={v=>update('fundamentosFe',v)} label="Curso Fundamentos da Fé"/>{draft.fundamentosFe&&<Field label="Data de conclusão"><input type="date" value={draft.fundamentosDate} onChange={e=>update('fundamentosDate',e.target.value)}/></Field>}</>}{step===4&&<><Field label="Ministério"><select value={draft.ministry} onChange={e=>update('ministry',e.target.value)}><option>Sem ministério</option><option>Louvor</option><option>Jovens</option><option>Infantil</option><option>Ação social</option><option>Intercessão</option></select></Field><Field label="Talentos e habilidades"><input value={draft.talents} onChange={e=>update('talents',e.target.value)}/></Field><Field label="Observações"><textarea value={draft.notes} onChange={e=>update('notes',e.target.value)}/></Field><Toggle checked={draft.whatsappConsent} onChange={v=>update('whatsappConsent',v)} label="Autoriza mensagens pelo WhatsApp"/><div className="draft-note"><Check size={16}/>Rascunho salvo automaticamente</div></>}</div><footer>{step>1?<button className="secondary" onClick={()=>setStep(step-1)}>Voltar</button>:<button className="secondary" onClick={onClose}>Cancelar</button>}{step<4?<button className="primary" onClick={()=>setStep(step+1)}>Continuar</button>:<button className="primary" onClick={onSave}>{editing?'Salvar alterações':'Cadastrar membro'}</button>}</footer></section></div>}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="field"><span>{label}</span>{children}</label>}
-function Toggle({checked,onChange,label}:{checked:boolean;onChange:(v:boolean)=>void;label:string}){return <label className={`toggle-card ${checked?'checked':''}`}><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span>{label}</span><i>{checked&&<Check size={15}/>}</i></label>}
-function formatBirthday(date:string){if(!date)return 'Não informado';const [,m,d]=date.split('-');return `${d}/${m}`}
+function birthdayLabel(date: string) {
+  if (!date) return 'Sem data';
+  const [, month, day] = date.split('-');
+  const today = new Date();
+  const isToday = Number(month) === today.getMonth() + 1 && Number(day) === today.getDate();
+  return isToday ? 'Hoje' : `${day}/${month}`;
+}
+
+function normalizeMember(row: MemberRowDb, roles: string[] = []): Member {
+  return {
+    id: row.id,
+    name: row.full_name,
+    phone: row.phone || 'Não informado',
+    email: row.email || '',
+    birthDate: row.birth_date || '',
+    birthdayLabel: birthdayLabel(row.birth_date || ''),
+    ministry: roles[0] || row.ministry || 'Sem função cadastrada',
+    roles,
+    status: row.status || 'ativo',
+    initials: initials(row.full_name),
+    address: row.address || '',
+    neighborhood: row.neighborhood || '',
+    city: row.city || '',
+    maritalStatus: row.marital_status || '',
+    waterBaptized: Boolean(row.water_baptized || row.baptism_date),
+    holySpiritBaptized: Boolean(row.holy_spirit_baptized),
+    fundamentosFe: Boolean(row.fundamentos_fe),
+    notes: row.notes || '',
+  };
+}
+
+export default function Home() {
+  const supabase = useMemo(() => createClient(), []);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [screen, setScreen] = useState<Screen>('dashboard');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    void loadMembers();
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(''), 2500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  async function loadMembers() {
+    setLoading(true);
+    setLoadError('');
+
+    const { data: memberRows, error: memberError } = await supabase
+      .from('members')
+      .select('*')
+      .order('full_name', { ascending: true });
+
+    if (memberError) {
+      setLoadError(`Não foi possível carregar os membros: ${memberError.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const roleMap = new Map<string, string[]>();
+    const { data: links } = await supabase
+      .from('member_functions')
+      .select('member_id, ministry_functions(name, ministry_areas(name, departments(name)))')
+      .eq('active', true);
+
+    for (const link of (links || []) as any[]) {
+      const fn = link.ministry_functions;
+      const area = fn?.ministry_areas;
+      const department = area?.departments;
+      const role = [department?.name, area?.name, fn?.name].filter(Boolean).join(' › ');
+      if (!role) continue;
+      const current = roleMap.get(link.member_id) || [];
+      if (!current.includes(role)) current.push(role);
+      roleMap.set(link.member_id, current);
+    }
+
+    setMembers((memberRows || []).map(row => normalizeMember(row as MemberRowDb, roleMap.get(row.id) || [])));
+    setLoading(false);
+  }
+
+  const filtered = useMemo(() => members.filter(member => {
+    const matches = `${member.name} ${member.phone} ${member.ministry} ${member.roles.join(' ')}`
+      .toLowerCase()
+      .includes(query.toLowerCase());
+    if (!matches) return false;
+    if (filter === 'birthday') return member.birthdayLabel === 'Hoje';
+    if (filter === 'baptized') return member.waterBaptized;
+    if (filter === 'fundamentos') return !member.fundamentosFe;
+    return true;
+  }), [members, query, filter]);
+
+  const selected = members.find(member => member.id === profileId) || null;
+  if (selected) return <MemberProfile member={selected} onBack={() => setProfileId(null)} />;
+
+  return (
+    <main className="app-shell">
+      <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
+        <div className="brand">
+          <div className="brand-symbol">CE</div>
+          <div><strong>CEAMI</strong><span>Membros</span></div>
+          <button onClick={() => setMenuOpen(false)}><X /></button>
+        </div>
+        <nav>{nav.map(([key, label, Icon]) => (
+          <button key={key} className={screen === key ? 'active' : ''} onClick={() => { setScreen(key); setMenuOpen(false); }}>
+            <Icon size={19} />{label}
+          </button>
+        ))}</nav>
+        <small>Comunidade Evangélica<br />Amigo Mais Que Irmão</small>
+      </aside>
+
+      <section className="content">
+        <header className="topbar">
+          <button className="menu-button" onClick={() => setMenuOpen(true)}><Menu /></button>
+          <div><span>CEAMI MEMBROS</span><h1>{screen === 'dashboard' ? 'Visão geral' : screen === 'members' ? 'Membros' : screen === 'birthdays' ? 'Aniversariantes' : screen === 'messages' ? 'Mensagens' : 'Configurações'}</h1></div>
+          <button className="bell"><Bell size={19} /></button>
+        </header>
+
+        {loadError && <section className="panel"><p>{loadError}</p><button className="primary" onClick={() => void loadMembers()}>Tentar novamente</button></section>}
+        {loading && !loadError && <section className="panel"><p>Carregando membros do Supabase...</p></section>}
+
+        {!loading && !loadError && screen === 'dashboard' && <Dashboard members={members} onOpen={setProfileId} onRefresh={() => void loadMembers()} />}
+        {!loading && !loadError && screen === 'members' && <MembersPage members={filtered} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onOpen={setProfileId} />}
+        {!loading && !loadError && screen === 'birthdays' && <SimplePage title="Aniversariantes"><div className="list">{members.filter(member => member.birthDate).sort((a, b) => a.birthDate.slice(5).localeCompare(b.birthDate.slice(5))).map(member => <MemberItem key={member.id} member={member} onOpen={() => setProfileId(member.id)} />)}</div></SimplePage>}
+        {!loading && !loadError && screen === 'messages' && <SimplePage title="Mensagens automáticas"><div className="empty"><MessageCircle /><h3>Nenhuma mensagem enviada ainda</h3><p>O histórico de parabéns aparecerá aqui.</p></div></SimplePage>}
+        {!loading && !loadError && screen === 'settings' && <SimplePage title="Configurações"><div className="settings"><label>Horário de envio<input type="time" defaultValue="08:00" /></label><label>Mensagem padrão<textarea defaultValue="Hoje celebramos a sua vida! Que Deus continue abençoando sua caminhada. Feliz aniversário! 🎉" /></label><button className="primary" onClick={() => setToast('Configurações salvas')}>Salvar configurações</button></div></SimplePage>}
+      </section>
+
+      <div className="bottom-nav">{nav.slice(0, 4).map(([key, label, Icon]) => <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}><Icon size={20} /><span>{label}</span></button>)}</div>
+      {menuOpen && <button className="menu-overlay" onClick={() => setMenuOpen(false)} aria-label="Fechar menu" />}
+      {toast && <div className="toast"><Check size={18} />{toast}</div>}
+    </main>
+  );
+}
+
+function Dashboard({ members, onOpen, onRefresh }: { members: Member[]; onOpen: (id: string) => void; onRefresh: () => void }) {
+  const pending = members.filter(member => !member.fundamentosFe).length;
+  return <>
+    <section className="welcome"><div><span>DADOS REAIS DO SUPABASE</span><h2>Cuidar bem começa com informação simples.</h2><p>{members.length} membros carregados. {pending} ainda precisam concluir Fundamentos da Fé.</p></div><button onClick={onRefresh}>Atualizar dados</button></section>
+    <section className="stats"><article><Users /><div><small>Membros</small><strong>{members.length}</strong></div></article><article><Cake /><div><small>Aniversários hoje</small><strong>{members.filter(member => member.birthdayLabel === 'Hoje').length}</strong></div></article><article><Check /><div><small>Fundamentos pendente</small><strong>{pending}</strong></div></article></section>
+    <section className="panel"><div className="panel-head"><div><h3>Membros cadastrados</h3><p>Dados importados e cadastrados no Supabase.</p></div></div><div className="list">{members.slice(0, 8).map(member => <MemberItem key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div></section>
+  </>;
+}
+
+function MembersPage({ members, query, setQuery, filter, setFilter, onOpen }: { members: Member[]; query: string; setQuery: (value: string) => void; filter: Filter; setFilter: (value: Filter) => void; onOpen: (id: string) => void }) {
+  return <section className="panel members-page">
+    <div className="panel-head"><div><h2>Membros cadastrados</h2><p>{members.length} resultados encontrados.</p></div></div>
+    <div className="search"><Search size={19} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, telefone ou função" /></div>
+    <div className="chips"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button><button className={filter === 'birthday' ? 'active' : ''} onClick={() => setFilter('birthday')}>Aniversário hoje</button><button className={filter === 'baptized' ? 'active' : ''} onClick={() => setFilter('baptized')}>Batizados</button><button className={filter === 'fundamentos' ? 'active' : ''} onClick={() => setFilter('fundamentos')}>Fundamentos pendente</button></div>
+    <div className="list">{members.map(member => <MemberItem key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div>
+  </section>;
+}
+
+function MemberItem({ member, onOpen }: { member: Member; onOpen: () => void }) {
+  return <button className="member-row" onClick={onOpen}><div className="member-avatar">{member.initials}</div><div><strong>{member.name}</strong><span>{member.phone} · {member.ministry}</span></div><ChevronRight /></button>;
+}
+
+function SimplePage({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="panel simple-page"><h2>{title}</h2>{children}</section>;
+}
+
+function MemberProfile({ member, onBack }: { member: Member; onBack: () => void }) {
+  return <main className="profile-page"><header><button onClick={onBack}><ArrowLeft /></button><span>Ficha do membro</span><div /></header><section className="profile-hero"><div className="profile-avatar">{member.initials}</div><h1>{member.name}</h1><p>{member.status}</p></section><section className="profile-sections"><Info title="Contato" rows={[["WhatsApp", member.phone], ["E-mail", member.email || 'Não informado'], ["Nascimento", member.birthDate || 'Não informado']]} /><Info title="Endereço" rows={[["Endereço", member.address || 'Não informado'], ["Bairro", member.neighborhood || 'Não informado'], ["Cidade", member.city || 'Não informado']]} /><Info title="Vida cristã" rows={[["Batizado nas águas", member.waterBaptized ? 'Sim' : 'Não informado'], ["Batizado no Espírito Santo", member.holySpiritBaptized ? 'Sim' : 'Não informado'], ["Fundamentos da Fé", member.fundamentosFe ? 'Concluído' : 'Não informado']]} /><Info title="Ministérios e funções" rows={member.roles.length ? member.roles.map((role, index) => [`Função ${index + 1}`, role]) : [["Funções", member.ministry]]} /></section></main>;
+}
+
+function Info({ title, rows }: { title: string; rows: string[][] }) {
+  return <article className="info-card"><div className="info-title"><h2>{title}</h2></div>{rows.map(([label, value]) => <div className="info-row" key={`${label}-${value}`}><span>{label}</span><strong>{value}</strong></div>)}</article>;
+}

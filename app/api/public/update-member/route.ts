@@ -11,12 +11,19 @@ function verifyToken(token: string, secret: string) {
     const expiresAt = Number(expiresText);
     if (!memberId || !expiresAt || !signature || Date.now() > expiresAt) return null;
     const expected = createHmac('sha256', secret).update(`${memberId}.${expiresAt}`).digest('hex');
-    const a = Buffer.from(signature); const b = Buffer.from(expected);
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
     return memberId;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
-function blank(value: unknown) { return value == null || String(value).trim() === ''; }
+
+function cleanText(value: unknown, max = 500) {
+  const text = String(value ?? '').trim();
+  return text ? text.slice(0, max) : null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -24,37 +31,54 @@ export async function POST(request: Request) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 });
+
     const memberId = verifyToken(String(body?.token ?? ''), key);
     if (!memberId) return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
 
+    const proposedData = {
+      birth_date: /^\d{4}-\d{2}-\d{2}$/.test(String(body.birthDate || '')) ? String(body.birthDate) : null,
+      phone: cleanText(body.phone, 30),
+      email: cleanText(body.email, 160),
+      address: cleanText(body.address, 250),
+      neighborhood: cleanText(body.neighborhood, 120),
+      city: cleanText(body.city, 120),
+      marital_status: cleanText(body.maritalStatus, 50),
+      spouse_name: cleanText(body.spouseName, 180),
+      has_children: body.hasChildren === '' || body.hasChildren == null ? null : Boolean(body.hasChildren),
+      children_names: cleanText(body.childrenNames, 500),
+      water_baptized: body.waterBaptized === '' || body.waterBaptized == null ? null : Boolean(body.waterBaptized),
+      holy_spirit_baptized: body.holySpiritBaptized === '' || body.holySpiritBaptized == null ? null : Boolean(body.holySpiritBaptized),
+      fundamentos_fe: body.fundamentosFe === '' || body.fundamentosFe == null ? null : Boolean(body.fundamentosFe),
+      talents: cleanText(body.talents, 1000),
+      ministry: Array.isArray(body.ministries)
+        ? body.ministries.map((item: unknown) => String(item).trim()).filter(Boolean).slice(0, 20)
+        : [],
+      notes: cleanText(body.notes, 1000),
+    };
+
+    const hasAnyProposal = Object.values(proposedData).some(value => Array.isArray(value) ? value.length > 0 : value !== null && value !== '');
+    if (!hasAnyProposal) return NextResponse.json({ error: 'Informe ao menos um dado para atualização.' }, { status: 400 });
+
     const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: current, error: readError } = await supabase.from('members').select('*').eq('id', memberId).single();
-    if (readError || !current) return NextResponse.json({ error: 'Cadastro não localizado.' }, { status: 404 });
+    const { data: existing } = await supabase
+      .from('member_update_requests')
+      .select('id')
+      .eq('member_id', memberId)
+      .eq('status', 'pending')
+      .maybeSingle();
 
-    const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    const fillIfBlank = (column: string, value: unknown) => { if (blank(current[column]) && !blank(value)) payload[column] = String(value).trim(); };
-    fillIfBlank('birth_date', body.birthDate);
-    fillIfBlank('phone', body.phone);
-    fillIfBlank('email', body.email);
-    fillIfBlank('address', body.address);
-    fillIfBlank('neighborhood', body.neighborhood);
-    fillIfBlank('city', body.city);
-    fillIfBlank('marital_status', body.maritalStatus);
-    fillIfBlank('spouse_name', body.spouseName);
+    const query = existing
+      ? supabase.from('member_update_requests').update({ proposed_data: proposedData, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      : supabase.from('member_update_requests').insert({ member_id: memberId, proposed_data: proposedData, status: 'pending', source: 'public_lookup' });
 
-    payload.has_children = Boolean(body.hasChildren);
-    payload.children_names = Boolean(body.hasChildren) ? String(body.childrenNames || '').trim() || null : null;
-    payload.water_baptized = Boolean(body.waterBaptized);
-    payload.holy_spirit_baptized = Boolean(body.holySpiritBaptized);
-    payload.fundamentos_fe = Boolean(body.fundamentosFe);
-    payload.talents = String(body.talents || '').trim() || null;
-    payload.ministry = String(body.ministry || '').trim() || current.ministry || null;
-    if (payload.phone || current.phone) payload.whatsapp_consent = true;
+    const { error } = await query;
+    if (error) {
+      console.error('Member update request error:', error.message);
+      return NextResponse.json({ error: 'Não foi possível enviar sua solicitação.' }, { status: 500 });
+    }
 
-    const { error } = await supabase.from('members').update(payload).eq('id', memberId);
-    if (error) return NextResponse.json({ error: 'Não foi possível salvar sua atualização.' }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, pendingReview: true });
   } catch {
-    return NextResponse.json({ error: 'Não foi possível salvar sua atualização.' }, { status: 500 });
+    return NextResponse.json({ error: 'Não foi possível enviar sua solicitação.' }, { status: 500 });
   }
 }

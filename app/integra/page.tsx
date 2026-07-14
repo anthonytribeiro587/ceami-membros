@@ -27,7 +27,6 @@ type FormDataState = {
   talents: string;
   ministry: string;
   notes: string;
-  whatsapp_consent: boolean;
 };
 
 const initialData: FormDataState = {
@@ -35,7 +34,7 @@ const initialData: FormDataState = {
   address: '', neighborhood: '', city: '', zip_code: '', has_children: false, children_names: '',
   previous_church: false, previous_church_name: '', water_baptized: false, baptism_church: '',
   baptism_date: '', holy_spirit_baptized: false, fundamentos_fe: false, fundamentos_fe_date: '',
-  talents: '', ministry: 'Sem ministério', notes: '', whatsapp_consent: true,
+  talents: '', ministry: 'Sem ministério', notes: '',
 };
 
 const steps = ['Seus dados', 'Família e endereço', 'Caminhada de fé', 'Talentos e ministério'];
@@ -139,8 +138,6 @@ export default function IntegraPage() {
           <Field label="Talentos e habilidades"><textarea value={data.talents} onChange={e => update('talents', e.target.value)} placeholder="Ex.: música, ensino, recepção, crianças..." /></Field>
           <Field label="Ministério que participa"><select value={data.ministry} onChange={e => update('ministry', e.target.value)}><option>Sem ministério</option><option>Louvor</option><option>Jovens</option><option>Infantil</option><option>Ação social</option><option>Intercessão</option><option>Recepção</option><option>Outro</option></select></Field>
           <Field label="Algo que gostaria de compartilhar?"><textarea value={data.notes} onChange={e => update('notes', e.target.value)} /></Field>
-          <Toggle label="Autorizo a CEAMI a entrar em contato comigo pelo WhatsApp" checked={data.whatsapp_consent} onChange={value => update('whatsapp_consent', value)} />
-          <p className="consent-help">Essa opção já vem marcada para permitir avisos da igreja, acompanhamento e felicitações. Você pode desmarcar.</p>
         </>}
       </div>
 

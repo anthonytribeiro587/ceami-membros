@@ -1,4 +1,4 @@
-.brand-symbol{font-size:0;background:#fff url('/brand/ceami-icon.svg') center/cover no-repeat!important;overflow:hidden;box-shadow:0 7px 18px rgba(23,55,70,.12)}
+.brand-symbol{font-size:0;background:#fff url('/brand/ceami-icon.svg?v=official-2') center/cover no-repeat!important;overflow:hidden;box-shadow:0 7px 18px rgba(23,55,70,.12)}
 .site-footer{min-height:48px;padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;background:#102f3d;color:#bfd0d7;font-size:12px;letter-spacing:.02em;border-top:1px solid rgba(255,255,255,.08)}
 .site-footer a{color:#fff;text-decoration:none}.site-footer a:hover{text-decoration:underline}.site-footer strong{color:#ff8a5f}
 @media(max-width:760px){.site-footer{padding-bottom:calc(88px + env(safe-area-inset-bottom));font-size:11px}.brand-symbol{width:50px;height:50px;border-radius:16px}}

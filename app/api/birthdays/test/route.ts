@@ -20,6 +20,14 @@ type BirthdayMember = {
   mentionJid: string | null;
 };
 
+type GroupParticipant = {
+  id?: string;
+  jid?: string;
+  remoteJid?: string;
+  phoneNumber?: string;
+  phone?: string;
+};
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -41,12 +49,52 @@ function titleCase(value: string) {
     .join(' ');
 }
 
+function onlyDigits(value: unknown) {
+  return String(value || '').replace(/\D/g, '');
+}
+
 function normalizeBrazilPhone(value: string | null) {
-  let digits = String(value || '').replace(/\D/g, '');
+  let digits = onlyDigits(value);
   if (!digits) return '';
   if (digits.startsWith('0')) digits = digits.replace(/^0+/, '');
   if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
   return digits.length >= 12 && digits.length <= 13 ? digits : '';
+}
+
+function phoneVariants(phone: string) {
+  const variants = new Set<string>([phone]);
+  if (!phone.startsWith('55')) return variants;
+
+  if (phone.length === 13 && phone.charAt(4) === '9') {
+    variants.add(`${phone.slice(0, 4)}${phone.slice(5)}`);
+  }
+
+  if (phone.length === 12) {
+    variants.add(`${phone.slice(0, 4)}9${phone.slice(4)}`);
+  }
+
+  return variants;
+}
+
+function participantJid(participant: GroupParticipant) {
+  return participant.id || participant.jid || participant.remoteJid || '';
+}
+
+function participantPhones(participant: GroupParticipant) {
+  const values = [participant.phoneNumber, participant.phone];
+  const jid = participantJid(participant);
+
+  if (jid && !jid.endsWith('@lid')) {
+    values.push(jid.split('@')[0]);
+  }
+
+  const phones = new Set<string>();
+  for (const value of values) {
+    const digits = normalizeBrazilPhone(String(value || '')) || onlyDigits(value);
+    if (!digits) continue;
+    for (const variant of phoneVariants(digits)) phones.add(variant);
+  }
+  return phones;
 }
 
 function toBirthdayMember(member: MemberRow): BirthdayMember {
@@ -83,7 +131,9 @@ function getBrazilDate() {
 }
 
 function memberLine(member: BirthdayMember) {
-  return member.phone ? `*${member.name}* — @${member.phone}` : `*${member.name}*`;
+  return member.mentionJid && member.phone
+    ? `*${member.name}* — @${member.phone}`
+    : `*${member.name}*`;
 }
 
 function buildMessage(members: BirthdayMember[]) {
@@ -119,6 +169,57 @@ async function getSimulationMembers(service: SupabaseClient) {
     .map(toBirthdayMember)
     .filter((member) => Boolean(member.phone))
     .map(({ id, name, phone }) => ({ id, name, phone }));
+}
+
+async function fetchGroupParticipants(
+  apiUrl: string,
+  apiKey: string,
+  instance: string,
+  groupId: string,
+) {
+  const response = await fetch(
+    `${apiUrl}/group/participants/${encodeURIComponent(instance)}?groupJid=${encodeURIComponent(groupId)}`,
+    {
+      method: 'GET',
+      headers: { apikey: apiKey },
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) return [] as GroupParticipant[];
+
+  const payload = (await response.json()) as
+    | GroupParticipant[]
+    | { participants?: GroupParticipant[]; data?: { participants?: GroupParticipant[] } };
+
+  if (Array.isArray(payload)) return payload;
+  return payload.participants || payload.data?.participants || [];
+}
+
+async function resolveGroupMentions(
+  members: BirthdayMember[],
+  apiUrl: string,
+  apiKey: string,
+  instance: string,
+  groupId: string,
+) {
+  const participants = await fetchGroupParticipants(apiUrl, apiKey, instance, groupId);
+
+  return members.map((member) => {
+    if (!member.phone) return { ...member, mentionJid: null };
+
+    const wanted = phoneVariants(member.phone);
+    const participant = participants.find((item) => {
+      const available = participantPhones(item);
+      return [...wanted].some((phone) => available.has(phone));
+    });
+
+    const exactJid = participant ? participantJid(participant) : '';
+    return {
+      ...member,
+      mentionJid: exactJid || `${member.phone}@s.whatsapp.net`,
+    };
+  });
 }
 
 export async function GET() {
@@ -223,7 +324,7 @@ export async function POST(request: Request) {
       }
 
       const member = toBirthdayMember(data as MemberRow);
-      if (!member.phone || !member.mentionJid) {
+      if (!member.phone) {
         return NextResponse.json(
           { error: 'Esse membro não possui um WhatsApp válido para ser mencionado.' },
           { status: 400 },
@@ -232,6 +333,8 @@ export async function POST(request: Request) {
 
       members = [member];
     }
+
+    members = await resolveGroupMentions(members, apiUrl, apiKey, instance, groupId);
 
     const names = members.map((member) => member.name);
     const mentioned = members
@@ -262,6 +365,7 @@ export async function POST(request: Request) {
     }
 
     const logBase = {
+      member_id: members[0]?.id,
       send_date: today.date,
       group_id: groupId,
       group_name: 'Grupo de teste CEAMI',

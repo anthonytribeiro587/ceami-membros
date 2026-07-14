@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { Bell, Cake, ChevronRight, CircleUserRound, LayoutDashboard, Menu, MessageCircle, Plus, Search, Settings, Users, X } from 'lucide-react';
 
@@ -50,10 +51,10 @@ export default function Home() {
     <main className="app-shell">
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark">✦</div>
-          <div><strong>CEAMI</strong><span>Membros</span></div>
+          <Image src="/ceami-logo.svg" alt="CEAMI — Comunidade Evangélica Amigo Mais Que Irmão" width={210} height={68} priority />
           <button className="icon-button close-menu" onClick={() => setMenuOpen(false)} aria-label="Fechar menu"><X size={20} /></button>
         </div>
+        <div className="module-label">GESTÃO DE MEMBROS</div>
         <nav>
           <a className="active"><LayoutDashboard size={19} /> Visão geral</a>
           <a><Users size={19} /> Membros</a>
@@ -61,18 +62,19 @@ export default function Home() {
           <a><MessageCircle size={19} /> Mensagens</a>
           <a><Settings size={19} /> Configurações</a>
         </nav>
-        <div className="church-card"><small>Comunidade Evangélica</small><strong>Amigo Mais Que Irmão</strong></div>
+        <div className="church-card"><small>CEAMI</small><strong>Amigo Mais Que Irmão</strong><span>Cuidando de pessoas.</span></div>
       </aside>
 
       <section className="content">
         <header className="topbar">
           <button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Abrir menu"><Menu size={22} /></button>
-          <div><h1>Olá, Secretaria 👋</h1><p>Acompanhe a comunidade hoje.</p></div>
+          <div><h1>Olá, Secretaria 👋</h1><p>Acompanhe e cuide da comunidade CEAMI.</p></div>
           <div className="top-actions"><button className="icon-button"><Bell size={20} /><i /></button><div className="avatar">CE</div></div>
         </header>
 
         <section className="hero-card">
-          <div><span className="eyebrow">CEAMI MEMBROS</span><h2>Cuidar de pessoas começa por conhecê-las.</h2><p>Cadastre, acompanhe e celebre cada membro da nossa comunidade.</p></div>
+          <div className="hero-logo" aria-hidden="true"><Image src="/ceami-logo.svg" alt="" width={430} height={140} /></div>
+          <div className="hero-content"><span className="eyebrow">CEAMI • MEMBROS</span><h2>Cada pessoa importa.<br />Cada história merece cuidado.</h2><p>Cadastro, acompanhamento e aniversários em um só lugar.</p></div>
           <button className="primary-button" onClick={() => setModalOpen(true)}><Plus size={18} /> Novo membro</button>
         </section>
 

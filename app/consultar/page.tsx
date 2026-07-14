@@ -93,15 +93,15 @@ export default function ConsultarCadastroPage() {
     <header className="lookup-brand"><div className="lookup-symbol">CE</div><div><strong>CEAMI</strong><span>Comunidade Evangélica Amigo Mais Que Irmão</span></div></header>
 
     {(['idle', 'loading', 'error'] as Result[]).includes(result) && <>
-      <div className="lookup-intro"><span>ATUALIZAÇÃO DE CADASTRO</span><h1>Consulte seu cadastro</h1><p>Confirme sua identidade. Nenhum dado já salvo será exibido nesta página.</p></div>
+      <div className="lookup-intro"><span>ATUALIZAÇÃO DE CADASTRO</span><h1>Consulte seu cadastro</h1><p>Digite seu nome — pode ser apenas o primeiro — e sua data de nascimento.</p></div>
       <form onSubmit={handleSubmit} className="lookup-form">
-        <Field label="Nome"><input value={name} onChange={e => setName(e.target.value)} required /></Field>
+        <Field label="Nome"><input value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: Anthony" required /></Field>
         <Field label="Data de nascimento"><input value={birthDate} onChange={e => setBirthDate(e.target.value)} type="date" /></Field>
-        <div className="two-fields"><Field label="WhatsApp"><input value={lookupPhone} onChange={e => setLookupPhone(e.target.value)} inputMode="tel" /></Field><Field label="E-mail"><input value={lookupEmail} onChange={e => setLookupEmail(e.target.value)} type="email" /></Field></div>
+        <div className="privacy-note"><ShieldCheck size={18} /><span>WhatsApp ou e-mail são alternativas apenas para quem não possui nascimento cadastrado.</span></div>
+        <div className="two-fields"><Field label="WhatsApp (alternativa)"><input value={lookupPhone} onChange={e => setLookupPhone(e.target.value)} inputMode="tel" /></Field><Field label="E-mail (alternativa)"><input value={lookupEmail} onChange={e => setLookupEmail(e.target.value)} type="email" /></Field></div>
         {result === 'error' && <div className="lookup-error">{message}</div>}
         <button disabled={result === 'loading'}><Search size={19} />{result === 'loading' ? 'Consultando...' : 'Consultar cadastro'}</button>
       </form>
-      <div className="privacy-note"><ShieldCheck size={18} /><span>É necessário nome e pelo menos uma confirmação correspondente.</span></div>
     </>}
 
     {(result === 'found' || result === 'submitting') && <>
@@ -130,7 +130,7 @@ export default function ConsultarCadastroPage() {
     </>}
 
     {result === 'saved' && <section className="lookup-result success"><CheckCircle2 /><span>SOLICITAÇÃO ENVIADA</span><h1>Obrigado!</h1><p>A secretaria recebeu sua atualização e fará a conferência antes de aplicar as alterações.</p><button type="button" onClick={reset} className="secondary-action">Finalizar</button></section>}
-    {result === 'not-found' && <section className="lookup-result pending"><UserPlus /><span>CADASTRO NÃO CONFIRMADO</span><h1>Não conseguimos confirmar sua identidade</h1><p>Confira os dados ou preencha a ficha completa do Integra.</p><Link href="/integra" className="primary-link">Preencher ficha do Integra <ArrowRight size={19} /></Link><button type="button" onClick={reset} className="secondary-action">Tentar novamente</button></section>}
+    {result === 'not-found' && <section className="lookup-result pending"><UserPlus /><span>CADASTRO NÃO CONFIRMADO</span><h1>Não conseguimos confirmar sua identidade</h1><p>Confira o nome e a data de nascimento. Caso não tenha cadastro, preencha a ficha completa do Integra.</p><Link href="/integra" className="primary-link">Preencher ficha do Integra <ArrowRight size={19} /></Link><button type="button" onClick={reset} className="secondary-action">Tentar novamente</button></section>}
   </section></main>;
 }
 

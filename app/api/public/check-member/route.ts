@@ -66,7 +66,10 @@ export async function POST(request: Request) {
     if (!url || !key) return NextResponse.json({ found: false, error: 'Consulta temporariamente indisponível.' }, { status: 503 });
 
     const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data, error } = await supabase.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(500);
+    const [{ data, error }, { data: departments }] = await Promise.all([
+      supabase.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(500),
+      supabase.from('departments').select('name').order('name', { ascending: true }),
+    ]);
     if (error) return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
 
     const members = (data || []) as MemberCandidate[];
@@ -103,9 +106,11 @@ export async function POST(request: Request) {
     }
 
     const member = best.member;
+    const ministryOptions = Array.from(new Set((departments || []).map(item => String(item.name || '').trim()).filter(Boolean)));
     return NextResponse.json({
       found: true,
       token: sign(member.id, key),
+      ministryOptions,
       member: {
         fullName: member.full_name,
         hasChildren: Boolean(member.has_children), childrenNames: member.children_names || '',

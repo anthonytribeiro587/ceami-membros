@@ -26,13 +26,19 @@ export async function POST(request: Request) {
     const token = String(body?.token ?? '');
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceRoleKey) return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 });
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 });
+    }
 
     const memberId = verifyToken(token, serviceRoleKey);
-    if (!memberId) return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
+    if (!memberId) {
+      return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
+    }
 
     const phone = String(body.phone || '').trim();
+    const birthDate = String(body.birthDate || '').trim();
     const payload = {
+      birth_date: /^\d{4}-\d{2}-\d{2}$/.test(birthDate) ? birthDate : null,
       phone: phone || null,
       email: String(body.email || '').trim() || null,
       address: String(body.address || '').trim() || null,
@@ -49,7 +55,9 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
     const { error } = await supabase.from('members').update(payload).eq('id', memberId);
     if (error) {
       console.error('Public member update error:', error.message);

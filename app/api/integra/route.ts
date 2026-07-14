@@ -21,9 +21,10 @@ export async function POST(request: Request) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const phone = String(body.phone || '').trim();
     const payload = {
       full_name: fullName,
-      phone: body.phone || null,
+      phone: phone || null,
       email: body.email || null,
       birth_date: body.birth_date || null,
       marital_status: body.marital_status || null,
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       talents: body.talents || null,
       ministry: body.ministry || 'Sem ministério',
       notes: body.notes || null,
-      whatsapp_consent: Boolean(body.whatsapp_consent),
+      whatsapp_consent: Boolean(phone),
       status: 'ativo',
       joined_at: new Date().toISOString().slice(0, 10),
     };

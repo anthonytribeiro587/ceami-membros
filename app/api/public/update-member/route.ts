@@ -20,6 +20,10 @@ function verifyToken(token: string, secret: string) {
   }
 }
 
+function isBlank(value: unknown) {
+  return value == null || String(value).trim() === '';
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -35,29 +39,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
     }
 
-    const phone = String(body.phone || '').trim();
-    const birthDate = String(body.birthDate || '').trim();
-    const payload = {
-      birth_date: /^\d{4}-\d{2}-\d{2}$/.test(birthDate) ? birthDate : null,
-      phone: phone || null,
-      email: String(body.email || '').trim() || null,
-      address: String(body.address || '').trim() || null,
-      neighborhood: String(body.neighborhood || '').trim() || null,
-      city: String(body.city || '').trim() || null,
-      marital_status: String(body.maritalStatus || '').trim() || null,
-      spouse_name: String(body.spouseName || '').trim() || null,
-      has_children: Boolean(body.hasChildren),
-      children_names: String(body.childrenNames || '').trim() || null,
-      water_baptized: Boolean(body.waterBaptized),
-      holy_spirit_baptized: Boolean(body.holySpiritBaptized),
-      fundamentos_fe: Boolean(body.fundamentosFe),
-      whatsapp_consent: Boolean(phone),
-      updated_at: new Date().toISOString(),
-    };
-
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    const { data: current, error: readError } = await supabase
+      .from('members')
+      .select('birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name')
+      .eq('id', memberId)
+      .single();
+
+    if (readError || !current) {
+      return NextResponse.json({ error: 'Cadastro não localizado.' }, { status: 404 });
+    }
+
+    const payload: Record<string, string | boolean | null> = {};
+    const birthDate = String(body.birthDate || '').trim();
+    const phone = String(body.phone || '').trim();
+    const email = String(body.email || '').trim();
+    const address = String(body.address || '').trim();
+    const neighborhood = String(body.neighborhood || '').trim();
+    const city = String(body.city || '').trim();
+    const maritalStatus = String(body.maritalStatus || '').trim();
+    const spouseName = String(body.spouseName || '').trim();
+
+    if (isBlank(current.birth_date) && /^\d{4}-\d{2}-\d{2}$/.test(birthDate)) payload.birth_date = birthDate;
+    if (isBlank(current.phone) && phone) {
+      payload.phone = phone;
+      payload.whatsapp_consent = true;
+    }
+    if (isBlank(current.email) && email) payload.email = email;
+    if (isBlank(current.address) && address) payload.address = address;
+    if (isBlank(current.neighborhood) && neighborhood) payload.neighborhood = neighborhood;
+    if (isBlank(current.city) && city) payload.city = city;
+    if (isBlank(current.marital_status) && maritalStatus) payload.marital_status = maritalStatus;
+    if (isBlank(current.spouse_name) && spouseName) payload.spouse_name = spouseName;
+
+    if (!Object.keys(payload).length) {
+      return NextResponse.json({ ok: true, unchanged: true });
+    }
+
+    payload.updated_at = new Date().toISOString();
     const { error } = await supabase.from('members').update(payload).eq('id', memberId);
     if (error) {
       console.error('Public member update error:', error.message);

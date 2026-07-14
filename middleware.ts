@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = ['/login', '/integra', '/consultar'];
+const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/materiais'];
+const ADMIN_API_PATHS = ['/api/birthdays/test', '/api/birthdays/settings', '/api/birthdays/history'];
 
 type CookieToSet = {
   name: string;
@@ -37,15 +39,9 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet: CookieToSet[]) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        });
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
     },
   });
@@ -59,6 +55,23 @@ export async function middleware(request: NextRequest) {
     loginUrl.pathname = '/login';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const requiresAdmin =
+    ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
+    ADMIN_API_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+
+  if (requiresAdmin) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    if (profile?.role !== 'admin') {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
+      }
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = '/';
+      homeUrl.searchParams.set('acesso', 'negado');
+      return NextResponse.redirect(homeUrl);
+    }
   }
 
   return response;

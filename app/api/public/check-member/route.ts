@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     if (name.length < 3 || (!validBirthDate && !validPhone && !validEmail)) {
-      return NextResponse.json({ found: false, error: 'Informe seu nome e pelo menos uma confirmação: nascimento, telefone ou e-mail.' }, { status: 400 });
+      return NextResponse.json({ found: false, error: 'Informe seu nome e a data de nascimento. WhatsApp ou e-mail podem ser usados como alternativa.' }, { status: 400 });
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -87,14 +87,26 @@ export async function POST(request: Request) {
       const emailMatchesMember = validEmail && String(member.email || '').trim().toLowerCase() === email;
       const confirmations = [birthMatches, phoneMatchesMember, emailMatchesMember].filter(Boolean).length;
       const exactName = normalize(member.full_name) === normalizedName;
+      const abbreviatedMatch = abbreviatedNameMatches(name, member.full_name);
       const uniqueContact = (phoneMatchesMember && phoneMatches === 1) || (emailMatchesMember && emailMatches === 1);
-      return { member, confirmations, exactName, uniqueContact, abbreviatedMatch: abbreviatedNameMatches(name, member.full_name), score: nameScore(name, member.full_name) };
-    }).filter(item => item.confirmations > 0 && (item.exactName || (item.uniqueContact && item.abbreviatedMatch) || (item.confirmations >= 2 && item.score >= 0.65)))
-      .sort((a, b) => Number(b.exactName) - Number(a.exactName) || Number(b.uniqueContact) - Number(a.uniqueContact) || b.confirmations - a.confirmations || b.score - a.score);
+      const birthAndNameMatch = Boolean(birthMatches && abbreviatedMatch);
+      return { member, confirmations, exactName, abbreviatedMatch, uniqueContact, birthAndNameMatch, score: nameScore(name, member.full_name) };
+    }).filter(item => item.confirmations > 0 && (
+      item.exactName ||
+      item.birthAndNameMatch ||
+      (item.uniqueContact && item.abbreviatedMatch) ||
+      (item.confirmations >= 2 && item.score >= 0.65)
+    )).sort((a, b) =>
+      Number(b.exactName) - Number(a.exactName) ||
+      Number(b.birthAndNameMatch) - Number(a.birthAndNameMatch) ||
+      Number(b.uniqueContact) - Number(a.uniqueContact) ||
+      b.confirmations - a.confirmations ||
+      b.score - a.score
+    );
 
     const best = candidates[0];
     const second = candidates[1];
-    if (!best || (second && best.exactName === second.exactName && best.uniqueContact === second.uniqueContact && best.confirmations === second.confirmations)) {
+    if (!best || (second && best.exactName === second.exactName && best.birthAndNameMatch === second.birthAndNameMatch && best.uniqueContact === second.uniqueContact && best.confirmations === second.confirmations)) {
       return NextResponse.json({ found: false });
     }
 

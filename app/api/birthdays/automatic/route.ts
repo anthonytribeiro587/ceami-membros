@@ -32,15 +32,27 @@ export async function POST() {
   const supabase = serviceClient();
   if (!supabase) return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
 
+  const officialGroupId = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID;
+  if (!officialGroupId) {
+    return NextResponse.json({ error: 'Configure EVOLUTION_GROUP_ID na Vercel.' }, { status: 503 });
+  }
+
+  process.env.EVOLUTION_TEST_GROUP_ID = officialGroupId;
+
   const { data: setting, error } = await supabase
     .from('birthday_automation_settings')
-    .select('enabled,send_time,timezone,test_mode,test_member_id,last_sent_date')
+    .select('enabled,send_time,timezone,test_mode,test_member_id,last_sent_date,group_id')
     .eq('id', 'default')
     .maybeSingle();
 
   if (error || !setting) {
     return NextResponse.json({ error: 'Execute a migration da automação.', details: error?.message }, { status: 503 });
   }
+
+  if (setting.group_id !== officialGroupId) {
+    await supabase.from('birthday_automation_settings').update({ group_id: officialGroupId, updated_at: new Date().toISOString() }).eq('id', 'default');
+  }
+
   if (!setting.enabled) return NextResponse.json({ ok: true, skipped: 'disabled' });
 
   const clock = brazilClock(setting.timezone);
@@ -82,6 +94,7 @@ export async function POST() {
     automatic: true,
     scheduledTime: setting.send_time,
     testMode: setting.test_mode,
+    groupId: officialGroupId,
     result: payload,
   }, { status: result.status });
 }

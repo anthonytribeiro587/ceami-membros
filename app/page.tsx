@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bell, Cake, Check, ChevronRight, LayoutDashboard, Menu, MessageCircle, Plus, Search, Settings, Users, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -55,6 +56,20 @@ const nav = [
   ['settings', 'Ajustes', Settings],
 ] as const;
 
+const LOWERCASE_WORDS = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+
+function titleCase(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase('pt-BR')
+    .split(/\s+/)
+    .map((word, index) => {
+      if (index > 0 && LOWERCASE_WORDS.has(word)) return word;
+      return word.charAt(0).toLocaleUpperCase('pt-BR') + word.slice(1);
+    })
+    .join(' ');
+}
+
 function initials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 }
@@ -67,18 +82,28 @@ function birthdayLabel(date: string) {
   return isToday ? 'Hoje' : `${day}/${month}`;
 }
 
+function normalizeRole(value: string) {
+  return value
+    .split(' › ')
+    .map(part => titleCase(part))
+    .join(' › ');
+}
+
 function normalizeMember(row: MemberRowDb, roles: string[] = []): Member {
+  const displayName = titleCase(row.full_name);
+  const normalizedRoles = roles.map(normalizeRole);
+
   return {
     id: row.id,
-    name: row.full_name,
+    name: displayName,
     phone: row.phone || 'Não informado',
     email: row.email || '',
     birthDate: row.birth_date || '',
     birthdayLabel: birthdayLabel(row.birth_date || ''),
-    ministry: roles[0] || row.ministry || 'Sem função cadastrada',
-    roles,
+    ministry: normalizedRoles[0] || (row.ministry ? titleCase(row.ministry) : 'Sem função cadastrada'),
+    roles: normalizedRoles,
     status: row.status || 'ativo',
-    initials: initials(row.full_name),
+    initials: initials(displayName),
     address: row.address || '',
     neighborhood: row.neighborhood || '',
     city: row.city || '',
@@ -91,6 +116,7 @@ function normalizeMember(row: MemberRowDb, roles: string[] = []): Member {
 }
 
 export default function Home() {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,6 +174,10 @@ export default function Home() {
     setLoading(false);
   }
 
+  function openManualForm() {
+    router.push('/integra?origem=painel');
+  }
+
   const filtered = useMemo(() => members.filter(member => {
     const matches = `${member.name} ${member.phone} ${member.ministry} ${member.roles.join(' ')}`
       .toLowerCase()
@@ -188,8 +218,8 @@ export default function Home() {
         {loadError && <section className="panel"><p>{loadError}</p><button className="primary" onClick={() => void loadMembers()}>Tentar novamente</button></section>}
         {loading && !loadError && <section className="panel"><p>Carregando membros do Supabase...</p></section>}
 
-        {!loading && !loadError && screen === 'dashboard' && <Dashboard members={members} onOpen={setProfileId} onRefresh={() => void loadMembers()} />}
-        {!loading && !loadError && screen === 'members' && <MembersPage members={filtered} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onOpen={setProfileId} />}
+        {!loading && !loadError && screen === 'dashboard' && <Dashboard members={members} onOpen={setProfileId} onRefresh={() => void loadMembers()} onNew={openManualForm} />}
+        {!loading && !loadError && screen === 'members' && <MembersPage members={filtered} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} onOpen={setProfileId} onNew={openManualForm} />}
         {!loading && !loadError && screen === 'birthdays' && <SimplePage title="Aniversariantes"><div className="list">{members.filter(member => member.birthDate).sort((a, b) => a.birthDate.slice(5).localeCompare(b.birthDate.slice(5))).map(member => <MemberItem key={member.id} member={member} onOpen={() => setProfileId(member.id)} />)}</div></SimplePage>}
         {!loading && !loadError && screen === 'messages' && <SimplePage title="Mensagens automáticas"><div className="empty"><MessageCircle /><h3>Nenhuma mensagem enviada ainda</h3><p>O histórico de parabéns aparecerá aqui.</p></div></SimplePage>}
         {!loading && !loadError && screen === 'settings' && <SimplePage title="Configurações"><div className="settings"><label>Horário de envio<input type="time" defaultValue="08:00" /></label><label>Mensagem padrão<textarea defaultValue="Hoje celebramos a sua vida! Que Deus continue abençoando sua caminhada. Feliz aniversário! 🎉" /></label><button className="primary" onClick={() => setToast('Configurações salvas')}>Salvar configurações</button></div></SimplePage>}
@@ -202,18 +232,18 @@ export default function Home() {
   );
 }
 
-function Dashboard({ members, onOpen, onRefresh }: { members: Member[]; onOpen: (id: string) => void; onRefresh: () => void }) {
+function Dashboard({ members, onOpen, onRefresh, onNew }: { members: Member[]; onOpen: (id: string) => void; onRefresh: () => void; onNew: () => void }) {
   const pending = members.filter(member => !member.fundamentosFe).length;
   return <>
-    <section className="welcome"><div><span>DADOS REAIS DO SUPABASE</span><h2>Cuidar bem começa com informação simples.</h2><p>{members.length} membros carregados. {pending} ainda precisam concluir Fundamentos da Fé.</p></div><button onClick={onRefresh}>Atualizar dados</button></section>
+    <section className="welcome"><div><span>DADOS REAIS DO SUPABASE</span><h2>Cuidar bem começa com informação simples.</h2><p>{members.length} membros carregados. {pending} ainda precisam concluir Fundamentos da Fé.</p></div><div style={{display:'flex',gap:10,flexWrap:'wrap'}}><button onClick={onRefresh}>Atualizar dados</button><button onClick={onNew}><Plus size={18}/>Novo membro</button></div></section>
     <section className="stats"><article><Users /><div><small>Membros</small><strong>{members.length}</strong></div></article><article><Cake /><div><small>Aniversários hoje</small><strong>{members.filter(member => member.birthdayLabel === 'Hoje').length}</strong></div></article><article><Check /><div><small>Fundamentos pendente</small><strong>{pending}</strong></div></article></section>
-    <section className="panel"><div className="panel-head"><div><h3>Membros cadastrados</h3><p>Dados importados e cadastrados no Supabase.</p></div></div><div className="list">{members.slice(0, 8).map(member => <MemberItem key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div></section>
+    <section className="panel"><div className="panel-head"><div><h3>Membros cadastrados</h3><p>Dados importados e cadastrados no Supabase.</p></div><button className="square" onClick={onNew} aria-label="Adicionar membro"><Plus /></button></div><div className="list">{members.slice(0, 8).map(member => <MemberItem key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div></section>
   </>;
 }
 
-function MembersPage({ members, query, setQuery, filter, setFilter, onOpen }: { members: Member[]; query: string; setQuery: (value: string) => void; filter: Filter; setFilter: (value: Filter) => void; onOpen: (id: string) => void }) {
+function MembersPage({ members, query, setQuery, filter, setFilter, onOpen, onNew }: { members: Member[]; query: string; setQuery: (value: string) => void; filter: Filter; setFilter: (value: Filter) => void; onOpen: (id: string) => void; onNew: () => void }) {
   return <section className="panel members-page">
-    <div className="panel-head"><div><h2>Membros cadastrados</h2><p>{members.length} resultados encontrados.</p></div></div>
+    <div className="panel-head"><div><h2>Membros cadastrados</h2><p>{members.length} resultados encontrados.</p></div><button className="square" onClick={onNew} aria-label="Adicionar novo membro"><Plus /></button></div>
     <div className="search"><Search size={19} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, telefone ou função" /></div>
     <div className="chips"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button><button className={filter === 'birthday' ? 'active' : ''} onClick={() => setFilter('birthday')}>Aniversário hoje</button><button className={filter === 'baptized' ? 'active' : ''} onClick={() => setFilter('baptized')}>Batizados</button><button className={filter === 'fundamentos' ? 'active' : ''} onClick={() => setFilter('fundamentos')}>Fundamentos pendente</button></div>
     <div className="list">{members.map(member => <MemberItem key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div>
@@ -229,7 +259,7 @@ function SimplePage({ title, children }: { title: string; children: React.ReactN
 }
 
 function MemberProfile({ member, onBack }: { member: Member; onBack: () => void }) {
-  return <main className="profile-page"><header><button onClick={onBack}><ArrowLeft /></button><span>Ficha do membro</span><div /></header><section className="profile-hero"><div className="profile-avatar">{member.initials}</div><h1>{member.name}</h1><p>{member.status}</p></section><section className="profile-sections"><Info title="Contato" rows={[["WhatsApp", member.phone], ["E-mail", member.email || 'Não informado'], ["Nascimento", member.birthDate || 'Não informado']]} /><Info title="Endereço" rows={[["Endereço", member.address || 'Não informado'], ["Bairro", member.neighborhood || 'Não informado'], ["Cidade", member.city || 'Não informado']]} /><Info title="Vida cristã" rows={[["Batizado nas águas", member.waterBaptized ? 'Sim' : 'Não informado'], ["Batizado no Espírito Santo", member.holySpiritBaptized ? 'Sim' : 'Não informado'], ["Fundamentos da Fé", member.fundamentosFe ? 'Concluído' : 'Não informado']]} /><Info title="Ministérios e funções" rows={member.roles.length ? member.roles.map((role, index) => [`Função ${index + 1}`, role]) : [["Funções", member.ministry]]} /></section></main>;
+  return <main className="profile-page"><header><button onClick={onBack}><ArrowLeft /></button><span>Ficha do membro</span><div /></header><section className="profile-hero"><div className="profile-avatar">{member.initials}</div><h1>{member.name}</h1><p>{titleCase(member.status)}</p></section><section className="profile-sections"><Info title="Contato" rows={[["WhatsApp", member.phone], ["E-mail", member.email || 'Não informado'], ["Nascimento", member.birthDate || 'Não informado']]} /><Info title="Endereço" rows={[["Endereço", member.address || 'Não informado'], ["Bairro", member.neighborhood || 'Não informado'], ["Cidade", member.city || 'Não informado']]} /><Info title="Vida cristã" rows={[["Batizado nas águas", member.waterBaptized ? 'Sim' : 'Não informado'], ["Batizado no Espírito Santo", member.holySpiritBaptized ? 'Sim' : 'Não informado'], ["Fundamentos da Fé", member.fundamentosFe ? 'Concluído' : 'Não informado']]} /><Info title="Ministérios e funções" rows={member.roles.length ? member.roles.map((role, index) => [`Função ${index + 1}`, role]) : [["Funções", member.ministry]]} /></section></main>;
 }
 
 function Info({ title, rows }: { title: string; rows: string[][] }) {

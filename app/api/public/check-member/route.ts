@@ -15,7 +15,12 @@ type MemberCandidate = {
 function normalize(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
-function onlyDigits(value: string) { const digits = value.replace(/\D/g, ''); return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits; }
+
+function onlyDigits(value: string) {
+  const digits = value.replace(/\D/g, '');
+  return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+}
+
 function nameScore(input: string, stored: string) {
   const a = normalize(input).split(' ').filter(word => word.length > 1);
   const b = normalize(stored).split(' ').filter(word => word.length > 1);
@@ -23,12 +28,21 @@ function nameScore(input: string, stored: string) {
   const matched = a.filter(word => b.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate))).length;
   return matched / Math.max(a.length, b.length);
 }
+
+function abbreviatedNameMatches(input: string, stored: string) {
+  const inputWords = normalize(input).split(' ').filter(word => word.length > 1);
+  const storedWords = normalize(stored).split(' ').filter(word => word.length > 1);
+  if (!inputWords.length) return false;
+  return inputWords.every(word => storedWords.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate)));
+}
+
 function sign(memberId: string, secret: string) {
   const expiresAt = Date.now() + 20 * 60 * 1000;
   const payload = `${memberId}.${expiresAt}`;
   const signature = createHmac('sha256', secret).update(payload).digest('hex');
   return Buffer.from(`${payload}.${signature}`).toString('base64url');
 }
+
 function isBlank(value: unknown) { return value == null || String(value).trim() === ''; }
 
 export async function POST(request: Request) {
@@ -39,29 +53,55 @@ export async function POST(request: Request) {
     const phone = String(body?.phone ?? '').trim();
     const email = String(body?.email ?? '').trim().toLowerCase();
     const validBirthDate = /^\d{4}-\d{2}-\d{2}$/.test(birthDate);
-    const validPhone = onlyDigits(phone).length >= 8;
+    const normalizedPhone = onlyDigits(phone);
+    const validPhone = normalizedPhone.length >= 8;
     const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (name.length < 5 || (!validBirthDate && !validPhone && !validEmail)) {
-      return NextResponse.json({ found: false, error: 'Informe seu nome completo e pelo menos uma confirmação: nascimento, telefone ou e-mail.' }, { status: 400 });
+
+    if (name.length < 3 || (!validBirthDate && !validPhone && !validEmail)) {
+      return NextResponse.json({ found: false, error: 'Informe seu nome e pelo menos uma confirmação: nascimento, telefone ou e-mail.' }, { status: 400 });
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) return NextResponse.json({ found: false, error: 'Consulta temporariamente indisponível.' }, { status: 503 });
+
     const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await supabase.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(500);
     if (error) return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
 
+    const members = (data || []) as MemberCandidate[];
+    const phoneMatches = validPhone ? members.filter(member => onlyDigits(member.phone || '') === normalizedPhone).length : 0;
+    const emailMatches = validEmail ? members.filter(member => String(member.email || '').trim().toLowerCase() === email).length : 0;
     const normalizedName = normalize(name);
-    const candidates = ((data || []) as MemberCandidate[]).map(member => {
-      const confirmations = [validBirthDate && member.birth_date === birthDate, validPhone && onlyDigits(member.phone || '') === onlyDigits(phone), validEmail && String(member.email || '').trim().toLowerCase() === email].filter(Boolean).length;
-      const exactName = normalize(member.full_name) === normalizedName;
-      return { member, confirmations, exactName, score: nameScore(name, member.full_name) };
-    }).filter(item => item.confirmations > 0 && (item.exactName || (item.confirmations >= 2 && item.score >= 0.65)))
-      .sort((a, b) => Number(b.exactName) - Number(a.exactName) || b.confirmations - a.confirmations || b.score - a.score);
 
-    const best = candidates[0]; const second = candidates[1];
-    if (!best || (second && best.exactName === second.exactName && best.confirmations === second.confirmations)) return NextResponse.json({ found: false });
+    const candidates = members.map(member => {
+      const birthMatches = validBirthDate && member.birth_date === birthDate;
+      const phoneMatchesMember = validPhone && onlyDigits(member.phone || '') === normalizedPhone;
+      const emailMatchesMember = validEmail && String(member.email || '').trim().toLowerCase() === email;
+      const confirmations = [birthMatches, phoneMatchesMember, emailMatchesMember].filter(Boolean).length;
+      const exactName = normalize(member.full_name) === normalizedName;
+      const strongUniqueContact = (phoneMatchesMember && phoneMatches === 1) || (emailMatchesMember && emailMatches === 1);
+      const abbreviatedMatch = abbreviatedNameMatches(name, member.full_name);
+      return { member, confirmations, exactName, strongUniqueContact, abbreviatedMatch, score: nameScore(name, member.full_name) };
+    }).filter(item =>
+      item.confirmations > 0 && (
+        item.exactName ||
+        (item.strongUniqueContact && item.abbreviatedMatch) ||
+        (item.confirmations >= 2 && item.score >= 0.65)
+      )
+    ).sort((a, b) =>
+      Number(b.exactName) - Number(a.exactName) ||
+      Number(b.strongUniqueContact) - Number(a.strongUniqueContact) ||
+      b.confirmations - a.confirmations ||
+      b.score - a.score
+    );
+
+    const best = candidates[0];
+    const second = candidates[1];
+    if (!best || (second && best.exactName === second.exactName && best.strongUniqueContact === second.strongUniqueContact && best.confirmations === second.confirmations)) {
+      return NextResponse.json({ found: false });
+    }
+
     const member = best.member;
     return NextResponse.json({
       found: true,

@@ -4,14 +4,16 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import './teste-aniversario.css';
 
-type Birthday = { id: string; name: string };
+type Birthday = { id: string; name: string; phone: string };
+type SimulationMember = { id: string; name: string; phone: string };
 
 type PreviewResponse = {
   date: string;
   displayDate: string;
   birthdays: Birthday[];
+  simulationMembers: SimulationMember[];
   configuration: {
-    apiUrl: string;
+    apiUrlConfigured: boolean;
     instance: string;
     groupId: string;
     apiKeyConfigured: boolean;
@@ -24,15 +26,25 @@ type SendResponse = {
   error?: string;
   message?: string;
   names?: string[];
+  mentioned?: string[];
   historySaved?: boolean;
   historyError?: string | null;
 };
+
+function maskPhone(phone: string) {
+  if (phone.length < 12) return phone;
+  const local = phone.startsWith('55') ? phone.slice(2) : phone;
+  const ddd = local.slice(0, 2);
+  const start = local.slice(2, -4);
+  const end = local.slice(-4);
+  return `(${ddd}) ${start}-${end}`;
+}
 
 export default function TesteAniversarioPage() {
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [sending, setSending] = useState<'simulation' | 'today' | null>(null);
-  const [testName, setTestName] = useState('Anthony Thiago');
+  const [testMemberId, setTestMemberId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [sentMessage, setSentMessage] = useState('');
@@ -55,6 +67,10 @@ export default function TesteAniversarioPage() {
       }
 
       setPreview(data);
+      const anthony = data.simulationMembers.find((member) =>
+        member.name.toLocaleLowerCase('pt-BR').startsWith('anthony thiago'),
+      );
+      setTestMemberId(anthony?.id || data.simulationMembers[0]?.id || '');
     } catch {
       setError('Não foi possível carregar o teste agora.');
     } finally {
@@ -73,7 +89,7 @@ export default function TesteAniversarioPage() {
       const response = await fetch('/api/birthdays/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, testName }),
+        body: JSON.stringify({ mode, testMemberId }),
       });
 
       const data = (await response.json()) as SendResponse;
@@ -85,7 +101,7 @@ export default function TesteAniversarioPage() {
 
       setSuccess(
         mode === 'simulation'
-          ? 'Mensagem de simulação enviada para o grupo de teste.'
+          ? 'Simulação enviada com a menção do membro selecionado.'
           : 'Mensagem dos aniversariantes de hoje enviada para o grupo.',
       );
       setSentMessage(data.message || '');
@@ -99,6 +115,8 @@ export default function TesteAniversarioPage() {
       setSending(null);
     }
   }
+
+  const selectedMember = preview?.simulationMembers.find((member) => member.id === testMemberId);
 
   return (
     <main className="birthday-test-page">
@@ -135,15 +153,19 @@ export default function TesteAniversarioPage() {
                 <strong>{preview.configuration.groupId}</strong>
               </div>
               <div className="birthday-status">
-                <small>Chave da Evolution</small>
-                <strong>{preview.configuration.apiKeyConfigured ? 'Configurada' : 'Não configurada'}</strong>
+                <small>Evolution</small>
+                <strong>
+                  {preview.configuration.apiUrlConfigured && preview.configuration.apiKeyConfigured
+                    ? 'Configurada'
+                    : 'Configuração incompleta'}
+                </strong>
               </div>
             </div>
           )}
 
-          {preview && !preview.configuration.apiKeyConfigured && (
+          {preview && (!preview.configuration.apiKeyConfigured || !preview.configuration.apiUrlConfigured) && (
             <div className="birthday-warning">
-              Cadastre EVOLUTION_API_KEY na Vercel antes de apertar os botões de envio.
+              Confira as variáveis da Evolution na Vercel antes de apertar os botões de envio.
             </div>
           )}
         </section>
@@ -155,7 +177,10 @@ export default function TesteAniversarioPage() {
           {preview && preview.birthdays.length > 0 ? (
             <ul className="birthday-list">
               {preview.birthdays.map((birthday) => (
-                <li key={birthday.id}>{birthday.name}</li>
+                <li key={birthday.id}>
+                  {birthday.name}
+                  {birthday.phone ? <small> • menção disponível</small> : <small> • sem WhatsApp</small>}
+                </li>
               ))}
             </ul>
           ) : (
@@ -164,20 +189,40 @@ export default function TesteAniversarioPage() {
         </section>
 
         <section className="birthday-test-card">
-          <h2>Disparar teste</h2>
+          <h2>Simular aniversário de um membro</h2>
+          <p>O sistema usa o nome e o WhatsApp reais do cadastro para criar a menção no grupo.</p>
+
           <form className="birthday-actions" onSubmit={(event) => void send('simulation', event)}>
             <label className="birthday-field">
-              <span>Nome usado na mensagem simulada</span>
-              <input value={testName} onChange={(event) => setTestName(event.target.value)} />
+              <span>Membro usado na simulação</span>
+              <select value={testMemberId} onChange={(event) => setTestMemberId(event.target.value)}>
+                <option value="">Selecione um membro</option>
+                {preview?.simulationMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} — {maskPhone(member.phone)}
+                  </option>
+                ))}
+              </select>
             </label>
+
+            {selectedMember && (
+              <div className="birthday-warning">
+                A mensagem mencionará {selectedMember.name} usando @{selectedMember.phone}.
+              </div>
+            )}
 
             <div className="birthday-button-row">
               <button
                 type="submit"
                 className="birthday-button primary"
-                disabled={sending !== null || !preview?.configuration.apiKeyConfigured}
+                disabled={
+                  sending !== null ||
+                  !testMemberId ||
+                  !preview?.configuration.apiKeyConfigured ||
+                  !preview?.configuration.apiUrlConfigured
+                }
               >
-                {sending === 'simulation' ? 'Enviando...' : 'Enviar simulação agora'}
+                {sending === 'simulation' ? 'Enviando...' : 'Enviar simulação com menção'}
               </button>
 
               <button
@@ -187,6 +232,7 @@ export default function TesteAniversarioPage() {
                 disabled={
                   sending !== null ||
                   !preview?.configuration.apiKeyConfigured ||
+                  !preview?.configuration.apiUrlConfigured ||
                   !preview?.birthdays.length
                 }
               >

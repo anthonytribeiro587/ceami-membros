@@ -1,13 +1,8 @@
-import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const DEFAULT_API_URL = 'http://147.15.89.173:8080';
-const DEFAULT_INSTANCE = 'nextlead';
-const DEFAULT_TEST_GROUP_ID = '120363427208796760@g.us';
 const TIME_ZONE = 'America/Sao_Paulo';
 
 type MemberRow = {
@@ -16,6 +11,13 @@ type MemberRow = {
   birth_date: string | null;
   status: string | null;
 };
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 
 function titleCase(value: string) {
   const lowerWords = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
@@ -39,9 +41,9 @@ function getBrazilDate() {
     day: '2-digit',
   }).formatToParts(new Date());
 
-  const year = parts.find((part) => part.type === 'year')?.value ?? '';
-  const month = parts.find((part) => part.type === 'month')?.value ?? '';
-  const day = parts.find((part) => part.type === 'day')?.value ?? '';
+  const year = parts.find((part) => part.type === 'year')?.value || '';
+  const month = parts.find((part) => part.type === 'month')?.value || '';
+  const day = parts.find((part) => part.type === 'day')?.value || '';
 
   return {
     date: `${year}-${month}-${day}`,
@@ -59,51 +61,7 @@ function buildMessage(names: string[]) {
   return `🎉 *Hoje é dia de celebrar!*\n\nA CEAMI deseja um feliz aniversário aos nossos aniversariantes de hoje:\n\n${list}\n\nQue Deus continue abençoando cada vida, família e caminhada. Que este novo ciclo seja cheio da presença de Deus, alegria e propósito.\n\nDeixe aqui sua mensagem de carinho! 🧡`;
 }
 
-async function getAdminContext() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !anonKey || !serviceKey) {
-    return { error: 'As variáveis do Supabase não estão configuradas.', status: 503 } as const;
-  }
-
-  const cookieStore = await cookies();
-  const authClient = createServerClient(url, anonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll() {
-        // A rota apenas valida a sessão atual; o middleware cuida da renovação.
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (!user) return { error: 'Sessão expirada.', status: 401 } as const;
-
-  const service = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: profile } = await service
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (profile?.role !== 'admin') {
-    return { error: 'Somente administradores podem enviar mensagens.', status: 403 } as const;
-  }
-
-  return { service, user } as const;
-}
-
-async function getTodayBirthdays(service: ReturnType<typeof createClient>) {
+async function getTodayBirthdays(service: SupabaseClient) {
   const { monthDay } = getBrazilDate();
   const { data, error } = await service
     .from('members')
@@ -113,7 +71,7 @@ async function getTodayBirthdays(service: ReturnType<typeof createClient>) {
 
   if (error) throw new Error(error.message);
 
-  return ((data ?? []) as MemberRow[])
+  return ((data || []) as MemberRow[])
     .filter((member) => {
       const active = String(member.status || 'ativo').toLocaleLowerCase('pt-BR') !== 'inativo';
       return active && member.birth_date?.slice(5) === monthDay;
@@ -122,87 +80,79 @@ async function getTodayBirthdays(service: ReturnType<typeof createClient>) {
 }
 
 export async function GET() {
-  const context = await getAdminContext();
-  if ('error' in context) {
-    return NextResponse.json({ error: context.error }, { status: context.status });
+  const service = getServiceClient();
+  if (!service) {
+    return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
   }
 
   try {
-    const birthdays = await getTodayBirthdays(context.service);
+    const birthdays = await getTodayBirthdays(service);
     const today = getBrazilDate();
-
     return NextResponse.json({
       date: today.date,
       displayDate: today.displayDate,
       birthdays,
       configuration: {
-        apiUrl: process.env.EVOLUTION_API_URL || DEFAULT_API_URL,
-        instance: process.env.EVOLUTION_INSTANCE || DEFAULT_INSTANCE,
-        groupId: process.env.EVOLUTION_TEST_GROUP_ID || DEFAULT_TEST_GROUP_ID,
+        apiUrlConfigured: Boolean(process.env.EVOLUTION_API_URL),
+        instance: process.env.EVOLUTION_INSTANCE || '',
+        groupId: process.env.EVOLUTION_TEST_GROUP_ID || '',
         apiKeyConfigured: Boolean(process.env.EVOLUTION_API_KEY),
       },
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Não foi possível consultar os aniversariantes.' },
+      { error: error instanceof Error ? error.message : 'Erro ao consultar aniversariantes.' },
       { status: 500 },
     );
   }
 }
 
 export async function POST(request: Request) {
-  const context = await getAdminContext();
-  if ('error' in context) {
-    return NextResponse.json({ error: context.error }, { status: context.status });
+  const service = getServiceClient();
+  if (!service) {
+    return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
   }
 
-  const apiUrl = (process.env.EVOLUTION_API_URL || DEFAULT_API_URL).replace(/\/$/, '');
+  const apiUrl = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
   const apiKey = process.env.EVOLUTION_API_KEY;
-  const instance = process.env.EVOLUTION_INSTANCE || DEFAULT_INSTANCE;
-  const groupId = process.env.EVOLUTION_TEST_GROUP_ID || DEFAULT_TEST_GROUP_ID;
+  const instance = process.env.EVOLUTION_INSTANCE;
+  const groupId = process.env.EVOLUTION_TEST_GROUP_ID;
 
-  if (!apiKey) {
+  if (!apiUrl || !apiKey || !instance || !groupId) {
     return NextResponse.json(
-      { error: 'Cadastre EVOLUTION_API_KEY nas variáveis da Vercel antes do teste.' },
+      { error: 'Configure as quatro variáveis da Evolution na Vercel.' },
       { status: 503 },
     );
   }
 
   try {
-    const body = await request.json();
-    const mode = body?.mode === 'today' ? 'today' : 'simulation';
+    const body = (await request.json()) as { mode?: string; testName?: string };
+    const mode: 'today' | 'simulation' = body.mode === 'today' ? 'today' : 'simulation';
     const today = getBrazilDate();
-
-    let members: Array<{ id: string; name: string }> = [];
+    let members: Array<{ id: string; name: string }>;
 
     if (mode === 'today') {
-      members = await getTodayBirthdays(context.service);
+      members = await getTodayBirthdays(service);
       if (!members.length) {
-        return NextResponse.json(
-          { error: 'Não há aniversariantes cadastrados para hoje.' },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: 'Não há aniversariantes hoje.' }, { status: 400 });
       }
 
-      const { data: previous } = await context.service
+      const { data: previous } = await service
         .from('birthday_messages')
-        .select('id, created_at')
+        .select('id')
         .eq('send_date', today.date)
         .eq('group_id', groupId)
         .in('message_type', ['today', 'automatic'])
         .eq('status', 'sent')
-        .maybeSingle();
+        .limit(1);
 
-      if (previous) {
-        return NextResponse.json(
-          { error: 'A mensagem dos aniversariantes de hoje já foi enviada para este grupo.' },
-          { status: 409 },
-        );
+      if (previous && previous.length > 0) {
+        return NextResponse.json({ error: 'A mensagem de hoje já foi enviada.' }, { status: 409 });
       }
     } else {
-      const testName = String(body?.testName || '').trim();
+      const testName = String(body.testName || '').trim();
       if (testName.length < 3) {
-        return NextResponse.json({ error: 'Informe o nome usado na simulação.' }, { status: 400 });
+        return NextResponse.json({ error: 'Informe o nome da simulação.' }, { status: 400 });
       }
       members = [{ id: '', name: titleCase(testName) }];
     }
@@ -210,29 +160,17 @@ export async function POST(request: Request) {
     const names = members.map((member) => member.name);
     const message = buildMessage(names);
 
-    const evolutionResponse = await fetch(
-      `${apiUrl}/message/sendText/${encodeURIComponent(instance)}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: apiKey,
-        },
-        body: JSON.stringify({
-          number: groupId,
-          text: message,
-          delay: 1200,
-          linkPreview: false,
-        }),
-        cache: 'no-store',
-      },
-    );
+    const response = await fetch(`${apiUrl}/message/sendText/${encodeURIComponent(instance)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify({ number: groupId, text: message, delay: 1200, linkPreview: false }),
+      cache: 'no-store',
+    });
 
-    const responseText = await evolutionResponse.text();
-    let providerResponse: Record<string, unknown>;
-
+    const responseText = await response.text();
+    let providerResponse: unknown;
     try {
-      providerResponse = JSON.parse(responseText) as Record<string, unknown>;
+      providerResponse = JSON.parse(responseText);
     } catch {
       providerResponse = { raw: responseText.slice(0, 3000) };
     }
@@ -246,26 +184,18 @@ export async function POST(request: Request) {
       member_names: names,
       message,
       provider_response: providerResponse,
-      created_by: context.user.id,
     };
 
-    if (!evolutionResponse.ok) {
-      await context.service.from('birthday_messages').insert({
+    if (!response.ok) {
+      await service.from('birthday_messages').insert({
         ...logBase,
         status: 'failed',
-        error_message: `Evolution respondeu ${evolutionResponse.status}`,
+        error_message: `Evolution respondeu ${response.status}`,
       });
-
-      return NextResponse.json(
-        {
-          error: `A Evolution recusou o envio (${evolutionResponse.status}).`,
-          details: providerResponse,
-        },
-        { status: 502 },
-      );
+      return NextResponse.json({ error: `Evolution respondeu ${response.status}.` }, { status: 502 });
     }
 
-    const { error: logError } = await context.service.from('birthday_messages').insert({
+    const { error: logError } = await service.from('birthday_messages').insert({
       ...logBase,
       status: 'sent',
     });
@@ -280,7 +210,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.' },
+      { error: error instanceof Error ? error.message : 'Não foi possível enviar.' },
       { status: 500 },
     );
   }

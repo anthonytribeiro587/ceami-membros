@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   description: 'Cadastro de membros, atualização de dados e aniversários automáticos da CEAMI.',
   applicationName: 'CEAMI Membros',
   icons: {
-    icon: [{ url: '/brand/ceami-icon.svg', type: 'image/svg+xml' }],
-    shortcut: '/brand/ceami-icon.svg',
-    apple: '/brand/ceami-icon.svg',
+    icon: [{ url: '/brand/ceami-icon.svg?v=official-2', type: 'image/svg+xml' }],
+    shortcut: '/brand/ceami-icon.svg?v=official-2',
+    apple: '/brand/ceami-icon.svg?v=official-2',
   },
   openGraph: {
     title: 'CEAMI Membros',

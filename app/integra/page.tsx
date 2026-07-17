@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import { Check, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 type FormDataState = {
@@ -38,26 +39,79 @@ const initialData: FormDataState = {
 };
 
 const steps = ['Seus dados', 'Família e endereço', 'Caminhada de fé', 'Talentos e ministério'];
+const identityFields = new Set<keyof FormDataState>(['full_name', 'phone', 'email', 'birth_date']);
 
 export default function IntegraPage() {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<FormDataState>(initialData);
   const [loading, setLoading] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+  const [existingMember, setExistingMember] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
   const progress = useMemo(() => `${step * 25}%`, [step]);
-  const update = <K extends keyof FormDataState>(key: K, value: FormDataState[K]) =>
+  const update = <K extends keyof FormDataState>(key: K, value: FormDataState[K]) => {
     setData(current => ({ ...current, [key]: value }));
+    if (identityFields.has(key)) {
+      setExistingMember(false);
+      setError('');
+    }
+  };
 
-  function next() {
-    if (step === 1 && !data.full_name.trim()) {
+  async function next() {
+    if (step !== 1) {
+      setError('');
+      setStep(current => Math.min(4, current + 1));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (data.full_name.trim().length < 3) {
       setError('Informe seu nome completo para continuar.');
       return;
     }
+
+    const phoneDigits = data.phone.replace(/\D/g, '');
+    if (!data.birth_date && phoneDigits.length < 8 && !data.email.trim()) {
+      setError('Informe a data de nascimento, o WhatsApp ou o e-mail para conferirmos se você já possui cadastro.');
+      return;
+    }
+
+    setCheckingExisting(true);
+    setExistingMember(false);
     setError('');
-    setStep(current => Math.min(4, current + 1));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const response = await fetch('/api/public/check-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.full_name,
+          birthDate: data.birth_date,
+          phone: data.phone,
+          email: data.email,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Não foi possível conferir seu cadastro agora.');
+        return;
+      }
+
+      if (result.found) {
+        setExistingMember(true);
+        return;
+      }
+
+      setStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      setError('Não foi possível conferir seu cadastro. Tente novamente em instantes.');
+    } finally {
+      setCheckingExisting(false);
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -71,7 +125,10 @@ export default function IntegraPage() {
         body: JSON.stringify(data),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Não foi possível enviar sua ficha.');
+      if (!response.ok) {
+        if (response.status === 409 || result.existing) setExistingMember(true);
+        throw new Error(result.error || 'Não foi possível enviar sua ficha.');
+      }
       setSuccess(true);
       localStorage.removeItem('ceami-integra-draft');
     } catch (err) {
@@ -83,7 +140,7 @@ export default function IntegraPage() {
 
   if (success) {
     return <main className="integra-page"><section className="integra-success">
-      <div className="success-icon"><Check size={34} /></div>
+      <div className="success-icon"><Check size={30} /></div>
       <span>FICHA ENVIADA</span>
       <h1>Que alegria ter você conosco!</h1>
       <p>Recebemos suas informações. A equipe da CEAMI poderá manter contato e acompanhar seus próximos passos.</p>
@@ -108,12 +165,14 @@ export default function IntegraPage() {
 
       <div className="integra-fields">
         {step === 1 && <>
+          <div className="integra-check-note"><Search size={17} /><span>Antes de avançar, conferimos se você já possui cadastro para evitar duplicidade.</span></div>
           <Field label="Nome completo"><input value={data.full_name} onChange={e => update('full_name', e.target.value)} autoComplete="name" required /></Field>
           <Field label="WhatsApp"><input value={data.phone} onChange={e => update('phone', e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(51) 99999-9999" /></Field>
           <Field label="E-mail"><input value={data.email} onChange={e => update('email', e.target.value)} type="email" autoComplete="email" /></Field>
           <Field label="Data de nascimento"><input className="date-field" value={data.birth_date} onChange={e => update('birth_date', e.target.value)} type="date" /></Field>
           <Field label="Estado civil"><select value={data.marital_status} onChange={e => update('marital_status', e.target.value)}><option value="">Selecione</option><option>Solteiro</option><option>Casado</option><option>Separado</option><option>Divorciado</option><option>Viúvo</option><option>União estável</option></select></Field>
           {['Casado', 'União estável'].includes(data.marital_status) && <Field label="Nome do cônjuge"><input value={data.spouse_name} onChange={e => update('spouse_name', e.target.value)} /></Field>}
+          {existingMember && <div className="integra-existing"><strong>Encontramos um cadastro com esses dados.</strong><p>Não crie uma segunda ficha. Entre na consulta para conferir ou solicitar a atualização do cadastro existente.</p><Link href="/consultar">Consultar meu cadastro</Link></div>}
         </>}
 
         {step === 2 && <>
@@ -143,8 +202,8 @@ export default function IntegraPage() {
 
       {error && <div className="integra-error">{error}</div>}
       <footer className="integra-actions">
-        {step > 1 ? <button type="button" className="secondary" onClick={() => setStep(step - 1)}><ChevronLeft size={18} />Voltar</button> : <span />}
-        {step < 4 ? <button type="button" className="primary" onClick={next}>Continuar<ChevronRight size={18} /></button> : <button type="submit" className="primary" disabled={loading}>{loading ? 'Enviando...' : 'Enviar minha ficha'}</button>}
+        {step > 1 ? <button type="button" className="secondary" onClick={() => setStep(step - 1)}><ChevronLeft size={17} />Voltar</button> : <span />}
+        {step < 4 ? <button type="button" className="primary" onClick={() => void next()} disabled={checkingExisting || existingMember}>{checkingExisting ? 'Conferindo...' : <>Continuar<ChevronRight size={17} /></>}</button> : <button type="submit" className="primary" disabled={loading}>{loading ? 'Enviando...' : 'Enviar minha ficha'}</button>}
       </footer>
     </form>
     <p className="integra-footer">Seus dados serão usados somente para o cuidado e relacionamento da CEAMI.</p>
@@ -156,5 +215,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className={`integra-toggle ${checked ? 'checked' : ''}`}><span>{label}</span><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><i>{checked && <Check size={16} />}</i></label>;
+  return <label className={`integra-toggle ${checked ? 'checked' : ''}`}><span>{label}</span><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><i>{checked && <Check size={15} />}</i></label>;
 }

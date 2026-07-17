@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Check, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, KeyboardEvent, useMemo, useState } from 'react';
 
 type FormDataState = {
   full_name: string;
@@ -47,6 +47,7 @@ export default function IntegraPage() {
   const [loading, setLoading] = useState(false);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const [existingMember, setExistingMember] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,6 +63,7 @@ export default function IntegraPage() {
   async function next() {
     if (step !== 1) {
       setError('');
+      setReviewing(false);
       setStep(current => Math.min(4, current + 1));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -114,8 +116,35 @@ export default function IntegraPage() {
     }
   }
 
+  function openReview() {
+    setError('');
+    setReviewing(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goBack() {
+    setError('');
+    if (reviewing) {
+      setReviewing(false);
+      return;
+    }
+    setStep(current => Math.max(1, current - 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function preventPrematureSubmit(event: KeyboardEvent<HTMLFormElement>) {
+    if (event.key === 'Enter' && !reviewing && event.target instanceof HTMLInputElement) {
+      event.preventDefault();
+    }
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!reviewing) {
+      setError('Revise a ficha antes de confirmar o envio.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -154,17 +183,17 @@ export default function IntegraPage() {
       <div><strong>CEAMI</strong><span>Comunidade Evangélica Amigo Mais Que Irmão</span></div>
     </header>
 
-    <form className="integra-card" onSubmit={submit}>
+    <form className="integra-card" onSubmit={submit} onKeyDown={preventPrematureSubmit}>
       <div className="integra-heading">
         <span>INTEGRA CEAMI</span>
-        <h1>Queremos conhecer você</h1>
-        <p>Preencha sua ficha com calma. Leva apenas alguns minutos.</p>
+        <h1>{reviewing ? 'Confira antes de enviar' : 'Queremos conhecer você'}</h1>
+        <p>{reviewing ? 'Revise o resumo. A ficha só será enviada após sua confirmação.' : 'Preencha sua ficha com calma. Leva apenas alguns minutos.'}</p>
       </div>
-      <div className="integra-step"><div><small>ETAPA {step} DE 4</small><strong>{steps[step - 1]}</strong></div><span>{step * 25}%</span></div>
+      <div className="integra-step"><div><small>{reviewing ? 'REVISÃO FINAL' : `ETAPA ${step} DE 4`}</small><strong>{reviewing ? 'Confirmação dos dados' : steps[step - 1]}</strong></div><span>100%</span></div>
       <div className="integra-progress"><i style={{ width: progress }} /></div>
 
       <div className="integra-fields">
-        {step === 1 && <>
+        {!reviewing && step === 1 && <>
           <div className="integra-check-note"><Search size={17} /><span>Antes de avançar, conferimos se você já possui cadastro para evitar duplicidade.</span></div>
           <Field label="Nome completo"><input value={data.full_name} onChange={e => update('full_name', e.target.value)} autoComplete="name" required /></Field>
           <Field label="WhatsApp"><input value={data.phone} onChange={e => update('phone', e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(51) 99999-9999" /></Field>
@@ -175,7 +204,7 @@ export default function IntegraPage() {
           {existingMember && <div className="integra-existing"><strong>Encontramos um cadastro com esses dados.</strong><p>Não crie uma segunda ficha. Entre na consulta para conferir ou solicitar a atualização do cadastro existente.</p><Link href="/consultar">Consultar meu cadastro</Link></div>}
         </>}
 
-        {step === 2 && <>
+        {!reviewing && step === 2 && <>
           <Field label="Endereço"><input value={data.address} onChange={e => update('address', e.target.value)} autoComplete="street-address" /></Field>
           <div className="integra-two"><Field label="Bairro"><input value={data.neighborhood} onChange={e => update('neighborhood', e.target.value)} /></Field><Field label="Cidade"><input value={data.city} onChange={e => update('city', e.target.value)} /></Field></div>
           <Field label="CEP"><input value={data.zip_code} onChange={e => update('zip_code', e.target.value)} inputMode="numeric" autoComplete="postal-code" /></Field>
@@ -183,7 +212,7 @@ export default function IntegraPage() {
           {data.has_children && <Field label="Nome dos filhos"><textarea value={data.children_names} onChange={e => update('children_names', e.target.value)} placeholder="Um nome por linha" /></Field>}
         </>}
 
-        {step === 3 && <>
+        {!reviewing && step === 3 && <>
           <Toggle label="Eu frequentava outra igreja" checked={data.previous_church} onChange={value => update('previous_church', value)} />
           {data.previous_church && <Field label="Qual igreja?"><input value={data.previous_church_name} onChange={e => update('previous_church_name', e.target.value)} /></Field>}
           <Toggle label="Sou batizado(a) nas águas" checked={data.water_baptized} onChange={value => update('water_baptized', value)} />
@@ -193,17 +222,40 @@ export default function IntegraPage() {
           {data.fundamentos_fe && <Field label="Data de conclusão"><input className="date-field" value={data.fundamentos_fe_date} onChange={e => update('fundamentos_fe_date', e.target.value)} type="date" /></Field>}
         </>}
 
-        {step === 4 && <>
+        {!reviewing && step === 4 && <>
+          <div className="integra-last-step-note"><strong>Última etapa</strong><span>Preencha com calma. Nada será enviado ao chegar em 100%.</span></div>
           <Field label="Talentos e habilidades"><textarea value={data.talents} onChange={e => update('talents', e.target.value)} placeholder="Ex.: música, ensino, recepção, crianças..." /></Field>
           <Field label="Ministério que participa"><select value={data.ministry} onChange={e => update('ministry', e.target.value)}><option>Sem ministério</option><option>Louvor</option><option>Jovens</option><option>Infantil</option><option>Ação social</option><option>Intercessão</option><option>Recepção</option><option>Outro</option></select></Field>
           <Field label="Algo que gostaria de compartilhar?"><textarea value={data.notes} onChange={e => update('notes', e.target.value)} /></Field>
         </>}
+
+        {reviewing && <section className="integra-review">
+          <ReviewGroup title="Dados pessoais" rows={[
+            ['Nome', data.full_name], ['WhatsApp', data.phone || 'Não informado'], ['E-mail', data.email || 'Não informado'],
+            ['Nascimento', data.birth_date || 'Não informado'], ['Estado civil', data.marital_status || 'Não informado'],
+          ]} />
+          <ReviewGroup title="Família e endereço" rows={[
+            ['Endereço', [data.address, data.neighborhood, data.city].filter(Boolean).join(' • ') || 'Não informado'],
+            ['Filhos', data.has_children ? data.children_names || 'Informado' : 'Não'],
+          ]} />
+          <ReviewGroup title="Caminhada de fé" rows={[
+            ['Batizado nas águas', data.water_baptized ? 'Sim' : 'Não'],
+            ['Batizado no Espírito Santo', data.holy_spirit_baptized ? 'Sim' : 'Não'],
+            ['Fundamentos da Fé', data.fundamentos_fe ? 'Concluído' : 'Não concluído'],
+          ]} />
+          <ReviewGroup title="Talentos e ministério" rows={[
+            ['Talentos', data.talents || 'Não informado'], ['Ministério', data.ministry], ['Observações', data.notes || 'Nenhuma'],
+          ]} />
+          <div className="integra-confirm-note"><Check size={18} /><span>Ao confirmar, esta ficha será enviada uma única vez para a CEAMI.</span></div>
+        </section>}
       </div>
 
       {error && <div className="integra-error">{error}</div>}
       <footer className="integra-actions">
-        {step > 1 ? <button type="button" className="secondary" onClick={() => setStep(step - 1)}><ChevronLeft size={17} />Voltar</button> : <span />}
-        {step < 4 ? <button type="button" className="primary" onClick={() => void next()} disabled={checkingExisting || existingMember}>{checkingExisting ? 'Conferindo...' : <>Continuar<ChevronRight size={17} /></>}</button> : <button type="submit" className="primary" disabled={loading}>{loading ? 'Enviando...' : 'Enviar minha ficha'}</button>}
+        {step > 1 || reviewing ? <button type="button" className="secondary" onClick={goBack}><ChevronLeft size={17} />{reviewing ? 'Editar respostas' : 'Voltar'}</button> : <span />}
+        {step < 4 && !reviewing && <button type="button" className="primary" onClick={() => void next()} disabled={checkingExisting || existingMember}>{checkingExisting ? 'Conferindo...' : <>Continuar<ChevronRight size={17} /></>}</button>}
+        {step === 4 && !reviewing && <button type="button" className="primary" onClick={openReview}>Revisar ficha<ChevronRight size={17} /></button>}
+        {reviewing && <button type="submit" className="primary" disabled={loading}>{loading ? 'Enviando...' : 'Confirmar e enviar'}</button>}
       </footer>
     </form>
     <p className="integra-footer">Seus dados serão usados somente para o cuidado e relacionamento da CEAMI.</p>
@@ -216,4 +268,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className={`integra-toggle ${checked ? 'checked' : ''}`}><span>{label}</span><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><i>{checked && <Check size={15} />}</i></label>;
+}
+
+function ReviewGroup({ title, rows }: { title: string; rows: Array<[string, string]> }) {
+  return <section className="integra-review-group"><h2>{title}</h2>{rows.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>;
 }

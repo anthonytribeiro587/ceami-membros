@@ -28,6 +28,21 @@ type GroupParticipant = {
   phone?: string;
 };
 
+type EvolutionGroup = {
+  id?: string;
+  jid?: string;
+  remoteJid?: string;
+  subject?: string;
+  name?: string;
+};
+
+type ProviderEnvelope = {
+  key?: { id?: string; remoteJid?: string };
+  status?: string;
+  message?: { key?: { id?: string; remoteJid?: string }; status?: string };
+  data?: { key?: { id?: string; remoteJid?: string }; status?: string };
+};
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -84,9 +99,7 @@ function participantPhones(participant: GroupParticipant) {
   const values = [participant.phoneNumber, participant.phone];
   const jid = participantJid(participant);
 
-  if (jid && !jid.endsWith('@lid')) {
-    values.push(jid.split('@')[0]);
-  }
+  if (jid && !jid.endsWith('@lid')) values.push(jid.split('@')[0]);
 
   const phones = new Set<string>();
   for (const value of values) {
@@ -171,6 +184,81 @@ async function getSimulationMembers(service: SupabaseClient) {
     .map(({ id, name, phone }) => ({ id, name, phone }));
 }
 
+function groupJid(group: EvolutionGroup) {
+  return group.id || group.remoteJid || group.jid || '';
+}
+
+function extractGroups(payload: unknown): EvolutionGroup[] {
+  if (Array.isArray(payload)) return payload as EvolutionGroup[];
+  if (!payload || typeof payload !== 'object') return [];
+
+  const value = payload as {
+    groups?: EvolutionGroup[];
+    data?: EvolutionGroup[] | { groups?: EvolutionGroup[] };
+    response?: EvolutionGroup[];
+  };
+
+  if (Array.isArray(value.groups)) return value.groups;
+  if (Array.isArray(value.data)) return value.data;
+  if (value.data && !Array.isArray(value.data) && Array.isArray(value.data.groups)) {
+    return value.data.groups;
+  }
+  if (Array.isArray(value.response)) return value.response;
+  return [];
+}
+
+async function validateEvolutionGroup(
+  apiUrl: string,
+  apiKey: string,
+  instance: string,
+  groupId: string,
+) {
+  const response = await fetch(
+    `${apiUrl}/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`,
+    {
+      method: 'GET',
+      headers: { apikey: apiKey },
+      cache: 'no-store',
+    },
+  );
+
+  const responseText = await response.text();
+  let payload: unknown;
+  try {
+    payload = JSON.parse(responseText);
+  } catch {
+    payload = { raw: responseText.slice(0, 1000) };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      groupName: '',
+      error: `A Evolution não conseguiu listar os grupos da instância “${instance}” (${response.status}).`,
+      details: payload,
+    };
+  }
+
+  const groups = extractGroups(payload);
+  const group = groups.find((item) => groupJid(item) === groupId);
+
+  if (!group) {
+    return {
+      ok: false,
+      groupName: '',
+      error: `A instância “${instance}” não encontrou o grupo configurado. Confira EVOLUTION_INSTANCE, EVOLUTION_API_KEY e EVOLUTION_GROUP_ID na Vercel.`,
+      details: { instance, groupId, groupsFound: groups.length },
+    };
+  }
+
+  return {
+    ok: true,
+    groupName: group.subject || group.name || 'CEAMI GRUPO',
+    error: '',
+    details: null,
+  };
+}
+
 async function fetchGroupParticipants(
   apiUrl: string,
   apiKey: string,
@@ -222,6 +310,18 @@ async function resolveGroupMentions(
   });
 }
 
+function readProviderEnvelope(payload: unknown) {
+  const envelope = (payload || {}) as ProviderEnvelope;
+  const key = envelope.key || envelope.message?.key || envelope.data?.key || {};
+  const status = String(envelope.status || envelope.message?.status || envelope.data?.status || '').toUpperCase();
+
+  return {
+    messageId: String(key.id || ''),
+    remoteJid: String(key.remoteJid || ''),
+    providerStatus: status || 'UNKNOWN',
+  };
+}
+
 export async function GET() {
   const service = getServiceClient();
   if (!service) {
@@ -243,7 +343,7 @@ export async function GET() {
       configuration: {
         apiUrlConfigured: Boolean(process.env.EVOLUTION_API_URL),
         instance: process.env.EVOLUTION_INSTANCE || '',
-        groupId: process.env.EVOLUTION_TEST_GROUP_ID || '',
+        groupId: process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID || '',
         apiKeyConfigured: Boolean(process.env.EVOLUTION_API_KEY),
       },
     });
@@ -264,20 +364,43 @@ export async function POST(request: Request) {
   const apiUrl = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
   const apiKey = process.env.EVOLUTION_API_KEY;
   const instance = process.env.EVOLUTION_INSTANCE;
-  const groupId = process.env.EVOLUTION_TEST_GROUP_ID;
+  const groupId = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID;
 
   if (!apiUrl || !apiKey || !instance || !groupId) {
     return NextResponse.json(
-      { error: 'Configure as quatro variáveis da Evolution na Vercel.' },
+      { error: 'Configure EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE e EVOLUTION_GROUP_ID na Vercel.' },
       { status: 503 },
     );
   }
 
   try {
-    const body = (await request.json()) as { mode?: string; testMemberId?: string };
+    const body = (await request.json()) as { mode?: string; testMemberId?: string; force?: boolean };
     const mode: 'today' | 'simulation' = body.mode === 'today' ? 'today' : 'simulation';
+    const force = Boolean(body.force);
     const today = getBrazilDate();
     let members: BirthdayMember[];
+
+    const groupCheck = await validateEvolutionGroup(apiUrl, apiKey, instance, groupId);
+    if (!groupCheck.ok) {
+      if (mode === 'today') {
+        await service.from('birthday_automation_settings').update({
+          last_sent_at: new Date().toISOString(),
+          last_status: 'failed',
+          last_error: groupCheck.error,
+          updated_at: new Date().toISOString(),
+        }).eq('id', 'default');
+      }
+
+      return NextResponse.json(
+        {
+          error: groupCheck.error,
+          details: groupCheck.details,
+          instance,
+          groupId,
+        },
+        { status: 409 },
+      );
+    }
 
     if (mode === 'today') {
       members = await getTodayBirthdays(service);
@@ -285,27 +408,29 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Não há aniversariantes hoje.' }, { status: 400 });
       }
 
-      const { data: previous, error: lookupError } = await service
-        .from('birthday_messages')
-        .select('id')
-        .eq('send_date', today.date)
-        .eq('group_id', groupId)
-        .in('message_type', ['today', 'automatic'])
-        .eq('status', 'sent')
-        .limit(1);
+      if (!force) {
+        const { data: previous, error: lookupError } = await service
+          .from('birthday_messages')
+          .select('id')
+          .eq('send_date', today.date)
+          .eq('group_id', groupId)
+          .in('message_type', ['today', 'automatic'])
+          .in('status', ['sent', 'queued', 'accepted'])
+          .limit(1);
 
-      if (lookupError) {
-        return NextResponse.json(
-          {
-            error: 'O histórico ainda não está atualizado. Execute a migration de correção antes do envio oficial.',
-            details: lookupError.message,
-          },
-          { status: 503 },
-        );
-      }
+        if (lookupError) {
+          return NextResponse.json(
+            {
+              error: 'O histórico ainda não está atualizado. Execute a migration de correção antes do envio oficial.',
+              details: lookupError.message,
+            },
+            { status: 503 },
+          );
+        }
 
-      if (previous && previous.length > 0) {
-        return NextResponse.json({ error: 'A mensagem de hoje já foi enviada.' }, { status: 409 });
+        if (previous && previous.length > 0) {
+          return NextResponse.json({ error: 'A mensagem de hoje já foi aceita anteriormente. Use o reenvio manual apenas se ela realmente não apareceu no grupo.' }, { status: 409 });
+        }
       }
     } else {
       const testMemberId = String(body.testMemberId || '').trim();
@@ -364,11 +489,19 @@ export async function POST(request: Request) {
       providerResponse = { raw: responseText.slice(0, 3000) };
     }
 
+    const provider = readProviderEnvelope(providerResponse);
+    const rejectedState = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(provider.providerStatus);
+    const accepted =
+      response.ok &&
+      Boolean(provider.messageId) &&
+      provider.remoteJid === groupId &&
+      !rejectedState;
+
     const logBase = {
       member_id: members[0]?.id,
       send_date: today.date,
       group_id: groupId,
-      group_name: 'Grupo de teste CEAMI',
+      group_name: groupCheck.groupName,
       message_type: mode,
       member_ids: members.map((member) => member.id),
       member_names: names,
@@ -376,31 +509,69 @@ export async function POST(request: Request) {
       provider_response: providerResponse,
     };
 
-    if (!response.ok) {
+    if (!accepted) {
+      const reason = !response.ok
+        ? `Evolution respondeu ${response.status}`
+        : `A Evolution não confirmou o destino do grupo. Status: ${provider.providerStatus}; destino: ${provider.remoteJid || 'não informado'}.`;
+
       await service.from('birthday_messages').insert({
         ...logBase,
         status: 'failed',
-        error_message: `Evolution respondeu ${response.status}`,
+        error_message: reason,
       });
+
+      if (mode === 'today') {
+        await service.from('birthday_automation_settings').update({
+          last_sent_date: null,
+          last_sent_at: new Date().toISOString(),
+          last_status: 'failed',
+          last_error: reason,
+          updated_at: new Date().toISOString(),
+        }).eq('id', 'default');
+      }
+
       return NextResponse.json(
-        { error: `Evolution respondeu ${response.status}.`, details: providerResponse },
+        {
+          error: reason,
+          details: providerResponse,
+          instance,
+          groupId,
+        },
         { status: 502 },
       );
     }
 
     const { error: logError } = await service.from('birthday_messages').insert({
       ...logBase,
-      status: 'sent',
+      status: 'queued',
+      error_message: null,
     });
+
+    if (mode === 'today') {
+      await service.from('birthday_automation_settings').update({
+        last_sent_date: today.date,
+        last_sent_at: new Date().toISOString(),
+        last_status: 'queued',
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', 'default');
+    }
 
     return NextResponse.json({
       ok: true,
+      accepted: true,
+      deliveryStatus: 'queued',
+      providerStatus: provider.providerStatus,
+      messageId: provider.messageId,
       message,
       names,
       mentioned,
+      instance,
       groupId,
+      groupName: groupCheck.groupName,
       historySaved: !logError,
       historyError: logError?.message || null,
+      forcedRetry: force,
     });
   } catch (error) {
     return NextResponse.json(

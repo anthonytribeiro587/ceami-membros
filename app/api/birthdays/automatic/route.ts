@@ -5,6 +5,9 @@ import { POST as sendBirthdayMessage } from '../test/route';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+const OFFICIAL_INSTANCE = 'ceamirs';
+const OFFICIAL_GROUP_ID = '120363148206200208@g.us';
+
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,9 +43,29 @@ export async function POST() {
     return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
   }
 
-  const officialGroupId = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID;
-  if (!officialGroupId) {
-    return NextResponse.json({ error: 'Configure EVOLUTION_GROUP_ID na Vercel.' }, { status: 503 });
+  const configuredInstance = process.env.EVOLUTION_INSTANCE || '';
+  const configuredGroupId = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID || '';
+
+  if (configuredInstance !== OFFICIAL_INSTANCE) {
+    return NextResponse.json(
+      {
+        ok: false,
+        skipped: 'wrong_instance',
+        error: `Envio bloqueado: EVOLUTION_INSTANCE deve ser “${OFFICIAL_INSTANCE}”, mas está como “${configuredInstance || 'não configurada'}”.`,
+      },
+      { status: 503 },
+    );
+  }
+
+  if (configuredGroupId !== OFFICIAL_GROUP_ID) {
+    return NextResponse.json(
+      {
+        ok: false,
+        skipped: 'wrong_group',
+        error: `Envio bloqueado: EVOLUTION_GROUP_ID deve ser “${OFFICIAL_GROUP_ID}”.`,
+      },
+      { status: 503 },
+    );
   }
 
   const { data: setting, error } = await supabase
@@ -58,10 +81,10 @@ export async function POST() {
     );
   }
 
-  if (setting.group_id !== officialGroupId) {
+  if (setting.group_id !== OFFICIAL_GROUP_ID) {
     await supabase
       .from('birthday_automation_settings')
-      .update({ group_id: officialGroupId, updated_at: new Date().toISOString() })
+      .update({ group_id: OFFICIAL_GROUP_ID, updated_at: new Date().toISOString() })
       .eq('id', 'default');
   }
 
@@ -133,7 +156,8 @@ export async function POST() {
       automatic: true,
       scheduledTime: setting.send_time,
       testMode: setting.test_mode,
-      groupId: officialGroupId,
+      groupId: OFFICIAL_GROUP_ID,
+      instance: OFFICIAL_INSTANCE,
       accepted,
       result: payload,
     },

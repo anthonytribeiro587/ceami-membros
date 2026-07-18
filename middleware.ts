@@ -3,7 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = ['/login', '/integra', '/consultar'];
 const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/materiais'];
-const ADMIN_API_PATHS = ['/api/birthdays/test', '/api/birthdays/settings', '/api/birthdays/history'];
+const ADMIN_API_PATHS = [
+  '/api/birthdays/test',
+  '/api/birthdays/settings',
+  '/api/birthdays/history',
+  '/api/birthdays/diagnostics',
+];
 
 type CookieToSet = {
   name: string;
@@ -41,7 +46,9 @@ export async function middleware(request: NextRequest) {
       setAll(cookiesToSet: CookieToSet[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options),
+        );
       },
     },
   });
@@ -62,11 +69,20 @@ export async function middleware(request: NextRequest) {
     ADMIN_API_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   if (requiresAdmin) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
     if (profile?.role !== 'admin') {
       if (pathname.startsWith('/api/')) {
-        return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
+        return NextResponse.json(
+          { error: 'Acesso restrito ao administrador.' },
+          { status: 403 },
+        );
       }
+
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = '/';
       homeUrl.searchParams.set('acesso', 'negado');

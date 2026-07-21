@@ -52,6 +52,10 @@ function dateInTimezone(value: string | null, timezone: string) {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+function isConnectionClosed(value: unknown) {
+  return /connection\s+closed/i.test(String(value || ''));
+}
+
 export async function POST() {
   const supabase = serviceClient();
   if (!supabase) {
@@ -74,7 +78,7 @@ export async function POST() {
 
   const { data: setting, error } = await supabase
     .from('birthday_automation_settings')
-    .select('enabled,send_time,timezone,test_mode,last_sent_date,last_sent_at,last_status,group_id')
+    .select('enabled,send_time,timezone,test_mode,last_sent_date,last_sent_at,last_status,last_error,group_id')
     .eq('id', 'default')
     .maybeSingle();
 
@@ -104,6 +108,15 @@ export async function POST() {
     });
   }
 
+  if (isConnectionClosed(setting.last_error)) {
+    return NextResponse.json({
+      ok: true,
+      skipped: 'connection_closed',
+      message:
+        'A automação está pausada porque a sessão WhatsApp da instância “ceamirs” está fechada. Reinicie a instância e faça um envio manual bem-sucedido antes de reativar os disparos automáticos.',
+    });
+  }
+
   const clock = brazilClock(setting.timezone);
   const [hour, minute] = String(setting.send_time).split(':').map(Number);
   const difference = clock.minutes - (hour * 60 + minute);
@@ -121,13 +134,16 @@ export async function POST() {
     return NextResponse.json({ ok: true, skipped: 'already_processed' });
   }
 
-  const failedToday = setting.last_status === 'failed'
-    && dateInTimezone(setting.last_sent_at, setting.timezone) === clock.date;
+  const failedToday =
+    setting.last_status === 'failed' &&
+    dateInTimezone(setting.last_sent_at, setting.timezone) === clock.date;
+
   if (failedToday) {
     return NextResponse.json({
       ok: true,
       skipped: 'failed_today',
-      message: 'A tentativa de hoje falhou e não será repetida automaticamente. A próxima execução será amanhã.',
+      message:
+        'A tentativa de hoje falhou e não será repetida automaticamente. A próxima execução será amanhã.',
     });
   }
 

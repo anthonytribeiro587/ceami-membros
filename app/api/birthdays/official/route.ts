@@ -363,6 +363,15 @@ async function sendLegacyText(
   mentioned: string[],
   mode: EvolutionAttempt['mode'],
 ) {
+  const payload = {
+    number: OFFICIAL_GROUP_ID,
+    text: message,
+    delay: 1200,
+    linkPreview: false,
+    mentionsEveryOne: false,
+    ...(mentioned.length > 0 ? { mentioned } : {}),
+  };
+
   const response = await fetch(
     `${apiUrl}/message/sendText/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
     {
@@ -371,14 +380,7 @@ async function sendLegacyText(
         'Content-Type': 'application/json',
         apikey: apiKey,
       },
-      body: JSON.stringify({
-        number: OFFICIAL_GROUP_ID,
-        text: message,
-        delay: 1200,
-        linkPreview: false,
-        mentionsEveryOne: false,
-        mentioned,
-      }),
+      body: JSON.stringify(payload),
       cache: 'no-store',
       signal: AbortSignal.timeout(25000),
     },

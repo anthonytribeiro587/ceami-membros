@@ -36,6 +36,12 @@ function digits(value: string | null | undefined) {
   return (value || '').replace(/\D/g, '');
 }
 
+function comparablePhone(value: string | null | undefined) {
+  const normalized = digits(value);
+  if (normalized.length < 10) return '';
+  return normalized.slice(-11);
+}
+
 function checkWindow(lesson: PublicLesson) {
   if (!lesson.checkinEnabled) {
     return { open: false, message: 'O check-in desta aula ainda não foi aberto.' };
@@ -159,13 +165,13 @@ export async function POST(request: NextRequest) {
   }
 
   const token = body.token || '';
-  const informedPhone = digits(body.phone);
+  const informedPhone = comparablePhone(body.phone);
 
   if (!UUID_PATTERN.test(token)) {
     return NextResponse.json({ error: 'Link de check-in inválido.' }, { status: 400 });
   }
 
-  if (informedPhone.length < 10 || informedPhone.length > 13) {
+  if (!informedPhone) {
     return NextResponse.json({ error: 'Informe um telefone válido com DDD.' }, { status: 400 });
   }
 
@@ -205,10 +211,9 @@ export async function POST(request: NextRequest) {
 
     if (memberError) throw memberError;
 
-    const matches = (members || []).filter((member) => {
-      const savedPhone = digits(member.phone);
-      return savedPhone === informedPhone || savedPhone.endsWith(informedPhone) || informedPhone.endsWith(savedPhone);
-    });
+    const matches = (members || []).filter(
+      (member) => comparablePhone(member.phone) === informedPhone,
+    );
 
     if (matches.length !== 1) {
       return NextResponse.json(

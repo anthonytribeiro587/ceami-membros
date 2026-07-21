@@ -421,7 +421,7 @@ export async function POST(request: Request) {
     const mentioned = [...new Set(
       members
         .map((member) => member.mentionJid)
-        .filter((jid): jid is string => Boolean(jid) && isValidMentionJid(jid)),
+        .filter((jid): jid is string => typeof jid === 'string' && isValidMentionJid(jid)),
     )];
     const message = buildMessage(members);
 

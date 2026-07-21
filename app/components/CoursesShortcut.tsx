@@ -1,15 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createClient } from '@/lib/supabase/client';
 
 export default function CoursesShortcut() {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [target, setTarget] = useState<Element | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -45,13 +48,33 @@ export default function CoursesShortcut() {
     return () => observer.disconnect();
   }, []);
 
-  if (!isAdmin || !target) return null;
+  async function signOut() {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    router.replace('/login');
+    router.refresh();
+  }
+
+  if (!target) return null;
 
   return createPortal(
-    <Link href="/cursos" className="courses-shortcut" aria-label="Abrir cursos e check-in">
-      <GraduationCap size={19} />
-      <span>Cursos</span>
-    </Link>,
+    <>
+      {isAdmin && (
+        <Link href="/cursos" className="courses-shortcut" aria-label="Abrir cursos e check-in">
+          <GraduationCap size={19} />
+          <span>Cursos</span>
+        </Link>
+      )}
+      <button
+        type="button"
+        className="panel-signout"
+        onClick={() => void signOut()}
+        disabled={signingOut}
+      >
+        <LogOut size={19} />
+        <span>{signingOut ? 'Saindo...' : 'Sair'}</span>
+      </button>
+    </>,
     target,
   );
 }

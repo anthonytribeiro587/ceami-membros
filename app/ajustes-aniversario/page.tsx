@@ -37,6 +37,10 @@ type BirthdayPreview = {
   error?: string;
 };
 
+function isConnectionClosed(value: unknown) {
+  return /connection\s+closed/i.test(String(value || ''));
+}
+
 function statusLabel(status: string | null) {
   if (status === 'queued' || status === 'accepted') {
     return 'Aceita pela Evolution — confira a mensagem no grupo';
@@ -54,7 +58,8 @@ export default function Page() {
   const [setting, setSetting] = useState<Setting | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
-  const [todayBirthdays, setTodayBirthdays] = useState<BirthdayPreview['birthdays'] | null>(null);
+  const [todayBirthdays, setTodayBirthdays] =
+    useState<BirthdayPreview['birthdays'] | null>(null);
   const [msg, setMsg] = useState('');
   const [checking, setChecking] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -152,7 +157,7 @@ export default function Page() {
     try {
       const check = await checkConfiguration(false);
       if (!check.ok) {
-        setMsg(check.error || 'A configuração não está pronta. O reenvio foi bloqueado.');
+        setMsg(check.error || 'A configuração não está pronta. O envio foi bloqueado.');
         return;
       }
 
@@ -179,7 +184,13 @@ export default function Page() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMsg(data.error || 'O envio falhou.');
+        if (isConnectionClosed(data.error)) {
+          setMsg(
+            'Sessão WhatsApp desconectada. Abra a Evolution, reinicie a instância “ceamirs”, aguarde aparecer “Connected” e tente novamente uma única vez.',
+          );
+        } else {
+          setMsg(data.error || 'O envio falhou.');
+        }
         await load();
         return;
       }
@@ -212,8 +223,11 @@ export default function Page() {
     );
   }
 
-  const previousFailureResolved = diagnostics?.ok && setting.last_status === 'failed';
+  const connectionClosed = isConnectionClosed(setting.last_error);
+  const previousFailureResolved =
+    diagnostics?.ok && setting.last_status === 'failed' && !connectionClosed;
   const hasBirthdaysToday = Boolean(todayBirthdays?.length);
+  const messageIsError = /erro|falhou|desconectada|não foi possível/i.test(msg);
 
   return (
     <main className="auto">
@@ -292,6 +306,17 @@ export default function Page() {
           </div>
         </div>
 
+        {connectionClosed && (
+          <div className="session-alert">
+            <strong>Automação pausada: a sessão WhatsApp da CEAMI está desconectada.</strong>
+            <span>
+              Abra o Manager da Evolution, localize <b>ceamirs</b>, clique em <b>Restart</b> e
+              aguarde o selo <b>Connected</b>. Depois volte aqui e faça um envio manual. Quando
+              ele funcionar, os próximos horários automáticos serão liberados novamente.
+            </span>
+          </div>
+        )}
+
         <div className="info">
           <b>Última execução:</b>{' '}
           {setting.last_sent_at
@@ -299,10 +324,12 @@ export default function Page() {
             : 'Ainda não executada'}
           <br />
           <b>Status:</b>{' '}
-          {previousFailureResolved
-            ? 'Falha anterior — configuração corrigida, aguardando a próxima execução'
-            : statusLabel(setting.last_status)}
-          {setting.last_error && !previousFailureResolved && (
+          {connectionClosed
+            ? 'Pausada — sessão WhatsApp desconectada'
+            : previousFailureResolved
+              ? 'Falha anterior — configuração corrigida, aguardando a próxima execução'
+              : statusLabel(setting.last_status)}
+          {setting.last_error && !previousFailureResolved && !connectionClosed && (
             <>
               <br />
               <b>Erro:</b> {setting.last_error}
@@ -311,11 +338,11 @@ export default function Page() {
         </div>
 
         <p className="warning">
-          A conferência acima verifica somente as variáveis oficiais. A entrega é confirmada pela
-          resposta do envio real, que precisa trazer o ID da mensagem e o grupo correto.
+          A configuração acima está correta. O envio depende também de a sessão WhatsApp da
+          instância <b>ceamirs</b> permanecer conectada na Evolution.
         </p>
 
-        {msg && <p className="msg">{msg}</p>}
+        {msg && <p className={`msg ${messageIsError ? 'error' : ''}`}>{msg}</p>}
 
         <div className="diagnostic-actions">
           <button
@@ -336,7 +363,9 @@ export default function Page() {
             {retrying
               ? 'Enviando...'
               : hasBirthdaysToday
-                ? 'Enviar aniversariantes de hoje'
+                ? connectionClosed
+                  ? 'Testar após reiniciar ceamirs'
+                  : 'Enviar aniversariantes de hoje'
                 : 'Nenhum aniversariante hoje'}
           </button>
         </div>
@@ -370,8 +399,11 @@ function Style() {
       .info,.connection{background:#f6f8f9;padding:14px;border-radius:13px;line-height:1.65;overflow-wrap:anywhere}
       .connection.ok{background:#eaf7f0;color:#246e4a}
       .connection.bad{background:#fff0ec;color:#9b4426}
+      .session-alert{display:grid;gap:7px;background:#fff0ec;color:#913e22;padding:15px;border:1px solid #ffcbb9;border-radius:13px;line-height:1.45}
+      .session-alert span{font-size:14px}
       .warning{font-size:12px;padding:11px 12px;border-radius:11px;background:#fff8e8;color:#765b1b!important}
       .msg{background:#eaf7f0;color:#26734c!important;padding:12px;border-radius:12px;font-weight:700}
+      .msg.error{background:#fff0ec;color:#913e22!important}
       .diagnostic-actions,.auto footer{display:grid;grid-template-columns:1fr 1fr;gap:10px}
       .auto footer a,.auto button{min-height:48px;padding:12px 15px;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px}
       .auto footer a,.neutral{background:#e8eef0;color:#173746;border:0;font-weight:700}
@@ -386,7 +418,7 @@ function Style() {
         .auto p{font-size:13px}
         .diagnostic-actions,.auto footer{grid-template-columns:1fr}
         .auto footer a,.auto button{min-height:46px;font-size:13px}
-        .info,.connection{font-size:13px}
+        .info,.connection,.session-alert{font-size:13px}
       }
     `}</style>
   );

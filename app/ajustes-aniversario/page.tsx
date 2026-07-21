@@ -27,23 +27,26 @@ type Diagnostics = {
   groupId: string;
   groupFound?: boolean;
   groupName?: string;
-  groupsFound?: number;
+  validationMethod?: string;
+  message?: string;
   error?: string | null;
 };
 
 type BirthdayPreview = {
   birthdays?: Array<{ id: string; name: string; phone: string }>;
+  error?: string;
 };
 
 function statusLabel(status: string | null) {
   if (status === 'queued' || status === 'accepted') {
-    return 'Aceita pela Evolution — aguardando confirmação no WhatsApp';
+    return 'Aceita pela Evolution — confira a mensagem no grupo';
   }
   if (status === 'sent') {
     return 'Marcada como enviada pelo registro antigo — entrega não confirmada';
   }
-  if (status === 'failed') return 'Falha';
-  return status || '—';
+  if (status === 'failed') return 'Falha na tentativa anterior';
+  if (status === 'no_birthdays') return 'Executada — nenhum aniversariante no dia';
+  return status || 'Ainda não executada';
 }
 
 export default function Page() {
@@ -51,13 +54,15 @@ export default function Page() {
   const [setting, setSetting] = useState<Setting | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
+  const [todayBirthdays, setTodayBirthdays] = useState<BirthdayPreview['birthdays'] | null>(null);
   const [msg, setMsg] = useState('');
   const [checking, setChecking] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     void load();
-    void validateConnection(false);
+    void checkConfiguration(false);
+    void loadTodayPreview();
   }, []);
 
   async function load() {
@@ -78,6 +83,16 @@ export default function Page() {
     setMembers((m || []) as Member[]);
   }
 
+  async function loadTodayPreview() {
+    try {
+      const response = await fetch('/api/birthdays/test', { cache: 'no-store' });
+      const data = (await response.json()) as BirthdayPreview;
+      setTodayBirthdays(response.ok ? data.birthdays || [] : []);
+    } catch {
+      setTodayBirthdays([]);
+    }
+  }
+
   async function save() {
     if (!setting) return;
     setMsg('');
@@ -89,7 +104,6 @@ export default function Page() {
         send_time: setting.send_time,
         test_mode: setting.test_mode,
         test_member_id: setting.test_mode ? setting.test_member_id : null,
-        last_sent_date: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', 'default');
@@ -98,7 +112,7 @@ export default function Page() {
     if (!error) await load();
   }
 
-  async function validateConnection(showMessage = true) {
+  async function checkConfiguration(showMessage = true) {
     setChecking(true);
     if (showMessage) setMsg('');
 
@@ -110,8 +124,8 @@ export default function Page() {
       if (showMessage) {
         setMsg(
           data.ok
-            ? `Conexão validada: ${data.instance} está no grupo ${data.groupName || data.groupId}.`
-            : data.error || 'A configuração da Evolution não foi validada.',
+            ? data.message || 'Configuração oficial conferida.'
+            : data.error || 'A configuração oficial não está completa.',
         );
       }
 
@@ -121,7 +135,7 @@ export default function Page() {
         ok: false,
         instance: '',
         groupId: '',
-        error: 'Não foi possível validar a Evolution.',
+        error: 'Não foi possível conferir a configuração.',
       };
       setDiagnostics(data);
       if (showMessage) setMsg(data.error || '');
@@ -136,54 +150,51 @@ export default function Page() {
     setMsg('');
 
     try {
-      const check = await validateConnection(false);
+      const check = await checkConfiguration(false);
       if (!check.ok) {
-        setMsg(check.error || 'A conexão não foi validada. O reenvio foi bloqueado.');
+        setMsg(check.error || 'A configuração não está pronta. O reenvio foi bloqueado.');
         return;
       }
 
-      const previewResponse = await fetch('/api/birthdays/test', { cache: 'no-store' });
-      const preview = (await previewResponse.json()) as BirthdayPreview & { error?: string };
-
-      if (!previewResponse.ok) {
-        setMsg(preview.error || 'Não foi possível carregar os aniversariantes de hoje.');
-        return;
-      }
-
-      const names = (preview.birthdays || []).map((item) => item.name);
+      const names = (todayBirthdays || []).map((item) => item.name);
       if (!names.length) {
-        setMsg('Não há aniversariantes hoje para reenviar.');
+        setMsg('Não há aniversariantes hoje. Nenhuma mensagem foi enviada.');
         return;
       }
 
       const confirmed = window.confirm(
-        `Reenviar agora para “${check.groupName || check.groupId}”?\n\nAniversariantes:\n• ${names.join('\n• ')}\n\nUse somente porque a mensagem das 07:30 não apareceu no grupo.`,
+        `Enviar agora para “${check.groupName || check.groupId}”?\n\nAniversariantes:\n• ${names.join('\n• ')}\n\nEssa ação envia a mensagem imediatamente no grupo oficial.`,
       );
 
       if (!confirmed) {
-        setMsg('Reenvio cancelado.');
+        setMsg('Envio cancelado.');
         return;
       }
 
-      const response = await fetch('/api/birthdays/test', {
+      const response = await fetch('/api/birthdays/official', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'today', force: true }),
+        body: JSON.stringify({ source: 'manual', force: true }),
       });
       const data = await response.json();
 
       if (!response.ok) {
-        setMsg(data.error || 'O reenvio falhou.');
+        setMsg(data.error || 'O envio falhou.');
         await load();
         return;
       }
 
-      setMsg(
-        `Mensagem aceita pela Evolution para ${data.groupName || data.groupId}. Status do provedor: ${data.providerStatus || 'PENDING'}. Confira o grupo agora.`,
-      );
-      await load();
+      if (data.skipped === 'no_birthdays') {
+        setMsg('Não há aniversariantes hoje. Nenhuma mensagem foi enviada.');
+      } else {
+        setMsg(
+          `Mensagem aceita pela Evolution para ${data.groupName || data.groupId}. Confira o grupo agora.`,
+        );
+      }
+
+      await Promise.all([load(), loadTodayPreview()]);
     } catch {
-      setMsg('Não foi possível executar o reenvio.');
+      setMsg('Não foi possível executar o envio.');
     } finally {
       setRetrying(false);
     }
@@ -200,6 +211,9 @@ export default function Page() {
       </main>
     );
   }
+
+  const previousFailureResolved = diagnostics?.ok && setting.last_status === 'failed';
+  const hasBirthdaysToday = Boolean(todayBirthdays?.length);
 
   return (
     <main className="auto">
@@ -265,16 +279,16 @@ export default function Page() {
 
         <div className={`connection ${diagnostics?.ok ? 'ok' : diagnostics ? 'bad' : ''}`}>
           <div>
-            <b>Instância na Vercel:</b> {diagnostics?.instance || 'Verificando...'}
+            <b>Instância configurada:</b> {diagnostics?.instance || 'Conferindo...'}
           </div>
           <div>
-            <b>Grupo:</b> {diagnostics?.groupName || setting.group_id}
+            <b>Grupo configurado:</b> {diagnostics?.groupName || setting.group_id}
           </div>
           <div>
-            <b>Validação:</b>{' '}
+            <b>Configuração:</b>{' '}
             {diagnostics?.ok
-              ? 'Instância conectada ao grupo'
-              : diagnostics?.error || 'Verificando...'}
+              ? 'Pronta. A confirmação real ocorrerá no envio.'
+              : diagnostics?.error || 'Conferindo...'}
           </div>
         </div>
 
@@ -284,8 +298,11 @@ export default function Page() {
             ? new Date(setting.last_sent_at).toLocaleString('pt-BR')
             : 'Ainda não executada'}
           <br />
-          <b>Status:</b> {statusLabel(setting.last_status)}
-          {setting.last_error && (
+          <b>Status:</b>{' '}
+          {previousFailureResolved
+            ? 'Falha anterior — configuração corrigida, aguardando a próxima execução'
+            : statusLabel(setting.last_status)}
+          {setting.last_error && !previousFailureResolved && (
             <>
               <br />
               <b>Erro:</b> {setting.last_error}
@@ -294,23 +311,33 @@ export default function Page() {
         </div>
 
         <p className="warning">
-          “Aceita pela Evolution” significa que a API recebeu a mensagem. A confirmação final
-          continua sendo a mensagem aparecer no grupo.
+          A conferência acima verifica somente as variáveis oficiais. A entrega é confirmada pela
+          resposta do envio real, que precisa trazer o ID da mensagem e o grupo correto.
         </p>
 
         {msg && <p className="msg">{msg}</p>}
 
         <div className="diagnostic-actions">
-          <button type="button" className="neutral" onClick={() => void validateConnection()} disabled={checking}>
-            {checking ? 'Validando...' : 'Validar conexão'}
+          <button
+            type="button"
+            className="neutral"
+            onClick={() => void checkConfiguration()}
+            disabled={checking}
+          >
+            {checking ? 'Conferindo...' : 'Conferir configuração'}
           </button>
+
           <button
             type="button"
             className="retry"
             onClick={() => void retryToday()}
-            disabled={retrying || !diagnostics?.ok}
+            disabled={retrying || !diagnostics?.ok || !hasBirthdaysToday}
           >
-            {retrying ? 'Reenviando...' : 'Reenviar aniversariantes de hoje'}
+            {retrying
+              ? 'Enviando...'
+              : hasBirthdaysToday
+                ? 'Enviar aniversariantes de hoje'
+                : 'Nenhum aniversariante hoje'}
           </button>
         </div>
 

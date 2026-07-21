@@ -25,10 +25,19 @@ type BirthdayMember = {
   mentionJid: string | null;
 };
 
+type JidValue =
+  | string
+  | {
+      _serialized?: string;
+      user?: string;
+      server?: string;
+    }
+  | null;
+
 type GroupParticipant = {
-  id?: string;
-  jid?: string;
-  remoteJid?: string;
+  id?: JidValue;
+  jid?: JidValue;
+  remoteJid?: JidValue;
   phoneNumber?: string;
   phone?: string;
 };
@@ -38,6 +47,18 @@ type ProviderEnvelope = {
   status?: string;
   message?: { key?: { id?: string; remoteJid?: string }; status?: string };
   data?: { key?: { id?: string; remoteJid?: string }; status?: string };
+  response?: {
+    key?: { id?: string; remoteJid?: string };
+    status?: string;
+    message?: { key?: { id?: string; remoteJid?: string }; status?: string };
+  };
+};
+
+type EvolutionAttempt = {
+  schema: 'documented' | 'legacy';
+  status: number;
+  ok: boolean;
+  payload: unknown;
 };
 
 function serviceClient() {
@@ -107,8 +128,25 @@ function brazilDate() {
   };
 }
 
+function normalizeJid(value: JidValue | undefined) {
+  if (!value) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value._serialized === 'string') return value._serialized.trim();
+  if (value.user && value.server) return `${value.user}@${value.server}`;
+  return '';
+}
+
+function isValidMentionJid(value: string) {
+  return /^\d+@(s\.whatsapp\.net|lid)$/.test(value);
+}
+
 function participantJid(participant: GroupParticipant) {
-  return participant.id || participant.jid || participant.remoteJid || '';
+  const candidates = [participant.id, participant.jid, participant.remoteJid];
+  for (const candidate of candidates) {
+    const jid = normalizeJid(candidate);
+    if (jid) return jid;
+  }
+  return '';
 }
 
 function participantPhones(participant: GroupParticipant) {
@@ -210,23 +248,107 @@ async function resolveMentions(members: BirthdayMember[], apiUrl: string, apiKey
       return [...wanted].some((phone) => available.has(phone));
     });
 
-    return {
-      ...member,
-      mentionJid: participant ? participantJid(participant) : `${member.phone}@s.whatsapp.net`,
-    };
+    const exactJid = participant ? participantJid(participant) : '';
+    const fallbackJid = `${member.phone}@s.whatsapp.net`;
+    const mentionJid = isValidMentionJid(exactJid) ? exactJid : fallbackJid;
+
+    return { ...member, mentionJid };
   });
 }
 
 function providerEnvelope(payload: unknown) {
   const envelope = (payload || {}) as ProviderEnvelope;
-  const key = envelope.key || envelope.message?.key || envelope.data?.key || {};
+  const nested = envelope.response || envelope;
+  const key = nested.key || nested.message?.key || envelope.data?.key || {};
   return {
     messageId: String(key.id || ''),
     remoteJid: String(key.remoteJid || ''),
     status: String(
-      envelope.status || envelope.message?.status || envelope.data?.status || 'UNKNOWN',
+      nested.status || nested.message?.status || envelope.data?.status || 'UNKNOWN',
     ).toUpperCase(),
   };
+}
+
+function providerErrorMessage(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return '';
+  const value = payload as Record<string, unknown>;
+  const response = value.response;
+  const candidates = [
+    value.message,
+    value.error,
+    response && typeof response === 'object'
+      ? (response as Record<string, unknown>).message
+      : null,
+    value.raw,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim().slice(0, 500);
+    if (Array.isArray(candidate) && candidate.length) {
+      return candidate.map((item) => String(item)).join('; ').slice(0, 500);
+    }
+  }
+  return '';
+}
+
+async function evolutionRequest(
+  apiUrl: string,
+  apiKey: string,
+  message: string,
+  mentioned: string[],
+  schema: EvolutionAttempt['schema'],
+) {
+  const body = schema === 'documented'
+    ? {
+        number: OFFICIAL_GROUP_ID,
+        textMessage: { text: message },
+        delay: 1200,
+        linkPreview: false,
+        mentioned,
+      }
+    : {
+        number: OFFICIAL_GROUP_ID,
+        text: message,
+        delay: 1200,
+        linkPreview: false,
+        mentionsEveryOne: false,
+        mentioned,
+      };
+
+  const response = await fetch(
+    `${apiUrl}/message/sendText/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(25000),
+    },
+  );
+
+  return {
+    schema,
+    status: response.status,
+    ok: response.ok,
+    payload: await readJson(response),
+  } satisfies EvolutionAttempt;
+}
+
+async function sendBirthdayMessage(
+  apiUrl: string,
+  apiKey: string,
+  message: string,
+  mentioned: string[],
+) {
+  const attempts: EvolutionAttempt[] = [];
+
+  const documented = await evolutionRequest(apiUrl, apiKey, message, mentioned, 'documented');
+  attempts.push(documented);
+  if (documented.status !== 400) return { final: documented, attempts };
+
+  const legacy = await evolutionRequest(apiUrl, apiKey, message, mentioned, 'legacy');
+  attempts.push(legacy);
+  return { final: legacy, attempts };
 }
 
 export async function POST(request: Request) {
@@ -296,34 +418,19 @@ export async function POST(request: Request) {
 
     members = await resolveMentions(members, apiUrl, apiKey);
     const names = members.map((member) => member.name);
-    const mentioned = members
-      .map((member) => member.mentionJid)
-      .filter((jid): jid is string => Boolean(jid));
+    const mentioned = [...new Set(
+      members
+        .map((member) => member.mentionJid)
+        .filter((jid): jid is string => Boolean(jid) && isValidMentionJid(jid)),
+    )];
     const message = buildMessage(members);
 
-    const response = await fetch(
-      `${apiUrl}/message/sendText/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: apiKey },
-        body: JSON.stringify({
-          number: OFFICIAL_GROUP_ID,
-          text: message,
-          delay: 1200,
-          linkPreview: false,
-          mentionsEveryOne: false,
-          mentioned,
-        }),
-        cache: 'no-store',
-        signal: AbortSignal.timeout(25000),
-      },
-    );
-
-    const providerResponse = await readJson(response);
+    const result = await sendBirthdayMessage(apiUrl, apiKey, message, mentioned);
+    const providerResponse = result.final.payload;
     const provider = providerEnvelope(providerResponse);
     const rejected = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(provider.status);
     const accepted =
-      response.ok &&
+      result.final.ok &&
       Boolean(provider.messageId) &&
       provider.remoteJid === OFFICIAL_GROUP_ID &&
       !rejected;
@@ -337,12 +444,16 @@ export async function POST(request: Request) {
       member_ids: members.map((member) => member.id),
       member_names: names,
       message,
-      provider_response: providerResponse,
+      provider_response: {
+        finalSchema: result.final.schema,
+        attempts: result.attempts,
+      },
     };
 
     if (!accepted) {
-      const reason = !response.ok
-        ? `Evolution respondeu ${response.status}.`
+      const providerDetail = providerErrorMessage(providerResponse);
+      const reason = !result.final.ok
+        ? `Evolution respondeu ${result.final.status}${providerDetail ? `: ${providerDetail}` : ''}.`
         : `A Evolution não confirmou o grupo de destino. Status: ${provider.status}; destino: ${provider.remoteJid || 'não informado'}.`;
 
       await service.from('birthday_messages').insert({
@@ -362,7 +473,17 @@ export async function POST(request: Request) {
         })
         .eq('id', 'default');
 
-      return NextResponse.json({ error: reason, details: providerResponse }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: reason,
+          details: providerResponse,
+          attemptedSchemas: result.attempts.map((attempt) => ({
+            schema: attempt.schema,
+            status: attempt.status,
+          })),
+        },
+        { status: 502 },
+      );
     }
 
     const { error: historyError } = await service.from('birthday_messages').insert({
@@ -392,6 +513,7 @@ export async function POST(request: Request) {
       mentioned,
       groupId: OFFICIAL_GROUP_ID,
       groupName: OFFICIAL_GROUP_NAME,
+      schemaUsed: result.final.schema,
       historySaved: !historyError,
       historyError: historyError?.message || null,
     });

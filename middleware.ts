@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/integra', '/consultar', '/checkin'];
+const PUBLIC_PATHS = ['/login', '/login-cursos', '/integra', '/consultar', '/checkin'];
 const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/materiais'];
 const ADMIN_API_PATHS = [
   '/api/birthdays/test',
@@ -60,35 +60,53 @@ export async function middleware(request: NextRequest) {
 
   if (!user) {
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
+    loginUrl.pathname = pathname === '/cursos' || pathname.startsWith('/cursos/')
+      ? '/login-cursos'
+      : '/login';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, course_only')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const isAdmin = profile?.role === 'admin';
+  const isCourseOnly = Boolean(profile?.course_only);
+  const isCoursesPath = pathname === '/cursos' || pathname.startsWith('/cursos/');
+
+  if (isCoursesPath && !isAdmin && !isCourseOnly) {
+    const coursesLoginUrl = request.nextUrl.clone();
+    coursesLoginUrl.pathname = '/login-cursos';
+    coursesLoginUrl.searchParams.set('acesso', 'negado');
+    return NextResponse.redirect(coursesLoginUrl);
+  }
+
+  if (isCourseOnly && !isCoursesPath) {
+    const coursesUrl = request.nextUrl.clone();
+    coursesUrl.pathname = '/cursos';
+    coursesUrl.search = '';
+    return NextResponse.redirect(coursesUrl);
   }
 
   const requiresAdmin =
     ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
     ADMIN_API_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
-  if (requiresAdmin) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profile?.role !== 'admin') {
-      if (pathname.startsWith('/api/')) {
-        return NextResponse.json(
-          { error: 'Acesso restrito ao administrador.' },
-          { status: 403 },
-        );
-      }
-
-      const homeUrl = request.nextUrl.clone();
-      homeUrl.pathname = '/';
-      homeUrl.searchParams.set('acesso', 'negado');
-      return NextResponse.redirect(homeUrl);
+  if (requiresAdmin && !isAdmin) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Acesso restrito ao administrador.' },
+        { status: 403 },
+      );
     }
+
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = '/';
+    homeUrl.searchParams.set('acesso', 'negado');
+    return NextResponse.redirect(homeUrl);
   }
 
   return response;

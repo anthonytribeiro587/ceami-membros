@@ -38,9 +38,27 @@ type GroupParticipant = {
   id?: JidValue;
   jid?: JidValue;
   remoteJid?: JidValue;
+  JID?: JidValue;
+  LID?: JidValue;
   phoneNumber?: string;
+  PhoneNumber?: string;
   phone?: string;
+  participantAlt?: string;
 };
+
+type ParticipantPayload =
+  | GroupParticipant[]
+  | {
+      participants?: GroupParticipant[];
+      participantsData?: GroupParticipant[];
+      data?:
+        | GroupParticipant[]
+        | {
+            participants?: GroupParticipant[];
+            participantsData?: GroupParticipant[];
+          };
+      response?: GroupParticipant[] | { participants?: GroupParticipant[] };
+    };
 
 type ProviderEnvelope = {
   key?: { id?: string; remoteJid?: string };
@@ -50,12 +68,12 @@ type ProviderEnvelope = {
   response?: {
     key?: { id?: string; remoteJid?: string };
     status?: string;
-    message?: { key?: { id?: string; remoteJid?: string }; status?: string };
+    message?: { key?: { id?: string; remoteJid?: string }; status?: string } | unknown;
   };
 };
 
 type EvolutionAttempt = {
-  schema: 'documented' | 'legacy';
+  mode: 'with_mentions' | 'without_mentions';
   status: number;
   ok: boolean;
   payload: unknown;
@@ -65,6 +83,7 @@ function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
+
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -99,6 +118,7 @@ function phoneVariants(phone: string) {
 
 function titleCase(value: string) {
   const lowerWords = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+
   return value
     .trim()
     .toLocaleLowerCase('pt-BR')
@@ -118,10 +138,12 @@ function brazilDate() {
     month: '2-digit',
     day: '2-digit',
   }).formatToParts(new Date());
+
   const get = (type: string) => parts.find((item) => item.type === type)?.value || '';
   const year = get('year');
   const month = get('month');
   const day = get('day');
+
   return {
     date: `${year}-${month}-${day}`,
     monthDay: `${month}-${day}`,
@@ -136,40 +158,48 @@ function normalizeJid(value: JidValue | undefined) {
   return '';
 }
 
-function isValidMentionJid(value: string) {
-  return /^\d+@(s\.whatsapp\.net|lid)$/.test(value);
-}
-
-function participantJid(participant: GroupParticipant) {
-  const candidates = [participant.id, participant.jid, participant.remoteJid];
-  for (const candidate of candidates) {
-    const jid = normalizeJid(candidate);
-    if (jid) return jid;
-  }
-  return '';
+function participantJids(participant: GroupParticipant) {
+  return [
+    participant.id,
+    participant.jid,
+    participant.remoteJid,
+    participant.JID,
+    participant.LID,
+  ]
+    .map(normalizeJid)
+    .filter(Boolean);
 }
 
 function participantPhones(participant: GroupParticipant) {
-  const values = [participant.phoneNumber, participant.phone];
-  const jid = participantJid(participant);
-  if (jid && !jid.endsWith('@lid')) values.push(jid.split('@')[0]);
+  const candidates: unknown[] = [
+    participant.phoneNumber,
+    participant.PhoneNumber,
+    participant.phone,
+    participant.participantAlt,
+    ...participantJids(participant)
+      .filter((jid) => !jid.endsWith('@lid'))
+      .map((jid) => jid.split('@')[0]),
+  ];
 
   const phones = new Set<string>();
-  for (const value of values) {
-    const digits = normalizeBrazilPhone(String(value || '')) || onlyDigits(value);
-    if (!digits) continue;
-    for (const variant of phoneVariants(digits)) phones.add(variant);
+
+  for (const candidate of candidates) {
+    const normalized = normalizeBrazilPhone(String(candidate || '')) || onlyDigits(candidate);
+    if (!normalized) continue;
+    for (const variant of phoneVariants(normalized)) phones.add(variant);
   }
+
   return phones;
 }
 
 function toBirthdayMember(member: MemberRow): BirthdayMember {
   const phone = normalizeBrazilPhone(member.phone);
+
   return {
     id: member.id,
     name: titleCase(member.full_name),
     phone,
-    mentionJid: phone ? `${phone}@s.whatsapp.net` : null,
+    mentionJid: null,
   };
 }
 
@@ -185,6 +215,7 @@ function buildMessage(members: BirthdayMember[]) {
   }
 
   const list = members.map((member) => `• ${memberLine(member)}`).join('\n');
+
   return `🎉 *Hoje é dia de celebrar!*\n\nA CEAMI deseja um feliz aniversário aos nossos aniversariantes de hoje:\n\n${list}\n\nQue Deus continue abençoando cada vida, família e caminhada. Que este novo ciclo seja cheio da presença de Deus, alegria e propósito.\n\nDeixe aqui sua mensagem de carinho! 🧡`;
 }
 
@@ -198,18 +229,41 @@ async function loadTodayBirthdays(service: SupabaseClient) {
   if (error) throw new Error(error.message);
 
   return ((data || []) as MemberRow[])
-    .filter((member) => String(member.status || 'ativo').toLocaleLowerCase('pt-BR') !== 'inativo')
+    .filter(
+      (member) =>
+        String(member.status || 'ativo').toLocaleLowerCase('pt-BR') !== 'inativo',
+    )
     .filter((member) => member.birth_date?.slice(5) === monthDay)
     .map(toBirthdayMember);
 }
 
 async function readJson(response: Response) {
   const text = await response.text();
+
   try {
     return JSON.parse(text) as unknown;
   } catch {
     return { raw: text.slice(0, 3000) };
   }
+}
+
+function extractParticipants(payload: ParticipantPayload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.participants)) return payload.participants;
+  if (Array.isArray(payload.participantsData)) return payload.participantsData;
+  if (Array.isArray(payload.data)) return payload.data;
+
+  if (payload.data && !Array.isArray(payload.data)) {
+    if (Array.isArray(payload.data.participants)) return payload.data.participants;
+    if (Array.isArray(payload.data.participantsData)) return payload.data.participantsData;
+  }
+
+  if (Array.isArray(payload.response)) return payload.response;
+  if (payload.response && !Array.isArray(payload.response)) {
+    if (Array.isArray(payload.response.participants)) return payload.response.participants;
+  }
+
+  return [];
 }
 
 async function fetchParticipants(apiUrl: string, apiKey: string) {
@@ -225,109 +279,113 @@ async function fetchParticipants(apiUrl: string, apiKey: string) {
 
     if (!response.ok) return [] as GroupParticipant[];
 
-    const payload = (await response.json()) as
-      | GroupParticipant[]
-      | { participants?: GroupParticipant[]; data?: { participants?: GroupParticipant[] } };
-
-    if (Array.isArray(payload)) return payload;
-    return payload.participants || payload.data?.participants || [];
+    return extractParticipants((await response.json()) as ParticipantPayload);
   } catch {
     return [] as GroupParticipant[];
   }
 }
 
-async function resolveMentions(members: BirthdayMember[], apiUrl: string, apiKey: string) {
+async function resolveMentions(
+  members: BirthdayMember[],
+  apiUrl: string,
+  apiKey: string,
+) {
   const participants = await fetchParticipants(apiUrl, apiKey);
 
   return members.map((member) => {
-    if (!member.phone) return { ...member, mentionJid: null };
+    if (!member.phone) return member;
 
     const wanted = phoneVariants(member.phone);
-    const participant = participants.find((item) => {
-      const available = participantPhones(item);
+    const isParticipant = participants.some((participant) => {
+      const available = participantPhones(participant);
       return [...wanted].some((phone) => available.has(phone));
     });
 
-    const exactJid = participant ? participantJid(participant) : '';
-    const fallbackJid = `${member.phone}@s.whatsapp.net`;
-    const mentionJid = isValidMentionJid(exactJid) ? exactJid : fallbackJid;
-
-    return { ...member, mentionJid };
+    return {
+      ...member,
+      mentionJid: isParticipant ? `${member.phone}@s.whatsapp.net` : null,
+    };
   });
 }
 
 function providerEnvelope(payload: unknown) {
   const envelope = (payload || {}) as ProviderEnvelope;
   const nested = envelope.response || envelope;
-  const key = nested.key || nested.message?.key || envelope.data?.key || {};
+  const nestedMessage =
+    nested.message && typeof nested.message === 'object'
+      ? (nested.message as { key?: { id?: string; remoteJid?: string }; status?: string })
+      : undefined;
+  const key = nested.key || nestedMessage?.key || envelope.data?.key || {};
+
   return {
     messageId: String(key.id || ''),
     remoteJid: String(key.remoteJid || ''),
     status: String(
-      nested.status || nested.message?.status || envelope.data?.status || 'UNKNOWN',
+      nested.status || nestedMessage?.status || envelope.data?.status || 'UNKNOWN',
     ).toUpperCase(),
   };
 }
 
-function providerErrorMessage(payload: unknown) {
-  if (!payload || typeof payload !== 'object') return '';
-  const value = payload as Record<string, unknown>;
-  const response = value.response;
-  const candidates = [
-    value.message,
-    value.error,
-    response && typeof response === 'object'
-      ? (response as Record<string, unknown>).message
-      : null,
-    value.raw,
-  ];
+function collectErrorStrings(value: unknown, output: string[], depth = 0) {
+  if (depth > 6 || value === null || value === undefined) return;
 
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim().slice(0, 500);
-    if (Array.isArray(candidate) && candidate.length) {
-      return candidate.map((item) => String(item)).join('; ').slice(0, 500);
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (normalized && normalized.toLowerCase() !== 'bad request') output.push(normalized);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectErrorStrings(item, output, depth + 1);
+    return;
+  }
+
+  if (typeof value === 'object') {
+    const object = value as Record<string, unknown>;
+    const priorityKeys = ['message', 'error', 'response', 'details', 'raw'];
+
+    for (const key of priorityKeys) {
+      if (key in object) collectErrorStrings(object[key], output, depth + 1);
     }
   }
-  return '';
 }
 
-async function evolutionRequest(
+function providerErrorMessage(payload: unknown) {
+  const errors: string[] = [];
+  collectErrorStrings(payload, errors);
+  return [...new Set(errors)].join('; ').slice(0, 700);
+}
+
+async function sendLegacyText(
   apiUrl: string,
   apiKey: string,
   message: string,
   mentioned: string[],
-  schema: EvolutionAttempt['schema'],
+  mode: EvolutionAttempt['mode'],
 ) {
-  const body = schema === 'documented'
-    ? {
-        number: OFFICIAL_GROUP_ID,
-        textMessage: { text: message },
-        delay: 1200,
-        linkPreview: false,
-        mentioned,
-      }
-    : {
+  const response = await fetch(
+    `${apiUrl}/message/sendText/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: apiKey,
+      },
+      body: JSON.stringify({
         number: OFFICIAL_GROUP_ID,
         text: message,
         delay: 1200,
         linkPreview: false,
         mentionsEveryOne: false,
         mentioned,
-      };
-
-  const response = await fetch(
-    `${apiUrl}/message/sendText/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: apiKey },
-      body: JSON.stringify(body),
+      }),
       cache: 'no-store',
       signal: AbortSignal.timeout(25000),
     },
   );
 
   return {
-    schema,
+    mode,
     status: response.status,
     ok: response.ok,
     payload: await readJson(response),
@@ -337,22 +395,58 @@ async function evolutionRequest(
 async function sendBirthdayMessage(
   apiUrl: string,
   apiKey: string,
-  message: string,
-  mentioned: string[],
+  members: BirthdayMember[],
 ) {
+  const mentioned = [...new Set(
+    members
+      .map((member) => member.mentionJid)
+      .filter((jid): jid is string => typeof jid === 'string' && /^\d+@s\.whatsapp\.net$/.test(jid)),
+  )];
+
   const attempts: EvolutionAttempt[] = [];
+  const messageWithMentions = buildMessage(members);
+  const first = await sendLegacyText(
+    apiUrl,
+    apiKey,
+    messageWithMentions,
+    mentioned,
+    'with_mentions',
+  );
+  attempts.push(first);
 
-  const documented = await evolutionRequest(apiUrl, apiKey, message, mentioned, 'documented');
-  attempts.push(documented);
-  if (documented.status !== 400) return { final: documented, attempts };
+  if (first.status !== 400 || mentioned.length === 0) {
+    return {
+      final: first,
+      attempts,
+      message: messageWithMentions,
+      mentioned,
+      sentWithoutMentions: false,
+    };
+  }
 
-  const legacy = await evolutionRequest(apiUrl, apiKey, message, mentioned, 'legacy');
-  attempts.push(legacy);
-  return { final: legacy, attempts };
+  const membersWithoutMentions = members.map((member) => ({ ...member, mentionJid: null }));
+  const messageWithoutMentions = buildMessage(membersWithoutMentions);
+  const fallback = await sendLegacyText(
+    apiUrl,
+    apiKey,
+    messageWithoutMentions,
+    [],
+    'without_mentions',
+  );
+  attempts.push(fallback);
+
+  return {
+    final: fallback,
+    attempts,
+    message: messageWithoutMentions,
+    mentioned: [] as string[],
+    sentWithoutMentions: fallback.ok,
+  };
 }
 
 export async function POST(request: Request) {
   const service = serviceClient();
+
   if (!service) {
     return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
   }
@@ -360,20 +454,28 @@ export async function POST(request: Request) {
   const apiUrl = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
   const apiKey = process.env.EVOLUTION_API_KEY || '';
   const configuredInstance = process.env.EVOLUTION_INSTANCE || '';
-  const configuredGroup = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID || '';
+  const configuredGroup =
+    process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID || '';
 
   if (configuredInstance !== OFFICIAL_INSTANCE || configuredGroup !== OFFICIAL_GROUP_ID) {
     return NextResponse.json(
-      { error: 'O envio oficial está bloqueado porque a instância ou o grupo da Vercel não correspondem à CEAMI.' },
+      {
+        error:
+          'O envio oficial está bloqueado porque a instância ou o grupo da Vercel não correspondem à CEAMI.',
+      },
       { status: 503 },
     );
   }
 
   if (!apiUrl || !apiKey) {
-    return NextResponse.json({ error: 'Evolution não configurada na Vercel.' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Evolution não configurada na Vercel.' },
+      { status: 503 },
+    );
   }
 
   let body: { force?: boolean; source?: 'automatic' | 'manual' } = {};
+
   try {
     body = (await request.json()) as typeof body;
   } catch {}
@@ -417,20 +519,16 @@ export async function POST(request: Request) {
     }
 
     members = await resolveMentions(members, apiUrl, apiKey);
-    const names = members.map((member) => member.name);
-    const mentioned = [...new Set(
-      members
-        .map((member) => member.mentionJid)
-        .filter((jid): jid is string => typeof jid === 'string' && isValidMentionJid(jid)),
-    )];
-    const message = buildMessage(members);
 
-    const result = await sendBirthdayMessage(apiUrl, apiKey, message, mentioned);
-    const providerResponse = result.final.payload;
+    const names = members.map((member) => member.name);
+    const sendResult = await sendBirthdayMessage(apiUrl, apiKey, members);
+    const providerResponse = sendResult.final.payload;
     const provider = providerEnvelope(providerResponse);
-    const rejected = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(provider.status);
+    const rejected = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(
+      provider.status,
+    );
     const accepted =
-      result.final.ok &&
+      sendResult.final.ok &&
       Boolean(provider.messageId) &&
       provider.remoteJid === OFFICIAL_GROUP_ID &&
       !rejected;
@@ -443,17 +541,17 @@ export async function POST(request: Request) {
       message_type: source,
       member_ids: members.map((member) => member.id),
       member_names: names,
-      message,
+      message: sendResult.message,
       provider_response: {
-        finalSchema: result.final.schema,
-        attempts: result.attempts,
+        attempts: sendResult.attempts,
+        sentWithoutMentions: sendResult.sentWithoutMentions,
       },
     };
 
     if (!accepted) {
       const providerDetail = providerErrorMessage(providerResponse);
-      const reason = !result.final.ok
-        ? `Evolution respondeu ${result.final.status}${providerDetail ? `: ${providerDetail}` : ''}.`
+      const reason = !sendResult.final.ok
+        ? `Evolution respondeu ${sendResult.final.status}${providerDetail ? `: ${providerDetail}` : ''}.`
         : `A Evolution não confirmou o grupo de destino. Status: ${provider.status}; destino: ${provider.remoteJid || 'não informado'}.`;
 
       await service.from('birthday_messages').insert({
@@ -477,8 +575,8 @@ export async function POST(request: Request) {
         {
           error: reason,
           details: providerResponse,
-          attemptedSchemas: result.attempts.map((attempt) => ({
-            schema: attempt.schema,
+          attempts: sendResult.attempts.map((attempt) => ({
+            mode: attempt.mode,
             status: attempt.status,
           })),
         },
@@ -510,10 +608,10 @@ export async function POST(request: Request) {
       providerStatus: provider.status,
       messageId: provider.messageId,
       names,
-      mentioned,
+      mentioned: sendResult.mentioned,
+      sentWithoutMentions: sendResult.sentWithoutMentions,
       groupId: OFFICIAL_GROUP_ID,
       groupName: OFFICIAL_GROUP_NAME,
-      schemaUsed: result.final.schema,
       historySaved: !historyError,
       historyError: historyError?.message || null,
     });

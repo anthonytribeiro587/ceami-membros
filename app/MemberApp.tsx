@@ -30,6 +30,7 @@ type Member = {
   phone: string;
   email: string;
   birthDate: string;
+  integraDate: string;
   birthdayLabel: string;
   ministry: string;
   roles: string[];
@@ -51,6 +52,7 @@ type MemberRowDb = {
   phone: string | null;
   email: string | null;
   birth_date: string | null;
+  integra_date?: string | null;
   ministry: string | null;
   status: string | null;
   address: string | null;
@@ -69,6 +71,7 @@ type EditData = {
   phone: string;
   email: string;
   birthDate: string;
+  integraDate: string;
   address: string;
   neighborhood: string;
   city: string;
@@ -139,6 +142,7 @@ function normalizeMember(row: MemberRowDb, roles: string[] = []): Member {
     phone: row.phone || 'Não informado',
     email: row.email || '',
     birthDate: row.birth_date || '',
+    integraDate: row.integra_date || '',
     birthdayLabel: birthdayLabel(row.birth_date || ''),
     ministry:
       normalizedRoles[0] ||
@@ -554,6 +558,7 @@ function MemberProfile({
       </section>
       <section className="profile-sections">
         <Info title="Contato" rows={[["WhatsApp", member.phone], ["E-mail", member.email || 'Não informado'], ["Nascimento", formatDate(member.birthDate)]]} />
+        <Info title="Integra CEAMI" rows={[["Data do Integra", formatDate(member.integraDate)]]} />
         <Info title="Endereço" rows={[["Endereço", member.address || 'Não informado'], ["Bairro", member.neighborhood || 'Não informado'], ["Cidade", member.city || 'Não informado']]} />
         <Info title="Vida cristã" rows={[["Batizado nas águas", member.waterBaptized ? 'Sim' : 'Não informado'], ["Batizado no Espírito Santo", member.holySpiritBaptized ? 'Sim' : 'Não informado'], ["Fundamentos da Fé", member.fundamentosFe ? 'Concluído' : 'Não informado']]} />
         <Info title="Ministérios e funções" rows={member.roles.length ? member.roles.map((role, index) => [`Função ${index + 1}`, role]) : [["Funções", member.ministry]]} />
@@ -579,6 +584,7 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
     phone: member.phone === 'Não informado' ? '' : member.phone,
     email: member.email,
     birthDate: member.birthDate,
+    integraDate: member.integraDate,
     address: member.address,
     neighborhood: member.neighborhood,
     city: member.city,
@@ -606,6 +612,7 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
         phone: data.phone.trim() || null,
         email: data.email.trim() || null,
         birth_date: data.birthDate || null,
+        integra_date: data.integraDate || null,
         address: data.address.trim() || null,
         neighborhood: data.neighborhood.trim() || null,
         city: data.city.trim() || null,
@@ -636,7 +643,10 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
             <Field label="WhatsApp"><input value={data.phone} onChange={(event) => update('phone', event.target.value)} /></Field>
             <Field label="E-mail"><input type="email" value={data.email} onChange={(event) => update('email', event.target.value)} /></Field>
           </div>
-          <Field label="Data de nascimento"><input type="date" value={data.birthDate} onChange={(event) => update('birthDate', event.target.value)} /></Field>
+          <div className="two">
+            <Field label="Data de nascimento"><input type="date" value={data.birthDate} onChange={(event) => update('birthDate', event.target.value)} /></Field>
+            <Field label="Data do Integra"><input type="date" value={data.integraDate} onChange={(event) => update('integraDate', event.target.value)} /></Field>
+          </div>
           <Field label="Endereço"><input value={data.address} onChange={(event) => update('address', event.target.value)} /></Field>
           <div className="two">
             <Field label="Bairro"><input value={data.neighborhood} onChange={(event) => update('neighborhood', event.target.value)} /></Field>

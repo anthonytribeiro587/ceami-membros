@@ -24,20 +24,29 @@ function onlyDigits(value: string) {
 }
 
 function nameMatches(input: string, stored: string) {
-  const inputWords = normalize(input).split(' ').filter(word => word.length > 1);
-  const storedWords = normalize(stored).split(' ').filter(word => word.length > 1);
-  return inputWords.length > 0 && inputWords.every(word =>
-    storedWords.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate)),
+  const inputWords = normalize(input).split(' ').filter((word) => word.length > 1);
+  const storedWords = normalize(stored).split(' ').filter((word) => word.length > 1);
+  return inputWords.length > 0 && inputWords.every((word) =>
+    storedWords.some((candidate) => candidate === word || candidate.startsWith(word) || word.startsWith(candidate)),
   );
+}
+
+function validDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const fullName = String(body.full_name || '').trim();
+    const integraDate = String(body.integra_date || '').trim();
 
     if (!fullName) {
       return NextResponse.json({ error: 'Nome completo é obrigatório.' }, { status: 400 });
+    }
+
+    if (!validDate(integraDate)) {
+      return NextResponse.json({ error: 'Informe uma data válida para o Integra.' }, { status: 400 });
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -66,7 +75,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não foi possível conferir se o cadastro já existe. Tente novamente.' }, { status: 500 });
     }
 
-    const duplicate = ((currentMembers || []) as ExistingMember[]).find(member => {
+    const duplicate = ((currentMembers || []) as ExistingMember[]).find((member) => {
       const samePhone = phoneDigits.length >= 8 && onlyDigits(member.phone || '') === phoneDigits;
       const sameEmail = email.length > 3 && String(member.email || '').trim().toLowerCase() === email;
       const sameBirthAndName = Boolean(
@@ -82,11 +91,13 @@ export async function POST(request: Request) {
       }, { status: 409 });
     }
 
+    const hasSkills = Boolean(body.has_skills);
     const payload = {
       full_name: fullName,
       phone: phone || null,
       email: email || null,
       birth_date: birthDate || null,
+      integra_date: integraDate,
       marital_status: body.marital_status || null,
       spouse_name: body.spouse_name || null,
       address: body.address || null,
@@ -103,8 +114,8 @@ export async function POST(request: Request) {
       holy_spirit_baptized: Boolean(body.holy_spirit_baptized),
       fundamentos_fe: Boolean(body.fundamentos_fe),
       fundamentos_fe_date: body.fundamentos_fe_date || null,
-      talents: body.talents || null,
-      ministry: body.ministry || 'Sem ministério',
+      talents: hasSkills ? String(body.talents || '').trim() || null : null,
+      ministry: 'Sem ministério',
       notes: body.notes || null,
       whatsapp_consent: Boolean(phone),
       status: 'ativo',

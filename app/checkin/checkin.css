@@ -1,0 +1,190 @@
+.course-checkin-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at top, rgba(41, 101, 80, 0.12), transparent 34%),
+    #f4f7f5;
+  color: #17221d;
+}
+
+.course-checkin-card {
+  width: min(100%, 520px);
+  border: 1px solid rgba(23, 34, 29, 0.1);
+  border-radius: 24px;
+  background: #fff;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(23, 34, 29, 0.1);
+}
+
+.course-checkin-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.course-checkin-brand > div {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #235e49;
+  color: #fff;
+  font-weight: 800;
+}
+
+.course-checkin-brand span {
+  display: grid;
+  gap: 2px;
+}
+
+.course-checkin-brand small,
+.course-checkin-header p,
+.course-checkin-form p,
+.course-checkin-footer,
+.course-checkin-success small {
+  color: #65736c;
+}
+
+.course-checkin-header > span {
+  color: #235e49;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.course-checkin-header h1 {
+  margin: 8px 0 4px;
+  font-size: clamp(1.65rem, 5vw, 2.2rem);
+  line-height: 1.1;
+}
+
+.course-checkin-header p {
+  margin: 0;
+}
+
+.course-checkin-lesson {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0;
+  padding: 18px;
+  border-radius: 18px;
+  background: #f2f7f4;
+}
+
+.course-checkin-lesson span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.94rem;
+}
+
+.course-checkin-form {
+  display: grid;
+  gap: 10px;
+}
+
+.course-checkin-form label {
+  font-weight: 700;
+}
+
+.course-checkin-form > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #cad5cf;
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #fff;
+}
+
+.course-checkin-form input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 14px 0;
+  font: inherit;
+  font-size: 16px;
+  background: transparent;
+}
+
+.course-checkin-form p {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+}
+
+.course-checkin-form button {
+  border: 0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  background: #235e49;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.course-checkin-form button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.course-checkin-success,
+.course-checkin-closed {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 18px;
+  border-radius: 18px;
+  text-align: center;
+  background: #eef7f1;
+  color: #235e49;
+}
+
+.course-checkin-success h2,
+.course-checkin-closed h2,
+.course-checkin-success p,
+.course-checkin-closed p {
+  margin: 0;
+}
+
+.course-checkin-closed {
+  background: #f7f4ec;
+  color: #695a24;
+}
+
+.course-checkin-error,
+.course-checkin-state {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff0f0;
+  color: #a12d2d;
+}
+
+.course-checkin-footer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #e5ebe7;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 520px) {
+  .course-checkin-page {
+    align-items: start;
+    padding: 14px 10px;
+  }
+
+  .course-checkin-card {
+    border-radius: 20px;
+    padding: 22px 18px;
+  }
+}

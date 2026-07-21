@@ -1,0 +1,30 @@
+.courses-shortcut {
+  position: fixed;
+  right: 22px;
+  top: 22px;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #235e49;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 800;
+  box-shadow: 0 12px 28px rgba(23, 34, 29, 0.2);
+}
+
+.courses-shortcut:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 760px) {
+  .courses-shortcut {
+    top: auto;
+    right: 14px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    padding: 11px 14px;
+  }
+}

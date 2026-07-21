@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 const TIME_ZONE = 'America/Sao_Paulo';
 const OFFICIAL_INSTANCE = 'ceamirs';
 const OFFICIAL_GROUP_ID = '120363148206200208@g.us';
+const OFFICIAL_GROUP_NAME = 'CEAMI GRUPO';
 
 type MemberRow = {
   id: string;
@@ -63,12 +64,15 @@ function normalizeBrazilPhone(value: string | null) {
 function phoneVariants(phone: string) {
   const variants = new Set<string>([phone]);
   if (!phone.startsWith('55')) return variants;
+
   if (phone.length === 13 && phone.charAt(4) === '9') {
     variants.add(`${phone.slice(0, 4)}${phone.slice(5)}`);
   }
+
   if (phone.length === 12) {
     variants.add(`${phone.slice(0, 4)}9${phone.slice(4)}`);
   }
+
   return variants;
 }
 
@@ -166,92 +170,46 @@ async function readJson(response: Response) {
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    return { raw: text.slice(0, 2000) };
+    return { raw: text.slice(0, 3000) };
   }
-}
-
-function findGroupData(payload: unknown) {
-  if (!payload || typeof payload !== 'object') return null;
-  const value = payload as Record<string, unknown>;
-  const candidate = value.group || value.data || value.response || value;
-  return candidate && typeof candidate === 'object'
-    ? (candidate as Record<string, unknown>)
-    : null;
-}
-
-function extractGroupId(group: Record<string, unknown> | null) {
-  if (!group) return '';
-  const rawId = group.id || group.jid || group.remoteJid;
-  if (typeof rawId === 'string') return rawId;
-  if (rawId && typeof rawId === 'object') {
-    const objectId = rawId as Record<string, unknown>;
-    if (typeof objectId._serialized === 'string') return objectId._serialized;
-  }
-  return '';
-}
-
-async function validateOfficialDestination(apiUrl: string, apiKey: string) {
-  const stateResponse = await fetch(
-    `${apiUrl}/instance/connectionState/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
-    { headers: { apikey: apiKey }, cache: 'no-store' },
-  );
-  const statePayload = await readJson(stateResponse);
-  const stateValue = statePayload && typeof statePayload === 'object'
-    ? String((statePayload as { instance?: { state?: string }; state?: string }).instance?.state || (statePayload as { state?: string }).state || '').toLowerCase()
-    : '';
-
-  if (!stateResponse.ok || stateValue !== 'open') {
-    return {
-      ok: false,
-      groupName: '',
-      error: `A instância “${OFFICIAL_INSTANCE}” não está conectada. Estado atual: ${stateValue || `HTTP ${stateResponse.status}`}.`,
-      details: statePayload,
-    };
-  }
-
-  const groupResponse = await fetch(
-    `${apiUrl}/group/findGroupInfos/${encodeURIComponent(OFFICIAL_INSTANCE)}?groupJid=${encodeURIComponent(OFFICIAL_GROUP_ID)}`,
-    { headers: { apikey: apiKey }, cache: 'no-store' },
-  );
-  const groupPayload = await readJson(groupResponse);
-  const group = findGroupData(groupPayload);
-  const returnedId = extractGroupId(group);
-  const groupName = String(group?.subject || group?.name || 'CEAMI GRUPO');
-
-  if (!groupResponse.ok || (returnedId && returnedId !== OFFICIAL_GROUP_ID)) {
-    return {
-      ok: false,
-      groupName: '',
-      error: `A Evolution não confirmou o CEAMI GRUPO pela consulta direta (${groupResponse.status}).`,
-      details: groupPayload,
-    };
-  }
-
-  return { ok: true, groupName, error: '', details: null };
 }
 
 async function fetchParticipants(apiUrl: string, apiKey: string) {
-  const response = await fetch(
-    `${apiUrl}/group/participants/${encodeURIComponent(OFFICIAL_INSTANCE)}?groupJid=${encodeURIComponent(OFFICIAL_GROUP_ID)}`,
-    { headers: { apikey: apiKey }, cache: 'no-store' },
-  );
-  if (!response.ok) return [] as GroupParticipant[];
-  const payload = (await response.json()) as
-    | GroupParticipant[]
-    | { participants?: GroupParticipant[]; data?: { participants?: GroupParticipant[] } };
-  if (Array.isArray(payload)) return payload;
-  return payload.participants || payload.data?.participants || [];
+  try {
+    const response = await fetch(
+      `${apiUrl}/group/participants/${encodeURIComponent(OFFICIAL_INSTANCE)}?groupJid=${encodeURIComponent(OFFICIAL_GROUP_ID)}`,
+      {
+        headers: { apikey: apiKey },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+
+    if (!response.ok) return [] as GroupParticipant[];
+
+    const payload = (await response.json()) as
+      | GroupParticipant[]
+      | { participants?: GroupParticipant[]; data?: { participants?: GroupParticipant[] } };
+
+    if (Array.isArray(payload)) return payload;
+    return payload.participants || payload.data?.participants || [];
+  } catch {
+    return [] as GroupParticipant[];
+  }
 }
 
 async function resolveMentions(members: BirthdayMember[], apiUrl: string, apiKey: string) {
   const participants = await fetchParticipants(apiUrl, apiKey);
+
   return members.map((member) => {
     if (!member.phone) return { ...member, mentionJid: null };
+
     const wanted = phoneVariants(member.phone);
     const participant = participants.find((item) => {
       const available = participantPhones(item);
       return [...wanted].some((phone) => available.has(phone));
     });
+
     return {
       ...member,
       mentionJid: participant ? participantJid(participant) : `${member.phone}@s.whatsapp.net`,
@@ -265,7 +223,9 @@ function providerEnvelope(payload: unknown) {
   return {
     messageId: String(key.id || ''),
     remoteJid: String(key.remoteJid || ''),
-    status: String(envelope.status || envelope.message?.status || envelope.data?.status || 'UNKNOWN').toUpperCase(),
+    status: String(
+      envelope.status || envelope.message?.status || envelope.data?.status || 'UNKNOWN',
+    ).toUpperCase(),
   };
 }
 
@@ -286,6 +246,7 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+
   if (!apiUrl || !apiKey) {
     return NextResponse.json({ error: 'Evolution não configurada na Vercel.' }, { status: 503 });
   }
@@ -300,29 +261,20 @@ export async function POST(request: Request) {
   const today = brazilDate();
 
   try {
-    const destination = await validateOfficialDestination(apiUrl, apiKey);
-    if (!destination.ok) {
-      await service.from('birthday_automation_settings').update({
-        last_sent_at: new Date().toISOString(),
-        last_status: 'failed',
-        last_error: destination.error,
-        updated_at: new Date().toISOString(),
-      }).eq('id', 'default');
-      return NextResponse.json(
-        { error: destination.error, details: destination.details },
-        { status: 409 },
-      );
-    }
-
     let members = await loadTodayBirthdays(service);
+
     if (!members.length) {
-      await service.from('birthday_automation_settings').update({
-        last_sent_date: today.date,
-        last_sent_at: new Date().toISOString(),
-        last_status: 'no_birthdays',
-        last_error: null,
-        updated_at: new Date().toISOString(),
-      }).eq('id', 'default');
+      await service
+        .from('birthday_automation_settings')
+        .update({
+          last_sent_date: today.date,
+          last_sent_at: new Date().toISOString(),
+          last_status: 'no_birthdays',
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', 'default');
+
       return NextResponse.json({ ok: true, skipped: 'no_birthdays' });
     }
 
@@ -335,6 +287,7 @@ export async function POST(request: Request) {
         .in('message_type', ['today', 'automatic', 'manual'])
         .in('status', ['sent', 'queued', 'accepted'])
         .limit(1);
+
       if (lookupError) throw new Error(lookupError.message);
       if (previous?.length) {
         return NextResponse.json({ ok: true, skipped: 'already_sent' });
@@ -362,22 +315,24 @@ export async function POST(request: Request) {
           mentioned,
         }),
         cache: 'no-store',
+        signal: AbortSignal.timeout(25000),
       },
     );
 
     const providerResponse = await readJson(response);
     const provider = providerEnvelope(providerResponse);
     const rejected = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(provider.status);
-    const accepted = response.ok
-      && Boolean(provider.messageId)
-      && provider.remoteJid === OFFICIAL_GROUP_ID
-      && !rejected;
+    const accepted =
+      response.ok &&
+      Boolean(provider.messageId) &&
+      provider.remoteJid === OFFICIAL_GROUP_ID &&
+      !rejected;
 
     const logBase = {
       member_id: members[0].id,
       send_date: today.date,
       group_id: OFFICIAL_GROUP_ID,
-      group_name: destination.groupName,
+      group_name: OFFICIAL_GROUP_NAME,
       message_type: source,
       member_ids: members.map((member) => member.id),
       member_names: names,
@@ -389,18 +344,24 @@ export async function POST(request: Request) {
       const reason = !response.ok
         ? `Evolution respondeu ${response.status}.`
         : `A Evolution não confirmou o grupo de destino. Status: ${provider.status}; destino: ${provider.remoteJid || 'não informado'}.`;
+
       await service.from('birthday_messages').insert({
         ...logBase,
         status: 'failed',
         error_message: reason,
       });
-      await service.from('birthday_automation_settings').update({
-        last_sent_date: null,
-        last_sent_at: new Date().toISOString(),
-        last_status: 'failed',
-        last_error: reason,
-        updated_at: new Date().toISOString(),
-      }).eq('id', 'default');
+
+      await service
+        .from('birthday_automation_settings')
+        .update({
+          last_sent_date: null,
+          last_sent_at: new Date().toISOString(),
+          last_status: 'failed',
+          last_error: reason,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', 'default');
+
       return NextResponse.json({ error: reason, details: providerResponse }, { status: 502 });
     }
 
@@ -410,13 +371,16 @@ export async function POST(request: Request) {
       error_message: null,
     });
 
-    await service.from('birthday_automation_settings').update({
-      last_sent_date: today.date,
-      last_sent_at: new Date().toISOString(),
-      last_status: 'queued',
-      last_error: historyError?.message || null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', 'default');
+    await service
+      .from('birthday_automation_settings')
+      .update({
+        last_sent_date: today.date,
+        last_sent_at: new Date().toISOString(),
+        last_status: 'queued',
+        last_error: historyError?.message || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'default');
 
     return NextResponse.json({
       ok: true,
@@ -427,19 +391,24 @@ export async function POST(request: Request) {
       names,
       mentioned,
       groupId: OFFICIAL_GROUP_ID,
-      groupName: destination.groupName,
+      groupName: OFFICIAL_GROUP_NAME,
       historySaved: !historyError,
       historyError: historyError?.message || null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Não foi possível enviar.';
-    await service.from('birthday_automation_settings').update({
-      last_sent_date: null,
-      last_sent_at: new Date().toISOString(),
-      last_status: 'failed',
-      last_error: message,
-      updated_at: new Date().toISOString(),
-    }).eq('id', 'default');
+
+    await service
+      .from('birthday_automation_settings')
+      .update({
+        last_sent_date: null,
+        last_sent_at: new Date().toISOString(),
+        last_status: 'failed',
+        last_error: message,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'default');
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

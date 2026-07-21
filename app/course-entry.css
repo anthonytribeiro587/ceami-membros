@@ -1,4 +1,5 @@
-.sidebar nav .courses-shortcut {
+.sidebar nav .courses-shortcut,
+.sidebar nav .panel-signout {
   position: static;
   z-index: auto;
   display: flex;
@@ -11,16 +12,32 @@
   background: transparent;
   color: rgba(255, 255, 255, 0.92);
   text-decoration: none;
+  font: inherit;
   font-weight: 800;
+  text-align: left;
   box-shadow: none;
+  cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .sidebar nav .courses-shortcut:hover,
-.sidebar nav .courses-shortcut:focus-visible {
+.sidebar nav .courses-shortcut:focus-visible,
+.sidebar nav .panel-signout:hover,
+.sidebar nav .panel-signout:focus-visible {
   background: rgba(0, 63, 89, 0.86);
   color: #fff;
   filter: none;
+}
+
+.sidebar nav .panel-signout {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0 0 14px 14px;
+}
+
+.sidebar nav .panel-signout:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .course-only-mode .courses-back {
@@ -32,7 +49,8 @@
 }
 
 @media (max-width: 760px) {
-  .sidebar nav .courses-shortcut {
+  .sidebar nav .courses-shortcut,
+  .sidebar nav .panel-signout {
     padding: 13px 16px;
   }
 }

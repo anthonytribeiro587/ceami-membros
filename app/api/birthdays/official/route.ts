@@ -1,0 +1,445 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
+const TIME_ZONE = 'America/Sao_Paulo';
+const OFFICIAL_INSTANCE = 'ceamirs';
+const OFFICIAL_GROUP_ID = '120363148206200208@g.us';
+
+type MemberRow = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  birth_date: string | null;
+  status: string | null;
+};
+
+type BirthdayMember = {
+  id: string;
+  name: string;
+  phone: string;
+  mentionJid: string | null;
+};
+
+type GroupParticipant = {
+  id?: string;
+  jid?: string;
+  remoteJid?: string;
+  phoneNumber?: string;
+  phone?: string;
+};
+
+type ProviderEnvelope = {
+  key?: { id?: string; remoteJid?: string };
+  status?: string;
+  message?: { key?: { id?: string; remoteJid?: string }; status?: string };
+  data?: { key?: { id?: string; remoteJid?: string }; status?: string };
+};
+
+function serviceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+function onlyDigits(value: unknown) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function normalizeBrazilPhone(value: string | null) {
+  let digits = onlyDigits(value);
+  if (!digits) return '';
+  if (digits.startsWith('0')) digits = digits.replace(/^0+/, '');
+  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+  return digits.length >= 12 && digits.length <= 13 ? digits : '';
+}
+
+function phoneVariants(phone: string) {
+  const variants = new Set<string>([phone]);
+  if (!phone.startsWith('55')) return variants;
+  if (phone.length === 13 && phone.charAt(4) === '9') {
+    variants.add(`${phone.slice(0, 4)}${phone.slice(5)}`);
+  }
+  if (phone.length === 12) {
+    variants.add(`${phone.slice(0, 4)}9${phone.slice(4)}`);
+  }
+  return variants;
+}
+
+function titleCase(value: string) {
+  const lowerWords = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+  return value
+    .trim()
+    .toLocaleLowerCase('pt-BR')
+    .split(/\s+/)
+    .map((word, index) =>
+      index > 0 && lowerWords.has(word)
+        ? word
+        : word.charAt(0).toLocaleUpperCase('pt-BR') + word.slice(1),
+    )
+    .join(' ');
+}
+
+function brazilDate() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((item) => item.type === type)?.value || '';
+  const year = get('year');
+  const month = get('month');
+  const day = get('day');
+  return {
+    date: `${year}-${month}-${day}`,
+    monthDay: `${month}-${day}`,
+  };
+}
+
+function participantJid(participant: GroupParticipant) {
+  return participant.id || participant.jid || participant.remoteJid || '';
+}
+
+function participantPhones(participant: GroupParticipant) {
+  const values = [participant.phoneNumber, participant.phone];
+  const jid = participantJid(participant);
+  if (jid && !jid.endsWith('@lid')) values.push(jid.split('@')[0]);
+
+  const phones = new Set<string>();
+  for (const value of values) {
+    const digits = normalizeBrazilPhone(String(value || '')) || onlyDigits(value);
+    if (!digits) continue;
+    for (const variant of phoneVariants(digits)) phones.add(variant);
+  }
+  return phones;
+}
+
+function toBirthdayMember(member: MemberRow): BirthdayMember {
+  const phone = normalizeBrazilPhone(member.phone);
+  return {
+    id: member.id,
+    name: titleCase(member.full_name),
+    phone,
+    mentionJid: phone ? `${phone}@s.whatsapp.net` : null,
+  };
+}
+
+function memberLine(member: BirthdayMember) {
+  return member.mentionJid && member.phone
+    ? `*${member.name}* — @${member.phone}`
+    : `*${member.name}*`;
+}
+
+function buildMessage(members: BirthdayMember[]) {
+  if (members.length === 1) {
+    return `🎉 *Hoje é dia de celebrar!*\n\nA CEAMI deseja um feliz aniversário para ${memberLine(members[0])}! 🥳\n\nQue Deus continue abençoando sua vida, sua família e sua caminhada. Que este novo ciclo seja cheio da presença de Deus, alegria e propósito.\n\nDeixe aqui sua mensagem de carinho! 🧡`;
+  }
+
+  const list = members.map((member) => `• ${memberLine(member)}`).join('\n');
+  return `🎉 *Hoje é dia de celebrar!*\n\nA CEAMI deseja um feliz aniversário aos nossos aniversariantes de hoje:\n\n${list}\n\nQue Deus continue abençoando cada vida, família e caminhada. Que este novo ciclo seja cheio da presença de Deus, alegria e propósito.\n\nDeixe aqui sua mensagem de carinho! 🧡`;
+}
+
+async function loadTodayBirthdays(service: SupabaseClient) {
+  const { monthDay } = brazilDate();
+  const { data, error } = await service
+    .from('members')
+    .select('id, full_name, phone, birth_date, status')
+    .order('full_name', { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  return ((data || []) as MemberRow[])
+    .filter((member) => String(member.status || 'ativo').toLocaleLowerCase('pt-BR') !== 'inativo')
+    .filter((member) => member.birth_date?.slice(5) === monthDay)
+    .map(toBirthdayMember);
+}
+
+async function readJson(response: Response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return { raw: text.slice(0, 2000) };
+  }
+}
+
+function findGroupData(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return null;
+  const value = payload as Record<string, unknown>;
+  const candidate = value.group || value.data || value.response || value;
+  return candidate && typeof candidate === 'object'
+    ? (candidate as Record<string, unknown>)
+    : null;
+}
+
+function extractGroupId(group: Record<string, unknown> | null) {
+  if (!group) return '';
+  const rawId = group.id || group.jid || group.remoteJid;
+  if (typeof rawId === 'string') return rawId;
+  if (rawId && typeof rawId === 'object') {
+    const objectId = rawId as Record<string, unknown>;
+    if (typeof objectId._serialized === 'string') return objectId._serialized;
+  }
+  return '';
+}
+
+async function validateOfficialDestination(apiUrl: string, apiKey: string) {
+  const stateResponse = await fetch(
+    `${apiUrl}/instance/connectionState/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
+    { headers: { apikey: apiKey }, cache: 'no-store' },
+  );
+  const statePayload = await readJson(stateResponse);
+  const stateValue = statePayload && typeof statePayload === 'object'
+    ? String((statePayload as { instance?: { state?: string }; state?: string }).instance?.state || (statePayload as { state?: string }).state || '').toLowerCase()
+    : '';
+
+  if (!stateResponse.ok || stateValue !== 'open') {
+    return {
+      ok: false,
+      groupName: '',
+      error: `A instância “${OFFICIAL_INSTANCE}” não está conectada. Estado atual: ${stateValue || `HTTP ${stateResponse.status}`}.`,
+      details: statePayload,
+    };
+  }
+
+  const groupResponse = await fetch(
+    `${apiUrl}/group/findGroupInfos/${encodeURIComponent(OFFICIAL_INSTANCE)}?groupJid=${encodeURIComponent(OFFICIAL_GROUP_ID)}`,
+    { headers: { apikey: apiKey }, cache: 'no-store' },
+  );
+  const groupPayload = await readJson(groupResponse);
+  const group = findGroupData(groupPayload);
+  const returnedId = extractGroupId(group);
+  const groupName = String(group?.subject || group?.name || 'CEAMI GRUPO');
+
+  if (!groupResponse.ok || (returnedId && returnedId !== OFFICIAL_GROUP_ID)) {
+    return {
+      ok: false,
+      groupName: '',
+      error: `A Evolution não confirmou o CEAMI GRUPO pela consulta direta (${groupResponse.status}).`,
+      details: groupPayload,
+    };
+  }
+
+  return { ok: true, groupName, error: '', details: null };
+}
+
+async function fetchParticipants(apiUrl: string, apiKey: string) {
+  const response = await fetch(
+    `${apiUrl}/group/participants/${encodeURIComponent(OFFICIAL_INSTANCE)}?groupJid=${encodeURIComponent(OFFICIAL_GROUP_ID)}`,
+    { headers: { apikey: apiKey }, cache: 'no-store' },
+  );
+  if (!response.ok) return [] as GroupParticipant[];
+  const payload = (await response.json()) as
+    | GroupParticipant[]
+    | { participants?: GroupParticipant[]; data?: { participants?: GroupParticipant[] } };
+  if (Array.isArray(payload)) return payload;
+  return payload.participants || payload.data?.participants || [];
+}
+
+async function resolveMentions(members: BirthdayMember[], apiUrl: string, apiKey: string) {
+  const participants = await fetchParticipants(apiUrl, apiKey);
+  return members.map((member) => {
+    if (!member.phone) return { ...member, mentionJid: null };
+    const wanted = phoneVariants(member.phone);
+    const participant = participants.find((item) => {
+      const available = participantPhones(item);
+      return [...wanted].some((phone) => available.has(phone));
+    });
+    return {
+      ...member,
+      mentionJid: participant ? participantJid(participant) : `${member.phone}@s.whatsapp.net`,
+    };
+  });
+}
+
+function providerEnvelope(payload: unknown) {
+  const envelope = (payload || {}) as ProviderEnvelope;
+  const key = envelope.key || envelope.message?.key || envelope.data?.key || {};
+  return {
+    messageId: String(key.id || ''),
+    remoteJid: String(key.remoteJid || ''),
+    status: String(envelope.status || envelope.message?.status || envelope.data?.status || 'UNKNOWN').toUpperCase(),
+  };
+}
+
+export async function POST(request: Request) {
+  const service = serviceClient();
+  if (!service) {
+    return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
+  }
+
+  const apiUrl = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.EVOLUTION_API_KEY || '';
+  const configuredInstance = process.env.EVOLUTION_INSTANCE || '';
+  const configuredGroup = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID || '';
+
+  if (configuredInstance !== OFFICIAL_INSTANCE || configuredGroup !== OFFICIAL_GROUP_ID) {
+    return NextResponse.json(
+      { error: 'O envio oficial está bloqueado porque a instância ou o grupo da Vercel não correspondem à CEAMI.' },
+      { status: 503 },
+    );
+  }
+  if (!apiUrl || !apiKey) {
+    return NextResponse.json({ error: 'Evolution não configurada na Vercel.' }, { status: 503 });
+  }
+
+  let body: { force?: boolean; source?: 'automatic' | 'manual' } = {};
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {}
+
+  const source = body.source === 'manual' ? 'manual' : 'automatic';
+  const force = Boolean(body.force);
+  const today = brazilDate();
+
+  try {
+    const destination = await validateOfficialDestination(apiUrl, apiKey);
+    if (!destination.ok) {
+      await service.from('birthday_automation_settings').update({
+        last_sent_at: new Date().toISOString(),
+        last_status: 'failed',
+        last_error: destination.error,
+        updated_at: new Date().toISOString(),
+      }).eq('id', 'default');
+      return NextResponse.json(
+        { error: destination.error, details: destination.details },
+        { status: 409 },
+      );
+    }
+
+    let members = await loadTodayBirthdays(service);
+    if (!members.length) {
+      await service.from('birthday_automation_settings').update({
+        last_sent_date: today.date,
+        last_sent_at: new Date().toISOString(),
+        last_status: 'no_birthdays',
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', 'default');
+      return NextResponse.json({ ok: true, skipped: 'no_birthdays' });
+    }
+
+    if (!force) {
+      const { data: previous, error: lookupError } = await service
+        .from('birthday_messages')
+        .select('id')
+        .eq('send_date', today.date)
+        .eq('group_id', OFFICIAL_GROUP_ID)
+        .in('message_type', ['today', 'automatic', 'manual'])
+        .in('status', ['sent', 'queued', 'accepted'])
+        .limit(1);
+      if (lookupError) throw new Error(lookupError.message);
+      if (previous?.length) {
+        return NextResponse.json({ ok: true, skipped: 'already_sent' });
+      }
+    }
+
+    members = await resolveMentions(members, apiUrl, apiKey);
+    const names = members.map((member) => member.name);
+    const mentioned = members
+      .map((member) => member.mentionJid)
+      .filter((jid): jid is string => Boolean(jid));
+    const message = buildMessage(members);
+
+    const response = await fetch(
+      `${apiUrl}/message/sendText/${encodeURIComponent(OFFICIAL_INSTANCE)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: apiKey },
+        body: JSON.stringify({
+          number: OFFICIAL_GROUP_ID,
+          text: message,
+          delay: 1200,
+          linkPreview: false,
+          mentionsEveryOne: false,
+          mentioned,
+        }),
+        cache: 'no-store',
+      },
+    );
+
+    const providerResponse = await readJson(response);
+    const provider = providerEnvelope(providerResponse);
+    const rejected = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(provider.status);
+    const accepted = response.ok
+      && Boolean(provider.messageId)
+      && provider.remoteJid === OFFICIAL_GROUP_ID
+      && !rejected;
+
+    const logBase = {
+      member_id: members[0].id,
+      send_date: today.date,
+      group_id: OFFICIAL_GROUP_ID,
+      group_name: destination.groupName,
+      message_type: source,
+      member_ids: members.map((member) => member.id),
+      member_names: names,
+      message,
+      provider_response: providerResponse,
+    };
+
+    if (!accepted) {
+      const reason = !response.ok
+        ? `Evolution respondeu ${response.status}.`
+        : `A Evolution não confirmou o grupo de destino. Status: ${provider.status}; destino: ${provider.remoteJid || 'não informado'}.`;
+      await service.from('birthday_messages').insert({
+        ...logBase,
+        status: 'failed',
+        error_message: reason,
+      });
+      await service.from('birthday_automation_settings').update({
+        last_sent_date: null,
+        last_sent_at: new Date().toISOString(),
+        last_status: 'failed',
+        last_error: reason,
+        updated_at: new Date().toISOString(),
+      }).eq('id', 'default');
+      return NextResponse.json({ error: reason, details: providerResponse }, { status: 502 });
+    }
+
+    const { error: historyError } = await service.from('birthday_messages').insert({
+      ...logBase,
+      status: 'queued',
+      error_message: null,
+    });
+
+    await service.from('birthday_automation_settings').update({
+      last_sent_date: today.date,
+      last_sent_at: new Date().toISOString(),
+      last_status: 'queued',
+      last_error: historyError?.message || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', 'default');
+
+    return NextResponse.json({
+      ok: true,
+      accepted: true,
+      deliveryStatus: 'queued',
+      providerStatus: provider.status,
+      messageId: provider.messageId,
+      names,
+      mentioned,
+      groupId: OFFICIAL_GROUP_ID,
+      groupName: destination.groupName,
+      historySaved: !historyError,
+      historyError: historyError?.message || null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Não foi possível enviar.';
+    await service.from('birthday_automation_settings').update({
+      last_sent_date: null,
+      last_sent_at: new Date().toISOString(),
+      last_status: 'failed',
+      last_error: message,
+      updated_at: new Date().toISOString(),
+    }).eq('id', 'default');
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

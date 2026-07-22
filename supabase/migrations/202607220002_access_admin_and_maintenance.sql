@@ -11,12 +11,16 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_database_admin boolean := session_user in ('postgres', 'supabase_admin');
 begin
-  if not public.is_ceami_admin() then
+  if not public.is_ceami_admin() and not v_database_admin then
     raise exception 'Acesso restrito ao administrador.';
   end if;
 
-  if p_profile_id = auth.uid() and coalesce(p_is_active, false) = false then
+  if auth.uid() is not null
+     and p_profile_id = auth.uid()
+     and coalesce(p_is_active, false) = false then
     raise exception 'O administrador não pode desativar a própria conta.';
   end if;
 

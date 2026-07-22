@@ -8,7 +8,7 @@ create role service_role nologin;
 
 create schema auth;
 create or replace function auth.uid()
-returns uuid language sql stable as $$ select null::uuid $$;
+returns uuid language sql stable as $$ select '00000000-0000-0000-0000-000000000001'::uuid $$;
 create or replace function auth.role()
 returns text language sql stable as $$ select 'service_role'::text $$;
 
@@ -61,6 +61,9 @@ create table public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+insert into public.profiles (id, full_name, role, course_only)
+values ('00000000-0000-0000-0000-000000000001', 'Administrador de teste', 'admin', false);
 
 create table public.members (
   id uuid primary key default gen_random_uuid(),

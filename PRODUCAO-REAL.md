@@ -8,6 +8,7 @@ Execute no Supabase, nesta ordem:
 
 1. `supabase/migrations/202607220001_production_hardening.sql`
 2. `supabase/migrations/202607220002_access_admin_and_maintenance.sql`
+3. `supabase/migrations/202607220003_view_hardening.sql`
 
 Confirme:
 
@@ -21,6 +22,16 @@ select
 ```
 
 Todos os campos precisam retornar um objeto, e não `null`.
+
+Confira também se a view pública respeita as políticas das tabelas-base:
+
+```sql
+select reloptions
+from pg_class
+where oid = 'public.birthdays_this_month'::regclass;
+```
+
+O resultado deve incluir `security_invoker=true`.
 
 ## 2. Supabase Auth
 

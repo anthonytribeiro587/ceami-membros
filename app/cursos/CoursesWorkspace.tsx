@@ -183,7 +183,7 @@ export default function CoursesWorkspace() {
         .from('course_classes')
         .select('*, courses(name)')
         .order('created_at', { ascending: false }),
-      supabase.from('members').select('id, full_name, phone').order('full_name'),
+      supabase.rpc('get_course_member_options'),
     ]);
 
     if (courseResult.error || classResult.error || memberResult.error) {

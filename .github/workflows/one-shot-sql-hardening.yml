@@ -1,0 +1,51 @@
+name: One-shot SQL hardening edits
+
+on:
+  push:
+    branches:
+      - security/producao-real-v1
+    paths:
+      - .github/workflows/one-shot-sql-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-migration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/producao-real-v1
+
+      - name: Apply deterministic SQL replacements
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('supabase/migrations/202607220001_production_hardening.sql')
+          source = path.read_text(encoding='utf-8')
+
+          replacements = {
+              """-- Preserva o acesso das contas que já existiam antes desta revisão.\nupdate public.profiles\nset is_active = true\nwhere is_active = false;""":
+              """-- Por segurança, apenas administradores existentes permanecem ativos.\n-- Os demais perfis devem ser aprovados explicitamente após a revisão.\nupdate public.profiles\nset is_active = (role::text = 'admin')\nwhere is_active = false;""",
+              """  return case when tg_op = 'DELETE' then old else new end;""":
+              """  if tg_op = 'DELETE' then\n    return old;\n  end if;\n\n  return new;""",
+          }
+
+          for old, new in replacements.items():
+              if old not in source:
+                  raise SystemExit(f'Expected SQL block not found: {old[:60]}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source, encoding='utf-8')
+          PY
+
+      - name: Commit final SQL edits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/migrations/202607220001_production_hardening.sql
+          git commit -m "security: require explicit approval for non-admin accounts"
+          git push origin HEAD:security/producao-real-v1

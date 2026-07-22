@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   },
   description: 'Cadastro de membros, atualização de dados e aniversários automáticos da CEAMI.',
   applicationName: 'CEAMI Membros',
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    nosnippet: true,
+  },
   icons: {
     icon: [{ url: '/brand/ceami-icon.svg?v=official-2', type: 'image/svg+xml' }],
     shortcut: '/brand/ceami-icon.svg?v=official-2',
@@ -36,6 +42,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {children}
         <footer className="site-footer">
           <span>CEAMI Membros</span>
+          <span aria-hidden="true">•</span>
+          <a href="/privacidade">Privacidade</a>
           <span aria-hidden="true">•</span>
           <a href="https://nextlead-lp.vercel.app/" target="_blank" rel="noreferrer">
             Desenvolvido por <strong>NextLead</strong>

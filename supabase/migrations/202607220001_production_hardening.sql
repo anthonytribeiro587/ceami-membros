@@ -7,9 +7,10 @@ create extension if not exists "pgcrypto";
 alter table public.profiles
   add column if not exists is_active boolean not null default false;
 
--- Preserva o acesso das contas que já existiam antes desta revisão.
+-- Por segurança, apenas administradores existentes permanecem ativos.
+-- Os demais perfis devem ser aprovados explicitamente após a revisão.
 update public.profiles
-set is_active = true
+set is_active = (role::text = 'admin')
 where is_active = false;
 
 comment on column public.profiles.is_active is
@@ -355,7 +356,11 @@ begin
   insert into public.audit_log (actor_id, entity_type, entity_id, action, changed_fields)
   values (auth.uid(), tg_table_name, v_entity_id, lower(tg_op), v_fields);
 
-  return case when tg_op = 'DELETE' then old else new end;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+
+  return new;
 end;
 $$;
 

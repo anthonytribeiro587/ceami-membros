@@ -39,7 +39,27 @@ jobs:
         run: npm install --no-fund --no-audit
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        shell: bash
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=high --json > audit.json
+          AUDIT_EXIT=$?
+          set -e
+          node - <<'NODE'
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          const vulnerabilities = audit.vulnerabilities || {};
+          const blocked = Object.entries(vulnerabilities)
+            .filter(([, value]) => ['high', 'critical'].includes(value.severity))
+            .map(([name, value]) => `${name}: ${value.severity}; corrigível=${JSON.stringify(value.fixAvailable)}`);
+          if (blocked.length) {
+            console.error(`Vulnerabilidades bloqueantes (${blocked.length}):`);
+            for (const item of blocked) console.error(`- ${item}`);
+            process.exit(1);
+          }
+          console.log('Nenhuma vulnerabilidade HIGH ou CRITICAL em dependências de produção.');
+          NODE
+          exit $AUDIT_EXIT
 
       - name: TypeScript
         run: npm run typecheck

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   integrate-course-table:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/security/producao-real-v1' && !contains(github.event.head_commit.message, 'ui: integrate responsive course table')
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/security/producao-real-v1' && !contains(github.event.head_commit.message, 'ui: integrate responsive course table') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

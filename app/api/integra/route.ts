@@ -69,6 +69,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await readLimitedJson<IntegraBody>(request, 20_000);
+
+    if (body.privacy_accepted !== true) {
+      return NextResponse.json(
+        { error: 'Confirme o aviso de privacidade antes de enviar.' },
+        { status: 400 },
+      );
+    }
+
     const fullName = String(body.full_name || '').trim().replace(/\s+/g, ' ').slice(0, 180);
     const integraDate = String(body.integra_date || '').trim();
 

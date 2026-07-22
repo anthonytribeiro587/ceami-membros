@@ -1,25 +1,25 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { LockKeyhole, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import './login.css';
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('acesso') !== 'aguardando-aprovacao') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('acesso') !== 'aguardando-aprovacao') return;
     const supabase = createClient();
     void supabase.auth.signOut();
     setError('Esta conta ainda não foi aprovada pela administração da CEAMI.');
-  }, [searchParams]);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

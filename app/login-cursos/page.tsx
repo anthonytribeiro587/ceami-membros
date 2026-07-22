@@ -30,18 +30,18 @@ export default function CoursesLoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, course_only')
+      .select('role, course_only, is_active')
       .eq('id', data.user.id)
       .maybeSingle();
 
-    if (profileError) {
+    if (profileError || !profile?.is_active) {
       await supabase.auth.signOut();
-      setError('O acesso aos cursos ainda não foi configurado para esta conta.');
+      setError('Esta conta ainda não foi aprovada pela administração da CEAMI.');
       setLoading(false);
       return;
     }
 
-    if (profile?.role !== 'admin' && !profile?.course_only) {
+    if (profile.role !== 'admin' && !profile.course_only) {
       await supabase.auth.signOut();
       setError('Esta conta não possui acesso ao portal de Cursos.');
       setLoading(false);

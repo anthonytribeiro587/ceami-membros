@@ -1,0 +1,118 @@
+name: CEAMI Production Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - security/**
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ceami_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ceami_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-public-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+      API_RATE_LIMIT_SALT: test-rate-limit-salt
+      EVOLUTION_API_URL: https://example.invalid
+      EVOLUTION_API_KEY: test-evolution-key
+      EVOLUTION_INSTANCE: ceamirs
+      EVOLUTION_GROUP_ID: 120363148206200208@g.us
+      PGPASSWORD: postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Production dependency audit
+        id: audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=high --json > audit.json
+          AUDIT_EXIT=$?
+          set -e
+          node - <<'NODE'
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          const vulnerabilities = audit.vulnerabilities || {};
+          const blocked = Object.entries(vulnerabilities)
+            .filter(([, value]) => ['high', 'critical'].includes(value.severity))
+            .map(([name, value]) => `${name}: ${value.severity}; corrigível=${JSON.stringify(value.fixAvailable)}`);
+          const report = blocked.length
+            ? `Vulnerabilidades bloqueantes (${blocked.length}):\n${blocked.map((item) => `- ${item}`).join('\n')}\n`
+            : 'Nenhuma vulnerabilidade HIGH ou CRITICAL em dependências de produção.\n';
+          fs.writeFileSync('audit-report.txt', report);
+          console.log(report);
+          process.exit(blocked.length ? 1 : 0);
+          NODE
+          exit $AUDIT_EXIT
+
+      - name: Upload dependency audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: |
+            audit.json
+            audit-report.txt
+          retention-days: 3
+
+      - name: Enforce dependency audit
+        if: steps.audit.outcome == 'failure'
+        run: |
+          cat audit-report.txt
+          exit 1
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Security invariants
+        run: npm test
+
+      - name: Execute hardening migrations
+        run: |
+          psql -h 127.0.0.1 -U postgres -d ceami_test -f tests/sql/production_hardening_setup.sql
+          for migration in \
+            supabase/migrations/202607220001_production_hardening.sql \
+            supabase/migrations/202607220002_access_admin_and_maintenance.sql \
+            supabase/migrations/202607220003_view_hardening.sql \
+            supabase/migrations/202607220004_course_member_minimum_access.sql
+          do
+            echo "Executando $migration"
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d ceami_test -f "$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d ceami_test -c "select public.get_course_member_options();" >/dev/null
+
+      - name: Production build
+        run: npm run build

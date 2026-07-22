@@ -1,8 +1,16 @@
 import { createHmac } from 'crypto';
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  consumeRateLimit,
+  getSecuritySecret,
+  getServiceClient,
+  publicErrorMessage,
+  readLimitedJson,
+  requestComesFromSameSite,
+} from '@/lib/server/security';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 type MemberCandidate = {
   id: string;
@@ -26,6 +34,7 @@ type MemberCandidate = {
 
 type SummaryStatus = 'filled' | 'partial' | 'missing';
 type SummaryField = { value: string; status: SummaryStatus };
+type LookupBody = Record<string, unknown>;
 
 const HIDDEN_DEPARTMENTS = new Set(['comunicação', 'diaconato', 'dança', 'liderança', 'técnica']);
 
@@ -38,23 +47,10 @@ function onlyDigits(value: string) {
   return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
 }
 
-function abbreviatedNameMatches(input: string, stored: string) {
-  const inputWords = normalize(input).split(' ').filter(word => word.length > 1);
-  const storedWords = normalize(stored).split(' ').filter(word => word.length > 1);
-  return inputWords.length > 0 && inputWords.every(word => storedWords.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate)));
-}
-
-function nameScore(input: string, stored: string) {
-  const inputWords = normalize(input).split(' ').filter(word => word.length > 1);
-  const storedWords = normalize(stored).split(' ').filter(word => word.length > 1);
-  if (!inputWords.length || !storedWords.length) return 0;
-  return inputWords.filter(word => storedWords.some(candidate => candidate === word || candidate.startsWith(word) || word.startsWith(candidate))).length / Math.max(inputWords.length, storedWords.length);
-}
-
 function maskName(fullName: string) {
   const words = fullName.trim().split(/\s+/).filter(Boolean);
   if (words.length <= 1) return words[0] || 'Membro localizado';
-  return `${words[0]} ${words.slice(1).map(word => `${word.charAt(0).toUpperCase()}.`).join(' ')}`;
+  return `${words[0]} ${words.slice(1).map((word) => `${word.charAt(0).toUpperCase()}.`).join(' ')}`;
 }
 
 function maskPhone(phone: string | null): SummaryField {
@@ -79,7 +75,7 @@ function booleanSummary(value: boolean | null): SummaryField {
 
 function addressSummary(member: MemberCandidate): SummaryField {
   const fields = [member.address, member.neighborhood, member.city];
-  const completed = fields.filter(value => String(value || '').trim()).length;
+  const completed = fields.filter((value) => String(value || '').trim()).length;
   if (completed === 0) return { value: 'Não informado', status: 'missing' };
   if (completed === fields.length) return { value: 'Completo', status: 'filled' };
   const missing = ['endereço', 'bairro', 'cidade'].filter((_, index) => !String(fields[index] || '').trim());
@@ -92,7 +88,7 @@ function familySummary(member: MemberCandidate): SummaryField {
   if (member.spouse_name) parts.push('cônjuge cadastrado');
   if (member.has_children === false) parts.push('sem filhos');
   if (member.has_children === true) {
-    const count = String(member.children_names || '').split(/\n|,|;/).map(item => item.trim()).filter(Boolean).length;
+    const count = String(member.children_names || '').split(/\n|,|;/).map((item) => item.trim()).filter(Boolean).length;
     parts.push(count > 0 ? `${count} ${count === 1 ? 'filho cadastrado' : 'filhos cadastrados'}` : 'filhos informados');
   }
   return parts.length
@@ -107,99 +103,126 @@ function sign(memberId: string, secret: string) {
   return Buffer.from(`${payload}.${signature}`).toString('base64url');
 }
 
-export async function POST(request: Request) {
+function validDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const name = String(body?.name ?? '').trim();
-    const birthDate = String(body?.birthDate ?? '').trim();
-    const phone = String(body?.phone ?? '').trim();
-    const email = String(body?.email ?? '').trim().toLowerCase();
-    const validBirthDate = /^\d{4}-\d{2}-\d{2}$/.test(birthDate);
+    if (!requestComesFromSameSite(request)) {
+      return NextResponse.json({ found: false, error: 'Origem da solicitação não permitida.' }, { status: 403 });
+    }
+
+    const allowed = await consumeRateLimit(request, 'member-lookup', 15 * 60, 8);
+    if (!allowed) {
+      return NextResponse.json(
+        { found: false, error: 'Muitas consultas. Aguarde alguns minutos.' },
+        { status: 429, headers: { 'Retry-After': '900' } },
+      );
+    }
+
+    const body = await readLimitedJson<LookupBody>(request, 8_000);
+    const name = String(body.name ?? '').trim().replace(/\s+/g, ' ').slice(0, 180);
+    const birthDate = String(body.birthDate ?? '').trim();
+    const phone = String(body.phone ?? '').trim().slice(0, 30);
+    const email = String(body.email ?? '').trim().toLowerCase().slice(0, 160);
+    const normalizedName = normalize(name);
     const normalizedPhone = onlyDigits(phone);
-    const validPhone = normalizedPhone.length >= 8;
+    const validBirthDate = validDate(birthDate);
+    const validPhone = normalizedPhone.length >= 10;
     const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    if (name.length < 3 || (!validBirthDate && !validPhone && !validEmail)) {
-      return NextResponse.json({ found: false, error: 'Informe seu nome e a data de nascimento. WhatsApp ou e-mail podem ser usados como alternativa.' }, { status: 400 });
+    if (normalizedName.length < 5 || (!validBirthDate && !validPhone && !validEmail)) {
+      return NextResponse.json(
+        { found: false, error: 'Informe seu nome completo e a data de nascimento, WhatsApp ou e-mail.' },
+        { status: 400 },
+      );
     }
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) return NextResponse.json({ found: false, error: 'Consulta temporariamente indisponível.' }, { status: 503 });
+    const identity = `${normalizedName}|${validBirthDate ? birthDate : ''}|${validPhone ? normalizedPhone : ''}|${validEmail ? email : ''}`;
+    const identityAllowed = await consumeRateLimit(request, 'member-lookup-identity', 60 * 60, 5, identity);
+    if (!identityAllowed) {
+      return NextResponse.json(
+        { found: false, error: 'Limite de consultas para estes dados atingido. Tente mais tarde.' },
+        { status: 429, headers: { 'Retry-After': '3600' } },
+      );
+    }
 
-    const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const service = getServiceClient();
+    const signingSecret = await getSecuritySecret('public_lookup_signing');
+    if (!service || !signingSecret) {
+      return NextResponse.json({ found: false, error: 'Consulta temporariamente indisponível.' }, { status: 503 });
+    }
+
     const [{ data, error }, { data: departments }] = await Promise.all([
-      supabase.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(500),
-      supabase.from('departments').select('name').order('name', { ascending: true }),
+      service.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(2000),
+      service.from('departments').select('name').order('name', { ascending: true }),
     ]);
-    if (error) return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
+
+    if (error) {
+      console.error('Public member lookup failed:', error.message);
+      return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
+    }
 
     const members = (data || []) as MemberCandidate[];
-    const phoneMatches = validPhone ? members.filter(member => onlyDigits(member.phone || '') === normalizedPhone).length : 0;
-    const emailMatches = validEmail ? members.filter(member => String(member.email || '').trim().toLowerCase() === email).length : 0;
-    const normalizedName = normalize(name);
+    const phoneMatches = validPhone ? members.filter((member) => onlyDigits(member.phone || '') === normalizedPhone).length : 0;
+    const emailMatches = validEmail ? members.filter((member) => String(member.email || '').trim().toLowerCase() === email).length : 0;
 
-    const candidates = members.map(member => {
-      const birthMatches = validBirthDate && member.birth_date === birthDate;
-      const phoneMatchesMember = validPhone && onlyDigits(member.phone || '') === normalizedPhone;
-      const emailMatchesMember = validEmail && String(member.email || '').trim().toLowerCase() === email;
-      const confirmations = [birthMatches, phoneMatchesMember, emailMatchesMember].filter(Boolean).length;
+    const candidates = members.filter((member) => {
       const exactName = normalize(member.full_name) === normalizedName;
-      const abbreviatedMatch = abbreviatedNameMatches(name, member.full_name);
-      const uniqueContact = (phoneMatchesMember && phoneMatches === 1) || (emailMatchesMember && emailMatches === 1);
-      const birthAndNameMatch = Boolean(birthMatches && abbreviatedMatch);
-      return { member, confirmations, exactName, abbreviatedMatch, uniqueContact, birthAndNameMatch, score: nameScore(name, member.full_name) };
-    }).filter(item => item.confirmations > 0 && (
-      item.exactName || item.birthAndNameMatch || (item.uniqueContact && item.abbreviatedMatch) || (item.confirmations >= 2 && item.score >= 0.65)
-    )).sort((a, b) =>
-      Number(b.exactName) - Number(a.exactName) || Number(b.birthAndNameMatch) - Number(a.birthAndNameMatch) || Number(b.uniqueContact) - Number(a.uniqueContact) || b.confirmations - a.confirmations || b.score - a.score
-    );
+      if (!exactName) return false;
 
-    const best = candidates[0];
-    const second = candidates[1];
-    if (!best || (second && best.exactName === second.exactName && best.birthAndNameMatch === second.birthAndNameMatch && best.uniqueContact === second.uniqueContact && best.confirmations === second.confirmations)) {
-      return NextResponse.json({ found: false });
+      const birthMatches = validBirthDate && member.birth_date === birthDate;
+      const uniquePhoneMatches = validPhone && phoneMatches === 1 && onlyDigits(member.phone || '') === normalizedPhone;
+      const uniqueEmailMatches = validEmail && emailMatches === 1 && String(member.email || '').trim().toLowerCase() === email;
+      return birthMatches || uniquePhoneMatches || uniqueEmailMatches;
+    });
+
+    if (candidates.length !== 1) {
+      return NextResponse.json({ found: false }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
+    const member = candidates[0];
     const ministryOptions = Array.from(new Set((departments || [])
-      .map(item => String(item.name || '').trim())
-      .filter(nameValue => nameValue && !HIDDEN_DEPARTMENTS.has(nameValue.toLocaleLowerCase('pt-BR')))));
+      .map((item) => String(item.name || '').trim())
+      .filter((nameValue) => nameValue && !HIDDEN_DEPARTMENTS.has(nameValue.toLocaleLowerCase('pt-BR')))));
 
-    const { data: links } = await supabase
+    const { data: links } = await service
       .from('member_functions')
       .select('ministry_functions(ministry_areas(departments(name)))')
-      .eq('member_id', best.member.id)
+      .eq('member_id', member.id)
       .eq('active', true);
 
-    const importedMinistries = ((links || []) as any[])
-      .map(link => link?.ministry_functions?.ministry_areas?.departments?.name)
+    const importedMinistries = ((links || []) as Array<Record<string, any>>)
+      .map((link) => link?.ministry_functions?.ministry_areas?.departments?.name)
       .filter(Boolean)
       .map(String);
-    const manualMinistries = String(best.member.ministry || '').split(',').map(item => item.trim()).filter(Boolean);
+    const manualMinistries = String(member.ministry || '').split(',').map((item) => item.trim()).filter(Boolean);
     const currentMinistries = Array.from(new Set([...importedMinistries, ...manualMinistries]));
 
     const summary: Record<string, SummaryField> = {
-      birthDate: best.member.birth_date ? { value: 'Cadastrada', status: 'filled' } : { value: 'Não informada', status: 'missing' },
-      phone: maskPhone(best.member.phone),
-      email: maskEmail(best.member.email),
-      address: addressSummary(best.member),
-      family: familySummary(best.member),
-      waterBaptized: booleanSummary(best.member.water_baptized),
-      holySpiritBaptized: booleanSummary(best.member.holy_spirit_baptized),
-      fundamentosFe: booleanSummary(best.member.fundamentos_fe),
-      talents: best.member.talents ? { value: 'Preenchido', status: 'filled' } : { value: 'Não informado', status: 'missing' },
+      birthDate: member.birth_date ? { value: 'Cadastrada', status: 'filled' } : { value: 'Não informada', status: 'missing' },
+      phone: maskPhone(member.phone),
+      email: maskEmail(member.email),
+      address: addressSummary(member),
+      family: familySummary(member),
+      waterBaptized: booleanSummary(member.water_baptized),
+      holySpiritBaptized: booleanSummary(member.holy_spirit_baptized),
+      fundamentosFe: booleanSummary(member.fundamentos_fe),
+      talents: member.talents ? { value: 'Preenchido', status: 'filled' } : { value: 'Não informado', status: 'missing' },
       ministries: currentMinistries.length ? { value: currentMinistries.join(', '), status: 'filled' } : { value: 'Nenhum informado', status: 'missing' },
     };
 
     return NextResponse.json({
       found: true,
-      token: sign(best.member.id, key),
+      token: sign(member.id, signingSecret),
       ministryOptions,
       currentMinistries,
-      member: { displayName: maskName(best.member.full_name), summary },
-    });
+      member: { displayName: maskName(member.full_name), summary },
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
+    const publicError = publicErrorMessage(error);
     console.error('Public member lookup error:', error);
-    return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
+    return NextResponse.json({ found: false, error: publicError.message }, { status: publicError.status });
   }
 }

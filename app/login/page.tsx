@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LockKeyhole, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -13,21 +13,46 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('acesso') !== 'aguardando-aprovacao') return;
+    const supabase = createClient();
+    void supabase.auth.signOut();
+    setError('Esta conta ainda não foi aprovada pela administração da CEAMI.');
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError('');
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (authError) {
+    if (authError || !data.user) {
       setError('E-mail ou senha incorretos.');
       setLoading(false);
       return;
     }
 
-    router.replace('/');
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_active, course_only')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (profileError || !profile?.is_active) {
+      await supabase.auth.signOut();
+      setError('Esta conta ainda não foi aprovada pela administração da CEAMI.');
+      setLoading(false);
+      return;
+    }
+
+    if (profile.course_only) {
+      router.replace('/cursos');
+    } else {
+      router.replace('/');
+    }
     router.refresh();
   }
 

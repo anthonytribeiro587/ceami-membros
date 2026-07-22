@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServiceClient, hasValidBearer } from '@/lib/server/security';
 import { POST as sendOfficialBirthdayMessage } from '../official/route';
 
 export const runtime = 'nodejs';
@@ -8,15 +8,6 @@ export const dynamic = 'force-dynamic';
 
 const OFFICIAL_INSTANCE = 'ceamirs';
 const OFFICIAL_GROUP_ID = '120363148206200208@g.us';
-
-function serviceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 function brazilClock(timezone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -56,8 +47,12 @@ function isConnectionClosed(value: unknown) {
   return /connection\s+closed/i.test(String(value || ''));
 }
 
-export async function POST() {
-  const supabase = serviceClient();
+async function run(request: NextRequest) {
+  if (!(await hasValidBearer(request, 'birthday_cron'))) {
+    return NextResponse.json({ error: 'Automação não autorizada.' }, { status: 401 });
+  }
+
+  const supabase = getServiceClient();
   if (!supabase) {
     return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
   }
@@ -147,13 +142,17 @@ export async function POST() {
     });
   }
 
-  const request = new Request('https://internal/api/birthdays/official', {
+  const authorization = request.headers.get('authorization') || '';
+  const internalRequest = new Request('https://internal/api/birthdays/official', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authorization,
+    },
     body: JSON.stringify({ source: 'automatic', force: false }),
   });
 
-  const result = await sendOfficialBirthdayMessage(request);
+  const result = await sendOfficialBirthdayMessage(internalRequest);
   let payload: Record<string, unknown> = {};
   try {
     payload = await result.clone().json();
@@ -171,6 +170,10 @@ export async function POST() {
   );
 }
 
-export async function GET() {
-  return POST();
+export async function POST(request: NextRequest) {
+  return run(request);
+}
+
+export async function GET(request: NextRequest) {
+  return run(request);
 }

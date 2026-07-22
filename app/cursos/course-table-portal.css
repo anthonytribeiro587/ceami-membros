@@ -1,0 +1,30 @@
+.course-table-portal {
+  margin-top: 2px;
+}
+
+.course-table-loading,
+.course-table-load-error {
+  border: 1px solid #e0e7e3;
+  border-radius: 14px;
+  padding: 18px;
+  background: #f8faf9;
+  color: #65736c;
+  text-align: center;
+  font-size: .9rem;
+}
+
+.course-table-load-error {
+  border-color: #efc5c5;
+  background: #fff2f2;
+  color: #9b3030;
+}
+
+@media (min-width: 701px) {
+  .courses-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .courses-metrics > article:nth-child(2) {
+    display: none;
+  }
+}

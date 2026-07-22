@@ -76,6 +76,7 @@ export default function IntegraPage() {
   const [reviewing, setReviewing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const progress = useMemo(() => `${step * 25}%`, [step]);
 
@@ -177,13 +178,18 @@ export default function IntegraPage() {
       return;
     }
 
+    if (!privacyAccepted) {
+      setError('Leia e confirme o aviso de privacidade antes de enviar.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       const response = await fetch('/api/integra', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, privacy_accepted: privacyAccepted }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -304,6 +310,11 @@ export default function IntegraPage() {
                 ['Habilidades', data.has_skills ? data.talents || 'Não detalhadas' : 'Não informado'],
                 ['Observações', data.notes || 'Nenhuma'],
               ]} />
+              <label className={`integra-privacy-consent ${privacyAccepted ? 'checked' : ''}`}>
+                <input type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} />
+                <i>{privacyAccepted && <Check size={15} />}</i>
+                <span>Li o <Link href="/privacidade" target="_blank">Aviso de Privacidade</Link> e estou ciente do uso destes dados pela CEAMI para cadastro, cuidado de membros, cursos e comunicação.</span>
+              </label>
               <div className="integra-confirm-note"><Check size={18} /><span>Ao confirmar, esta ficha será enviada uma única vez para a CEAMI.</span></div>
             </section>
           )}
@@ -317,7 +328,7 @@ export default function IntegraPage() {
           {reviewing && <button type="submit" className="primary" disabled={loading}>{loading ? 'Enviando...' : 'Confirmar e enviar'}</button>}
         </footer>
       </form>
-      <p className="integra-footer">Seus dados serão usados somente para o cuidado e relacionamento da CEAMI.</p>
+      <p className="integra-footer">Seus dados serão usados para as finalidades informadas no <Link href="/privacidade">Aviso de Privacidade</Link>.</p>
     </main>
   );
 }

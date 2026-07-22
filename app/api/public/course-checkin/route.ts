@@ -1,10 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  consumeRateLimit,
+  getServiceClient,
+  publicErrorMessage,
+  readLimitedJson,
+  requestComesFromSameSite,
+} from '@/lib/server/security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EARLY_CHECKIN_MS = 2 * 60 * 60 * 1000;
+const LATE_CHECKIN_MS = 2 * 60 * 60 * 1000;
 
 type PublicLesson = {
   id: string;
@@ -22,15 +30,7 @@ type PublicLesson = {
   courseName: string;
 };
 
-function serviceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+type CheckinBody = { token?: unknown; phone?: unknown };
 
 function digits(value: string | null | undefined) {
   return (value || '').replace(/\D/g, '');
@@ -56,14 +56,18 @@ function checkWindow(lesson: PublicLesson) {
   }
 
   const now = Date.now();
-  const opensAt = lesson.checkinOpenAt ? new Date(lesson.checkinOpenAt).getTime() : null;
-  const closesAt = lesson.checkinCloseAt ? new Date(lesson.checkinCloseAt).getTime() : null;
+  const startsAt = new Date(lesson.startsAt).getTime();
+  const endsAt = lesson.endsAt ? new Date(lesson.endsAt).getTime() : startsAt + 3 * 60 * 60 * 1000;
+  const configuredOpen = lesson.checkinOpenAt ? new Date(lesson.checkinOpenAt).getTime() : startsAt - EARLY_CHECKIN_MS;
+  const configuredClose = lesson.checkinCloseAt ? new Date(lesson.checkinCloseAt).getTime() : endsAt + LATE_CHECKIN_MS;
+  const effectiveOpen = Math.max(configuredOpen, startsAt - EARLY_CHECKIN_MS);
+  const effectiveClose = Math.min(configuredClose, endsAt + LATE_CHECKIN_MS);
 
-  if (opensAt && now < opensAt) {
-    return { open: false, message: 'O check-in ainda não está disponível.' };
+  if (now < effectiveOpen) {
+    return { open: false, message: 'O check-in ficará disponível próximo ao horário da aula.' };
   }
 
-  if (closesAt && now > closesAt) {
+  if (now > effectiveClose) {
     return { open: false, message: 'O período de check-in desta aula terminou.' };
   }
 
@@ -71,7 +75,7 @@ function checkWindow(lesson: PublicLesson) {
 }
 
 async function loadLesson(token: string): Promise<PublicLesson | null> {
-  const supabase = serviceClient();
+  const supabase = getServiceClient();
   if (!supabase) throw new Error('Supabase não configurado.');
 
   const { data: lesson, error: lessonError } = await supabase
@@ -140,6 +144,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Link de check-in inválido.' }, { status: 400 });
   }
 
+  const allowed = await consumeRateLimit(request, 'course-checkin-view', 10 * 60, 60, token);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Muitas consultas ao check-in. Aguarde alguns minutos.' },
+      { status: 429, headers: { 'Retry-After': '600' } },
+    );
+  }
+
   try {
     const lesson = await loadLesson(token);
     if (!lesson) {
@@ -156,31 +168,43 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let body: { token?: string; phone?: string };
-
   try {
-    body = (await request.json()) as { token?: string; phone?: string };
-  } catch {
-    return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 });
-  }
+    if (!requestComesFromSameSite(request)) {
+      return NextResponse.json({ error: 'Origem da solicitação não permitida.' }, { status: 403 });
+    }
 
-  const token = body.token || '';
-  const informedPhone = comparablePhone(body.phone);
+    const body = await readLimitedJson<CheckinBody>(request, 4_000);
+    const token = String(body.token || '');
+    const informedPhone = comparablePhone(String(body.phone || ''));
 
-  if (!UUID_PATTERN.test(token)) {
-    return NextResponse.json({ error: 'Link de check-in inválido.' }, { status: 400 });
-  }
+    if (!UUID_PATTERN.test(token)) {
+      return NextResponse.json({ error: 'Link de check-in inválido.' }, { status: 400 });
+    }
 
-  if (!informedPhone) {
-    return NextResponse.json({ error: 'Informe um telefone válido com DDD.' }, { status: 400 });
-  }
+    if (!informedPhone) {
+      return NextResponse.json({ error: 'Informe um telefone válido com DDD.' }, { status: 400 });
+    }
 
-  const supabase = serviceClient();
-  if (!supabase) {
-    return NextResponse.json({ error: 'Serviço temporariamente indisponível.' }, { status: 503 });
-  }
+    const allowed = await consumeRateLimit(request, 'course-checkin-submit', 15 * 60, 10, token);
+    const identityAllowed = await consumeRateLimit(
+      request,
+      'course-checkin-phone',
+      60 * 60,
+      5,
+      `${token}|${informedPhone}`,
+    );
+    if (!allowed || !identityAllowed) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de check-in. Procure o organizador.' },
+        { status: 429, headers: { 'Retry-After': '900' } },
+      );
+    }
 
-  try {
+    const supabase = getServiceClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Serviço temporariamente indisponível.' }, { status: 503 });
+    }
+
     const lesson = await loadLesson(token);
     if (!lesson) {
       return NextResponse.json({ error: 'Aula não encontrada.' }, { status: 404 });
@@ -241,7 +265,7 @@ export async function POST(request: NextRequest) {
         memberName: member.full_name,
         checkedInAt: existing.checked_in_at,
         lesson: publicPayload(lesson),
-      });
+      }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     const { error: attendanceError } = await supabase
@@ -267,9 +291,10 @@ export async function POST(request: NextRequest) {
       memberName: member.full_name,
       checkedInAt: now,
       lesson: publicPayload(lesson),
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
+    const publicError = publicErrorMessage(error);
     console.error('course-checkin POST failed', error);
-    return NextResponse.json({ error: 'Não foi possível registrar o check-in.' }, { status: 500 });
+    return NextResponse.json({ error: publicError.message }, { status: publicError.status });
   }
 }

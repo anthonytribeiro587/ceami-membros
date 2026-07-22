@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   integrate-course-table:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/security/producao-real-v1' && !contains(github.event.head_commit.message, 'ui: integrate responsive course table') }}
+    if: "${{ github.event_name == 'push' && github.ref == 'refs/heads/security/producao-real-v1' && github.event.head_commit.message != 'course-table-integrated' }}"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -70,7 +70,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/cursos/CoursesWorkspace.tsx
-          git commit -m "ui: integrate responsive course table"
+          git commit -m "course-table-integrated"
           git push origin HEAD:security/producao-real-v1
 
   validate:

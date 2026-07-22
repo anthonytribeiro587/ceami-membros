@@ -1,0 +1,51 @@
+name: CEAMI Production Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - security/**
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-public-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+      API_RATE_LIMIT_SALT: test-rate-limit-salt
+      EVOLUTION_API_URL: https://example.invalid
+      EVOLUTION_API_KEY: test-evolution-key
+      EVOLUTION_INSTANCE: ceamirs
+      EVOLUTION_GROUP_ID: 120363148206200208@g.us
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Install exact dependencies
+        run: npm install --no-fund --no-audit
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Security invariants
+        run: npm test
+
+      - name: Production build
+        run: npm run build

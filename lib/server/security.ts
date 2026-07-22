@@ -4,8 +4,6 @@ import { NextRequest } from 'next/server';
 
 const DEFAULT_MAX_BODY_BYTES = 24_000;
 
-type JsonObject = Record<string, unknown>;
-
 let cachedServiceClient: SupabaseClient | null | undefined;
 const secretCache = new Map<string, { value: string; expiresAt: number }>();
 
@@ -42,7 +40,7 @@ export function requestComesFromSameSite(request: NextRequest | Request) {
   }
 }
 
-export async function readLimitedJson<T extends JsonObject>(
+export async function readLimitedJson<T = Record<string, unknown>>(
   request: Request,
   maxBytes = DEFAULT_MAX_BODY_BYTES,
 ): Promise<T> {

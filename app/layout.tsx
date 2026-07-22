@@ -5,6 +5,7 @@ import './modal-fixes.css';
 import './mobile-fixes.css';
 import './brand.css';
 import './course-entry.css';
+import './member-v3.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://ceami-membros.vercel.app'),

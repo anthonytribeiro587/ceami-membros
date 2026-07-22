@@ -1,0 +1,153 @@
+name: One-shot Integra privacy consent
+
+on:
+  push:
+    branches:
+      - security/producao-real-v1
+    paths:
+      - .github/workflows/one-shot-privacy-consent.yml
+
+permissions:
+  contents: write
+
+jobs:
+  privacy-consent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/producao-real-v1
+
+      - name: Add explicit consent flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('app/integra/page.tsx')
+          source = page.read_text(encoding='utf-8')
+          replacements = [
+            (
+              "  const [error, setError] = useState('');",
+              "  const [error, setError] = useState('');\n  const [privacyAccepted, setPrivacyAccepted] = useState(false);",
+            ),
+            (
+              """    if (!reviewing) {
+      setError('Revise a ficha antes de confirmar o envio.');
+      return;
+    }
+
+    setLoading(true);""",
+              """    if (!reviewing) {
+      setError('Revise a ficha antes de confirmar o envio.');
+      return;
+    }
+
+    if (!privacyAccepted) {
+      setError('Leia e confirme o aviso de privacidade antes de enviar.');
+      return;
+    }
+
+    setLoading(true);""",
+            ),
+            (
+              "body: JSON.stringify(data),",
+              "body: JSON.stringify({ ...data, privacy_accepted: privacyAccepted }),",
+            ),
+            (
+              """              <div className="integra-confirm-note"><Check size={18} /><span>Ao confirmar, esta ficha será enviada uma única vez para a CEAMI.</span></div>""",
+              """              <label className={`integra-privacy-consent ${privacyAccepted ? 'checked' : ''}`}>
+                <input type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} />
+                <i>{privacyAccepted && <Check size={15} />}</i>
+                <span>Li o <Link href="/privacidade" target="_blank">Aviso de Privacidade</Link> e estou ciente do uso destes dados pela CEAMI para cadastro, cuidado de membros, cursos e comunicação.</span>
+              </label>
+              <div className="integra-confirm-note"><Check size={18} /><span>Ao confirmar, esta ficha será enviada uma única vez para a CEAMI.</span></div>""",
+            ),
+            (
+              "<p className=\"integra-footer\">Seus dados serão usados somente para o cuidado e relacionamento da CEAMI.</p>",
+              "<p className=\"integra-footer\">Seus dados serão usados para as finalidades informadas no <Link href=\"/privacidade\">Aviso de Privacidade</Link>.</p>",
+            ),
+          ]
+
+          for old, new in replacements:
+              if old not in source:
+                  raise SystemExit(f'Expected Integra block not found: {old[:80]}')
+              source = source.replace(old, new, 1)
+          page.write_text(source, encoding='utf-8')
+
+          route = Path('app/api/integra/route.ts')
+          route_source = route.read_text(encoding='utf-8')
+          old = """    const body = await readLimitedJson<IntegraBody>(request, 20_000);
+    const fullName = String(body.full_name || '').trim().replace(/\\s+/g, ' ').slice(0, 180);"""
+          new = """    const body = await readLimitedJson<IntegraBody>(request, 20_000);
+
+    if (body.privacy_accepted !== true) {
+      return NextResponse.json({ error: 'Confirme o aviso de privacidade antes de enviar.' }, { status: 400 });
+    }
+
+    const fullName = String(body.full_name || '').trim().replace(/\\s+/g, ' ').slice(0, 180);"""
+          if old not in route_source:
+              raise SystemExit('Expected Integra route block not found.')
+          route.write_text(route_source.replace(old, new, 1), encoding='utf-8')
+
+          css = Path('app/integra/integra.css')
+          css_source = css.read_text(encoding='utf-8')
+          css_source += """
+
+.integra-privacy-consent {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid #d6e0e4;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f7fafb;
+  color: #48616d;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.integra-privacy-consent.checked {
+  border-color: #3d8f6e;
+  background: #eef8f3;
+}
+
+.integra-privacy-consent input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.integra-privacy-consent i {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #9fb0b8;
+  border-radius: 7px;
+  background: #fff;
+  color: #fff;
+}
+
+.integra-privacy-consent.checked i {
+  border-color: #247354;
+  background: #247354;
+}
+
+.integra-privacy-consent a,
+.integra-footer a {
+  color: #d94718;
+  font-weight: 800;
+}
+"""
+          css.write_text(css_source, encoding='utf-8')
+          PY
+
+      - name: Commit consent flow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/integra/page.tsx app/integra/integra.css app/api/integra/route.ts
+          git commit -m "privacy: require explicit Integra notice acknowledgement"
+          git push origin HEAD:security/producao-real-v1

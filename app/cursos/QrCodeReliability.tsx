@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Printer, QrCode, X } from 'lucide-react';
+import { Copy, Printer, QrCode, RotateCcw, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createClient } from '@/lib/supabase/client';
@@ -9,6 +9,7 @@ type LessonQr = {
   id: string;
   lesson_number: number;
   title: string;
+  starts_at: string;
   checkin_token: string;
   checkin_enabled: boolean;
   status: 'scheduled' | 'completed' | 'rescheduled' | 'cancelled';
@@ -25,12 +26,18 @@ function nestedCourseName(value: ClassRow['courses']) {
   return value?.name || '';
 }
 
+function isFutureLesson(lesson: LessonQr) {
+  return new Date(lesson.starts_at).getTime() > Date.now();
+}
+
 export default function QrCodeReliability() {
   const supabase = useMemo(() => createClient(), []);
   const [actionTarget, setActionTarget] = useState<Element | null>(null);
   const [lesson, setLesson] = useState<LessonQr | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
   const lastSignature = useRef('');
 
   const checkinUrl = lesson && typeof window !== 'undefined'
@@ -61,7 +68,28 @@ export default function QrCodeReliability() {
       if (image.getAttribute('src') !== src) image.setAttribute('src', src);
     }
 
-    async function locateCompletedLesson() {
+    function syncFutureLessonGuard(currentLesson: LessonQr) {
+      const finishButton = document.querySelector('.lesson-footer-actions button') as HTMLButtonElement | null;
+      if (!finishButton) return;
+
+      const guarded = finishButton.dataset.ceamiFutureGuard === 'true';
+      const shouldGuard = isFutureLesson(currentLesson) && currentLesson.status !== 'completed';
+
+      if (shouldGuard) {
+        finishButton.disabled = true;
+        finishButton.dataset.ceamiFutureGuard = 'true';
+        finishButton.title = 'A aula só pode ser encerrada na data agendada ou depois dela.';
+        return;
+      }
+
+      if (guarded) {
+        finishButton.disabled = false;
+        delete finishButton.dataset.ceamiFutureGuard;
+        finishButton.removeAttribute('title');
+      }
+    }
+
+    async function locateLesson() {
       repairExistingModal();
 
       const page = document.querySelector('.lesson-attendance-page');
@@ -77,15 +105,6 @@ export default function QrCodeReliability() {
         return;
       }
 
-      const nativeQrControl = Array.from(
-        actions.querySelectorAll('button:not([data-ceami-qr-reliability="true"])'),
-      ).some((button) => /qr|check-in/i.test(button.textContent || ''));
-
-      if (nativeQrControl) {
-        setActionTarget((current) => (current ? null : current));
-        return;
-      }
-
       const lessonMatch = heading.match(/^Aula\s+(\d+)\s*:/i);
       const separatorIndex = context.indexOf('·');
       if (!lessonMatch || separatorIndex < 0) return;
@@ -95,8 +114,19 @@ export default function QrCodeReliability() {
       const className = context.slice(separatorIndex + 1).trim();
       const signature = `${courseName}|${className}|${lessonNumber}`;
 
-      setActionTarget((current) => (current === actions ? current : actions));
-      if (lastSignature.current === signature && lesson) return;
+      const nativeQrControl = Array.from(
+        actions.querySelectorAll('button:not([data-ceami-qr-reliability="true"])'),
+      ).some((button) => /qr|check-in/i.test(button.textContent || ''));
+
+      setActionTarget((current) => {
+        const next = nativeQrControl ? null : actions;
+        return current === next ? current : next;
+      });
+
+      if (lastSignature.current === signature && lesson) {
+        syncFutureLessonGuard(lesson);
+        return;
+      }
       lastSignature.current = signature;
 
       const { data: classRows, error: classError } = await supabase
@@ -113,17 +143,21 @@ export default function QrCodeReliability() {
 
       const { data: lessonRow, error: lessonError } = await supabase
         .from('course_lessons')
-        .select('id, lesson_number, title, checkin_token, checkin_enabled, status')
+        .select('id, lesson_number, title, starts_at, checkin_token, checkin_enabled, status')
         .eq('class_id', matchedClass.id)
         .eq('lesson_number', lessonNumber)
         .maybeSingle();
 
-      if (!cancelled && !lessonError && lessonRow) setLesson(lessonRow as LessonQr);
+      if (!cancelled && !lessonError && lessonRow) {
+        const loadedLesson = lessonRow as LessonQr;
+        setLesson(loadedLesson);
+        syncFutureLessonGuard(loadedLesson);
+      }
     }
 
     const scheduleLocate = () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => void locateCompletedLesson(), 120);
+      timer = window.setTimeout(() => void locateLesson(), 120);
     };
 
     scheduleLocate();
@@ -147,6 +181,44 @@ export default function QrCodeReliability() {
     };
   }, [supabase, lesson]);
 
+  async function reopenFutureLesson() {
+    if (!lesson || !isFutureLesson(lesson) || lesson.status !== 'completed') return;
+    if (!window.confirm('Reabrir esta aula e apagar as presenças registradas durante o teste?')) return;
+
+    setBusy(true);
+    setActionError('');
+
+    const { error: attendanceError } = await supabase
+      .from('course_attendance')
+      .delete()
+      .eq('lesson_id', lesson.id);
+
+    if (attendanceError) {
+      setBusy(false);
+      setActionError(attendanceError.message);
+      return;
+    }
+
+    const { error: lessonError } = await supabase
+      .from('course_lessons')
+      .update({
+        status: 'scheduled',
+        checkin_enabled: false,
+        checkin_open_at: null,
+        checkin_close_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', lesson.id);
+
+    setBusy(false);
+    if (lessonError) {
+      setActionError(lessonError.message);
+      return;
+    }
+
+    window.location.reload();
+  }
+
   function printQr() {
     if (!internalQrUrl || !checkinUrl) return;
     const popup = window.open('', '_blank', 'width=720,height=820');
@@ -164,6 +236,7 @@ export default function QrCodeReliability() {
           data-ceami-qr-reliability="true"
           onClick={() => {
             setImageFailed(false);
+            setActionError('');
             setModalOpen(true);
           }}
         >
@@ -172,6 +245,8 @@ export default function QrCodeReliability() {
         actionTarget,
       )
     : null;
+
+  const lessonIsFuture = Boolean(lesson && isFutureLesson(lesson));
 
   const modal = modalOpen && lesson && typeof document !== 'undefined'
     ? createPortal(
@@ -183,9 +258,11 @@ export default function QrCodeReliability() {
               <div>
                 <h2>QR Code da aula</h2>
                 <p>
-                  {lesson.status === 'completed'
-                    ? 'Esta aula já foi encerrada. O QR está disponível para consulta, mas não aceita novos check-ins.'
-                    : 'Mostre o QR presencialmente para os alunos.'}
+                  {lesson.status === 'completed' && lessonIsFuture
+                    ? 'Esta aula foi encerrada antes da data agendada. Reabra a aula para voltar ao estado correto.'
+                    : lesson.status === 'completed'
+                      ? 'Esta aula já foi encerrada. O QR está disponível para consulta, mas não aceita novos check-ins.'
+                      : 'Mostre o QR presencialmente para os alunos.'}
                 </p>
               </div>
               <button type="button" onClick={() => setModalOpen(false)} aria-label="Fechar"><X /></button>
@@ -200,7 +277,13 @@ export default function QrCodeReliability() {
                 )}
                 <p>{checkinUrl}</p>
               </div>
+              {actionError && <p className="form-error">{actionError}</p>}
               <div className="qr-actions">
+                {lesson.status === 'completed' && lessonIsFuture && (
+                  <button type="button" className="secondary" disabled={busy} onClick={() => void reopenFutureLesson()}>
+                    <RotateCcw size={17} />{busy ? 'Reabrindo...' : 'Reabrir e limpar chamada'}
+                  </button>
+                )}
                 <button type="button" className="secondary" onClick={() => void navigator.clipboard.writeText(checkinUrl)}>
                   <Copy size={17} />Copiar link
                 </button>

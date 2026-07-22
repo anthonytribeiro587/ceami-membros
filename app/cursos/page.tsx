@@ -3,6 +3,7 @@ import CoursePortalSession from './CoursePortalSession';
 import CourseDeletionControls from './CourseDeletionControls';
 import QrCodeReliability from './QrCodeReliability';
 import './courses.css';
+import './course-table.css';
 import './course-deletion.css';
 
 export default function CoursesPage() {

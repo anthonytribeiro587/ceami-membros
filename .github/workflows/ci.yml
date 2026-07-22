@@ -39,6 +39,8 @@ jobs:
         run: npm install --no-fund --no-audit
 
       - name: Production dependency audit
+        id: audit
+        continue-on-error: true
         shell: bash
         run: |
           set +e
@@ -52,14 +54,30 @@ jobs:
           const blocked = Object.entries(vulnerabilities)
             .filter(([, value]) => ['high', 'critical'].includes(value.severity))
             .map(([name, value]) => `${name}: ${value.severity}; corrigível=${JSON.stringify(value.fixAvailable)}`);
-          if (blocked.length) {
-            console.error(`Vulnerabilidades bloqueantes (${blocked.length}):`);
-            for (const item of blocked) console.error(`- ${item}`);
-            process.exit(1);
-          }
-          console.log('Nenhuma vulnerabilidade HIGH ou CRITICAL em dependências de produção.');
+          const report = blocked.length
+            ? `Vulnerabilidades bloqueantes (${blocked.length}):\n${blocked.map((item) => `- ${item}`).join('\n')}\n`
+            : 'Nenhuma vulnerabilidade HIGH ou CRITICAL em dependências de produção.\n';
+          fs.writeFileSync('audit-report.txt', report);
+          console.log(report);
+          process.exit(blocked.length ? 1 : 0);
           NODE
           exit $AUDIT_EXIT
+
+      - name: Upload dependency audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: |
+            audit.json
+            audit-report.txt
+          retention-days: 3
+
+      - name: Enforce dependency audit
+        if: steps.audit.outcome == 'failure'
+        run: |
+          cat audit-report.txt
+          exit 1
 
       - name: TypeScript
         run: npm run typecheck

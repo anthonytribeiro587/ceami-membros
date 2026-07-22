@@ -1,0 +1,394 @@
+name: One-shot course table refactor
+
+on:
+  push:
+    branches:
+      - security/producao-real-v1
+    paths:
+      - .github/workflows/one-shot-course-table.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/producao-real-v1
+
+      - name: Refactor courses list into responsive table
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/cursos/CoursesWorkspace.tsx')
+          source = path.read_text(encoding='utf-8')
+
+          source = source.replace(
+              "  CalendarDays,\n  Check,",
+              "  CalendarDays,\n  Check,\n  ChevronRight,",
+              1,
+          )
+
+          source = source.replace(
+              """  status: 'planned' | 'open' | 'completed' | 'cancelled';
+  courseName: string;
+};""",
+              """  status: 'planned' | 'open' | 'completed' | 'cancelled';
+  courseName: string;
+  lessonCount: number;
+  memberCount: number;
+  nextLesson: string | null;
+};""",
+              1,
+          )
+
+          marker = """function lessonStatusLabel(status: Lesson['status']) {
+  if (status === 'scheduled') return 'Agendada';
+  if (status === 'completed') return 'Realizada';
+  if (status === 'rescheduled') return 'Remarcada';
+  return 'Cancelada';
+}
+"""
+
+          helper = marker + """
+type ClassLessonSummary = {
+  class_id: string;
+  starts_at: string;
+  status: Lesson['status'];
+};
+
+type ClassEnrollmentSummary = {
+  class_id: string;
+  status: Enrollment['status'];
+};
+
+function normalizeClassRows(
+  rows: Array<Record<string, unknown>>,
+  lessonRows: ClassLessonSummary[],
+  enrollmentRows: ClassEnrollmentSummary[],
+) {
+  const now = Date.now();
+  const lessonStats = new Map<string, { count: number; nextLesson: string | null }>();
+  const memberCounts = new Map<string, number>();
+
+  for (const lesson of lessonRows) {
+    if (lesson.status === 'cancelled') continue;
+    const current = lessonStats.get(lesson.class_id) || { count: 0, nextLesson: null };
+    current.count += 1;
+
+    const lessonTime = new Date(lesson.starts_at).getTime();
+    const currentNextTime = current.nextLesson ? new Date(current.nextLesson).getTime() : Number.POSITIVE_INFINITY;
+    if (lessonTime >= now && lessonTime < currentNextTime) current.nextLesson = lesson.starts_at;
+    lessonStats.set(lesson.class_id, current);
+  }
+
+  for (const enrollment of enrollmentRows) {
+    if (enrollment.status === 'withdrawn') continue;
+    memberCounts.set(enrollment.class_id, (memberCounts.get(enrollment.class_id) || 0) + 1);
+  }
+
+  return rows.map((row) => {
+    const id = String(row.id);
+    const stats = lessonStats.get(id) || { count: 0, nextLesson: null };
+    return {
+      id,
+      course_id: String(row.course_id),
+      name: String(row.name),
+      organizer_name: row.organizer_name ? String(row.organizer_name) : null,
+      location: row.location ? String(row.location) : null,
+      start_date: row.start_date ? String(row.start_date) : null,
+      end_date: row.end_date ? String(row.end_date) : null,
+      minimum_attendance: Number(row.minimum_attendance || 75),
+      status: row.status as CourseClass['status'],
+      courseName: nestedName(row.courses),
+      lessonCount: stats.count,
+      memberCount: memberCounts.get(id) || 0,
+      nextLesson: stats.nextLesson,
+    } satisfies CourseClass;
+  });
+}
+"""
+
+          if marker not in source:
+              raise SystemExit('Lesson status helper marker not found.')
+          source = source.replace(marker, helper, 1)
+
+          old_load = """    const [profileResult, courseResult, classResult, memberResult] = await Promise.all([
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      supabase.from('courses').select('*').order('name'),
+      supabase
+        .from('course_classes')
+        .select('*, courses(name)')
+        .order('created_at', { ascending: false }),
+      supabase.rpc('get_course_member_options'),
+    ]);
+
+    if (courseResult.error || classResult.error || memberResult.error) {
+      setError(
+        courseResult.error?.message ||
+          classResult.error?.message ||
+          memberResult.error?.message ||
+          'Não foi possível carregar os cursos.',
+      );
+      setLoading(false);
+      return;
+    }
+
+    setRole(profileResult.data?.role || 'visualizador');
+    setCourses((courseResult.data || []) as Course[]);
+    setClasses(
+      ((classResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
+        id: String(row.id),
+        course_id: String(row.course_id),
+        name: String(row.name),
+        organizer_name: row.organizer_name ? String(row.organizer_name) : null,
+        location: row.location ? String(row.location) : null,
+        start_date: row.start_date ? String(row.start_date) : null,
+        end_date: row.end_date ? String(row.end_date) : null,
+        minimum_attendance: Number(row.minimum_attendance || 75),
+        status: row.status as CourseClass['status'],
+        courseName: nestedName(row.courses),
+      })),
+    );
+    setMembers((memberResult.data || []) as MemberOption[]);
+    setLoading(false);"""
+
+          new_load = """    const [profileResult, courseResult, classResult, memberResult, lessonResult, enrollmentResult] = await Promise.all([
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      supabase.from('courses').select('*').order('name'),
+      supabase
+        .from('course_classes')
+        .select('*, courses(name)')
+        .order('created_at', { ascending: false }),
+      supabase.rpc('get_course_member_options'),
+      supabase
+        .from('course_lessons')
+        .select('class_id, starts_at, status')
+        .order('starts_at', { ascending: true }),
+      supabase
+        .from('course_enrollments')
+        .select('class_id, status'),
+    ]);
+
+    if (
+      courseResult.error ||
+      classResult.error ||
+      memberResult.error ||
+      lessonResult.error ||
+      enrollmentResult.error
+    ) {
+      setError(
+        courseResult.error?.message ||
+          classResult.error?.message ||
+          memberResult.error?.message ||
+          lessonResult.error?.message ||
+          enrollmentResult.error?.message ||
+          'Não foi possível carregar os cursos.',
+      );
+      setLoading(false);
+      return;
+    }
+
+    setRole(profileResult.data?.role || 'visualizador');
+    setCourses((courseResult.data || []) as Course[]);
+    setClasses(
+      normalizeClassRows(
+        (classResult.data || []) as Array<Record<string, unknown>>,
+        (lessonResult.data || []) as ClassLessonSummary[],
+        (enrollmentResult.data || []) as ClassEnrollmentSummary[],
+      ),
+    );
+    setMembers((memberResult.data || []) as MemberOption[]);
+    setLoading(false);"""
+
+          if old_load not in source:
+              raise SystemExit('Original load block not found.')
+          source = source.replace(old_load, new_load, 1)
+
+          old_refresh = """  async function refreshClasses() {
+    const { data, error: refreshError } = await supabase
+      .from('course_classes')
+      .select('*, courses(name)')
+      .order('created_at', { ascending: false });
+
+    if (refreshError) return setError(refreshError.message);
+
+    const normalized = ((data || []) as Array<Record<string, unknown>>).map((row) => ({
+      id: String(row.id),
+      course_id: String(row.course_id),
+      name: String(row.name),
+      organizer_name: row.organizer_name ? String(row.organizer_name) : null,
+      location: row.location ? String(row.location) : null,
+      start_date: row.start_date ? String(row.start_date) : null,
+      end_date: row.end_date ? String(row.end_date) : null,
+      minimum_attendance: Number(row.minimum_attendance || 75),
+      status: row.status as CourseClass['status'],
+      courseName: nestedName(row.courses),
+    }));
+
+    setClasses(normalized);
+    if (selectedClass) {
+      setSelectedClass(normalized.find((item) => item.id === selectedClass.id) || null);
+    }
+  }"""
+
+          new_refresh = """  async function refreshClasses() {
+    const [classResult, lessonResult, enrollmentResult] = await Promise.all([
+      supabase
+        .from('course_classes')
+        .select('*, courses(name)')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('course_lessons')
+        .select('class_id, starts_at, status')
+        .order('starts_at', { ascending: true }),
+      supabase.from('course_enrollments').select('class_id, status'),
+    ]);
+
+    const refreshError = classResult.error || lessonResult.error || enrollmentResult.error;
+    if (refreshError) return setError(refreshError.message);
+
+    const normalized = normalizeClassRows(
+      (classResult.data || []) as Array<Record<string, unknown>>,
+      (lessonResult.data || []) as ClassLessonSummary[],
+      (enrollmentResult.data || []) as ClassEnrollmentSummary[],
+    );
+
+    setClasses(normalized);
+    if (selectedClass) {
+      setSelectedClass(normalized.find((item) => item.id === selectedClass.id) || null);
+    }
+  }"""
+
+          if old_refresh not in source:
+              raise SystemExit('Original refresh block not found.')
+          source = source.replace(old_refresh, new_refresh, 1)
+
+          source = source.replace(
+              """            <article>
+              <GraduationCap />
+              <div><small>Turmas ativas</small><strong>{classes.filter((item) => item.status === 'open').length}</strong></div>
+            </article>
+""",
+              "",
+              1,
+          )
+
+          old_grid = """            {classes.length ? (
+              <div className="class-grid">
+                {classes.map((item) => (
+                  <article className="class-card" key={item.id}>
+                    <div className="class-card-head">
+                      <span className={`status-pill ${item.status}`}>{classStatusLabel(item.status)}</span>
+                      <GraduationCap size={22} />
+                    </div>
+                    <small>{item.courseName}</small>
+                    <h3>{item.name}</h3>
+                    <div className="class-meta">
+                      <span><CalendarDays size={16} />{formatDate(item.start_date)} até {formatDate(item.end_date)}</span>
+                      {item.location && <span><MapPin size={16} />{item.location}</span>}
+                      {item.organizer_name && <span><Users size={16} />{item.organizer_name}</span>}
+                    </div>
+                    <button type="button" onClick={() => setSelectedClass(item)}>Abrir turma</button>
+                  </article>
+                ))}
+              </div>
+            ) : ("""
+
+          new_grid = """            {classes.length ? (
+              <div className="class-table">
+                <div className="class-table-head" aria-hidden="true">
+                  <span>Turma</span>
+                  <span>Aulas</span>
+                  <span>Membros</span>
+                  <span>Próxima aula</span>
+                  <span />
+                </div>
+                <div className="class-table-body">
+                  {classes.map((item) => (
+                    <button
+                      type="button"
+                      className="class-table-row"
+                      key={item.id}
+                      onClick={() => setSelectedClass(item)}
+                    >
+                      <span className="class-table-main">
+                        <span className="class-table-icon"><BookOpen size={20} /></span>
+                        <span className="class-table-copy">
+                          <strong>{item.courseName}</strong>
+                          <small>
+                            {item.name}
+                            <span aria-hidden="true"> • </span>
+                            <span className={`class-table-status ${item.status}`}>{classStatusLabel(item.status)}</span>
+                          </small>
+                        </span>
+                      </span>
+                      <span className="class-table-stat" data-label="Aulas">
+                        <small>Aulas</small>
+                        <strong>{item.lessonCount}</strong>
+                      </span>
+                      <span className="class-table-stat" data-label="Membros">
+                        <small>Membros</small>
+                        <strong>{item.memberCount}</strong>
+                      </span>
+                      <span className="class-table-next" data-label="Próxima aula">
+                        <small>Próxima aula</small>
+                        <strong>{item.nextLesson ? formatDateTime(item.nextLesson) : 'Não agendada'}</strong>
+                      </span>
+                      <ChevronRight className="class-table-arrow" size={20} aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : ("""
+
+          if old_grid not in source:
+              raise SystemExit('Original class card grid not found.')
+          source = source.replace(old_grid, new_grid, 1)
+
+          path.write_text(source, encoding='utf-8')
+
+          css_path = Path('app/cursos/courses.css')
+          css = css_path.read_text(encoding='utf-8')
+          css += """
+
+/* Tabela principal de turmas — desktop fiel ao protótipo e adaptação mobile. */
+.courses-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.class-table{overflow:hidden;border:1px solid #e0e7e3;border-radius:16px;background:#fff}
+.class-table-head,.class-table-row{display:grid;grid-template-columns:minmax(300px,1.7fr) minmax(72px,.45fr) minmax(86px,.5fr) minmax(170px,.85fr) 28px;align-items:center;gap:18px}
+.class-table-head{padding:11px 18px;border-bottom:1px solid #e4eae7;background:#f7f9f8;color:#6b7972;font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.class-table-body{display:grid}
+.class-table-row{width:100%;min-height:82px;border:0;border-bottom:1px solid #e8eeeb;padding:14px 18px;background:#fff;color:#17221d;text-align:left;font:inherit;cursor:pointer;transition:background .16s ease,transform .16s ease}
+.class-table-row:last-child{border-bottom:0}
+.class-table-row:hover{background:#f7fbf8}
+.class-table-row:focus-visible{position:relative;z-index:1;outline:3px solid rgba(35,94,73,.22);outline-offset:-3px}
+.class-table-main{min-width:0;display:flex;align-items:center;gap:13px}
+.class-table-icon{width:42px;height:42px;flex:0 0 auto;display:grid;place-items:center;border-radius:13px;background:#e8f4ed;color:#235e49}
+.class-table-copy{min-width:0;display:grid;gap:4px}
+.class-table-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.98rem}
+.class-table-copy small{overflow:hidden;color:#69776f;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}
+.class-table-status{font-weight:800}
+.class-table-status.open{color:#24704c}.class-table-status.completed{color:#356590}.class-table-status.planned{color:#8a6c16}.class-table-status.cancelled{color:#a33b3b}
+.class-table-stat,.class-table-next{min-width:0;display:grid;gap:3px}
+.class-table-stat small,.class-table-next small{display:none;color:#7b8881;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.class-table-stat strong{font-size:1rem}
+.class-table-next strong{overflow:hidden;color:#20342b;font-size:.9rem;text-overflow:ellipsis;white-space:nowrap}
+.class-table-arrow{justify-self:end;color:#577068}
+@media(max-width:980px){.class-table-head,.class-table-row{grid-template-columns:minmax(250px,1.45fr) 68px 76px minmax(145px,.8fr) 24px;gap:12px}.class-table-head,.class-table-row{padding-left:14px;padding-right:14px}}
+@media(max-width:700px){.courses-metrics{grid-template-columns:1fr}.class-table{border:0;border-radius:0;background:transparent}.class-table-head{display:none}.class-table-body{gap:10px}.class-table-row{grid-template-columns:repeat(3,minmax(0,1fr)) 22px;gap:12px;min-height:0;border:1px solid #dfe7e3!important;border-radius:15px;padding:14px;background:#fff}.class-table-main{grid-column:1/-1}.class-table-stat,.class-table-next{padding-top:9px;border-top:1px solid #edf1ef}.class-table-stat small,.class-table-next small{display:block}.class-table-next{grid-column:auto}.class-table-next strong{font-size:.78rem;white-space:normal}.class-table-arrow{align-self:end;margin-bottom:3px}.class-table-copy strong{font-size:.95rem}.class-table-copy small{white-space:normal}}
+@media(max-width:430px){.class-table-row{grid-template-columns:repeat(2,minmax(0,1fr)) 22px}.class-table-next{grid-column:1/3}.class-table-arrow{grid-column:3;grid-row:2/4;align-self:center}}
+"""
+          css_path.write_text(css, encoding='utf-8')
+          PY
+
+      - name: Commit responsive course table
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/cursos/CoursesWorkspace.tsx app/cursos/courses.css
+          git commit -m "ui: replace course cards with responsive table"
+          git push origin HEAD:security/producao-real-v1

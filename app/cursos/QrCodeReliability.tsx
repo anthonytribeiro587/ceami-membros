@@ -71,18 +71,18 @@ export default function QrCodeReliability() {
       const context = header?.querySelector('div:first-child > span')?.textContent?.trim() || '';
 
       if (!page || !header || !actions || !heading || !context) {
-        setActionTarget(null);
-        setLesson(null);
+        setActionTarget((current) => (current ? null : current));
+        setLesson((current) => (current ? null : current));
         lastSignature.current = '';
         return;
       }
 
-      const alreadyHasQrControl = Array.from(actions.querySelectorAll('button')).some((button) =>
-        /qr|check-in/i.test(button.textContent || ''),
-      );
+      const nativeQrControl = Array.from(
+        actions.querySelectorAll('button:not([data-ceami-qr-reliability="true"])'),
+      ).some((button) => /qr|check-in/i.test(button.textContent || ''));
 
-      if (alreadyHasQrControl) {
-        setActionTarget(null);
+      if (nativeQrControl) {
+        setActionTarget((current) => (current ? null : current));
         return;
       }
 
@@ -95,7 +95,7 @@ export default function QrCodeReliability() {
       const className = context.slice(separatorIndex + 1).trim();
       const signature = `${courseName}|${className}|${lessonNumber}`;
 
-      setActionTarget(actions);
+      setActionTarget((current) => (current === actions ? current : actions));
       if (lastSignature.current === signature && lesson) return;
       lastSignature.current = signature;
 
@@ -123,11 +123,21 @@ export default function QrCodeReliability() {
 
     const scheduleLocate = () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => void locateCompletedLesson(), 80);
+      timer = window.setTimeout(() => void locateCompletedLesson(), 120);
     };
 
     scheduleLocate();
-    const observer = new MutationObserver(scheduleLocate);
+    const observer = new MutationObserver((mutations) => {
+      const onlyOwnQrMutation = mutations.every((mutation) =>
+        Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes)).every((node) =>
+          node instanceof Element &&
+          (node.matches('[data-ceami-qr-reliability="true"]') ||
+            Boolean(node.closest('[data-ceami-qr-reliability="true"]'))),
+        ),
+      );
+
+      if (!onlyOwnQrMutation) scheduleLocate();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
@@ -148,10 +158,15 @@ export default function QrCodeReliability() {
 
   const injectedButton = actionTarget && lesson
     ? createPortal(
-        <button type="button" className="secondary" onClick={() => {
-          setImageFailed(false);
-          setModalOpen(true);
-        }}>
+        <button
+          type="button"
+          className="secondary"
+          data-ceami-qr-reliability="true"
+          onClick={() => {
+            setImageFailed(false);
+            setModalOpen(true);
+          }}
+        >
           <QrCode size={17} />Visualizar QR
         </button>,
         actionTarget,

@@ -1,0 +1,36 @@
+name: One-shot package lock generation
+
+on:
+  push:
+    branches:
+      - security/producao-real-v1
+    paths:
+      - .github/workflows/one-shot-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/producao-real-v1
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+
+      - name: Generate package-lock
+        run: npm install --package-lock-only --ignore-scripts --no-fund --no-audit
+
+      - name: Commit package-lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: lock production dependency tree"
+          git push origin HEAD:security/producao-real-v1

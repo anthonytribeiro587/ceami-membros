@@ -1,7 +1,14 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/login-cursos', '/integra', '/consultar', '/checkin'];
+const PUBLIC_PAGES = ['/login', '/login-cursos', '/integra', '/consultar'];
+const PUBLIC_API_PATHS = [
+  '/api/integra',
+  '/api/public/check-member',
+  '/api/public/update-member',
+  '/api/public/course-checkin',
+  '/api/birthdays/automatic',
+];
 const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/materiais'];
 const ADMIN_API_PATHS = [
   '/api/birthdays/test',
@@ -17,13 +24,24 @@ type CookieToSet = {
   options: CookieOptions;
 };
 
+function matchesPath(pathname: string, paths: string[]) {
+  return paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function unavailable() {
+  return new NextResponse('Serviço temporariamente indisponível.', {
+    status: 503,
+    headers: { 'Cache-Control': 'no-store' },
+  });
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (
-    PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
-    pathname === '/api/birthdays/automatic' ||
-    pathname.startsWith('/api/public/') ||
+    matchesPath(pathname, PUBLIC_PAGES) ||
+    matchesPath(pathname, PUBLIC_API_PATHS) ||
+    pathname.startsWith('/checkin/') ||
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico'
   ) {
@@ -34,9 +52,10 @@ export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Segurança fail-closed: uma configuração quebrada nunca libera o painel.
   if (!url || !key) {
     console.error('Supabase public environment variables are missing.');
-    return response;
+    return unavailable();
   }
 
   const supabase = createServerClient(url, key, {
@@ -59,6 +78,10 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 });
+    }
+
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = pathname === '/cursos' || pathname.startsWith('/cursos/')
       ? '/login-cursos'
@@ -67,14 +90,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, course_only')
+    .select('role, course_only, is_active')
     .eq('id', user.id)
     .maybeSingle();
 
-  const isAdmin = profile?.role === 'admin';
-  const isCourseOnly = Boolean(profile?.course_only);
+  if (profileError || !profile || profile.is_active !== true) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Conta sem aprovação de acesso.' }, { status: 403 });
+    }
+
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.search = '';
+    loginUrl.searchParams.set('acesso', 'aguardando-aprovacao');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  const isAdmin = profile.role === 'admin';
+  const isCourseOnly = Boolean(profile.course_only);
   const isCoursesPath = pathname === '/cursos' || pathname.startsWith('/cursos/');
 
   if (isCoursesPath && !isAdmin && !isCourseOnly) {
@@ -85,6 +120,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isCourseOnly && !isCoursesPath) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Conta restrita ao portal de Cursos.' }, { status: 403 });
+    }
+
     const coursesUrl = request.nextUrl.clone();
     coursesUrl.pathname = '/cursos';
     coursesUrl.search = '';
@@ -92,8 +131,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const requiresAdmin =
-    ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
-    ADMIN_API_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+    matchesPath(pathname, ADMIN_PATHS) || matchesPath(pathname, ADMIN_API_PATHS);
 
   if (requiresAdmin && !isAdmin) {
     if (pathname.startsWith('/api/')) {

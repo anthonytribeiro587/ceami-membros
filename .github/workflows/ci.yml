@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   integrate-course-table:
-    if: "${{ github.event_name == 'push' && github.ref == 'refs/heads/security/producao-real-v1' && github.event.head_commit.message != 'course-table-integrated' }}"
+    if: "${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'security/producao-real-v1' }}"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,12 +30,15 @@ jobs:
           path = Path('app/cursos/CoursesWorkspace.tsx')
           source = path.read_text(encoding='utf-8')
 
-          import_marker = "import { createClient } from '@/lib/supabase/client';"
           table_import = "import CourseClassTable from './CourseClassTable';"
-          if table_import not in source:
-              if import_marker not in source:
-                  raise SystemExit('Supabase import marker not found.')
-              source = source.replace(import_marker, import_marker + "\n" + table_import, 1)
+          if table_import in source and '<CourseClassTable' in source:
+              print('Course table already integrated.')
+              raise SystemExit(0)
+
+          import_marker = "import { createClient } from '@/lib/supabase/client';"
+          if import_marker not in source:
+              raise SystemExit('Supabase import marker not found.')
+          source = source.replace(import_marker, import_marker + "\n" + table_import, 1)
 
           active_metric = """            <article>
               <GraduationCap />
@@ -65,12 +68,16 @@ jobs:
           path.write_text(source, encoding='utf-8')
           PY
 
-      - name: Commit integration
+      - name: Commit integration when needed
         run: |
+          if git diff --quiet; then
+            echo "No integration changes required."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/cursos/CoursesWorkspace.tsx
-          git commit -m "course-table-integrated"
+          git commit -m "ui: integrate responsive course table"
           git push origin HEAD:security/producao-real-v1
 
   validate:

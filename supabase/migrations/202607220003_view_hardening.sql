@@ -11,7 +11,18 @@ end;
 $$;
 
 -- Funções de gatilho não precisam ser executáveis por clientes.
-revoke all on function public.set_course_only_role() from public, anon, authenticated;
-revoke all on function public.log_course_attendance_change() from public, anon, authenticated;
+-- As verificações tornam a migration segura mesmo quando uma instalação antiga
+-- possui nomes diferentes ou ainda não criou um dos gatilhos.
+do $$
+begin
+  if to_regprocedure('public.enforce_course_only_profile_role()') is not null then
+    execute 'revoke all on function public.enforce_course_only_profile_role() from public, anon, authenticated';
+  end if;
+
+  if to_regprocedure('public.log_course_attendance_change()') is not null then
+    execute 'revoke all on function public.log_course_attendance_change() from public, anon, authenticated';
+  end if;
+end;
+$$;
 
 notify pgrst, 'reload schema';

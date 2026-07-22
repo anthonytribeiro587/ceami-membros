@@ -1,11 +1,5 @@
-import MemberApp from './MemberApp';
-import CoursesShortcut from './components/CoursesShortcut';
+import MemberAppV3 from './MemberAppV3';
 
 export default function Page() {
-  return (
-    <>
-      <MemberApp />
-      <CoursesShortcut />
-    </>
-  );
+  return <MemberAppV3 />;
 }

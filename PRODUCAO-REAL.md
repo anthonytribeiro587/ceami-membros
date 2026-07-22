@@ -9,6 +9,7 @@ Execute no Supabase, nesta ordem:
 1. `supabase/migrations/202607220001_production_hardening.sql`
 2. `supabase/migrations/202607220002_access_admin_and_maintenance.sql`
 3. `supabase/migrations/202607220003_view_hardening.sql`
+4. `supabase/migrations/202607220004_course_member_minimum_access.sql`
 
 Confirme:
 
@@ -18,7 +19,8 @@ select
   to_regclass('public.api_rate_limits') as rate_limits,
   to_regclass('public.audit_log') as audit_log,
   to_regprocedure('public.consume_api_rate_limit(text,integer,integer)') as limiter,
-  to_regprocedure('public.set_profile_access(uuid,boolean,public.user_role,boolean)') as access_admin;
+  to_regprocedure('public.set_profile_access(uuid,boolean,public.user_role,boolean)') as access_admin,
+  to_regprocedure('public.get_course_member_options()') as course_member_options;
 ```
 
 Todos os campos precisam retornar um objeto, e não `null`.
@@ -144,6 +146,7 @@ Teste de segurança:
 - criar curso, turma e aula;
 - adicionar aluno;
 - chamada manual;
+- conta exclusiva de Cursos recebe somente nome e telefone na seleção de alunos;
 - QR só aceita check-in perto do horário da aula;
 - telefone não matriculado é recusado;
 - não é possível encerrar aula futura;

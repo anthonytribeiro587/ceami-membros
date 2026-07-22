@@ -14,6 +14,20 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ceami_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ceami_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: test-public-anon-key
@@ -23,6 +37,7 @@ jobs:
       EVOLUTION_API_KEY: test-evolution-key
       EVOLUTION_INSTANCE: ceamirs
       EVOLUTION_GROUP_ID: 120363148206200208@g.us
+      PGPASSWORD: postgres
 
     steps:
       - name: Checkout
@@ -84,6 +99,20 @@ jobs:
 
       - name: Security invariants
         run: npm test
+
+      - name: Execute hardening migrations
+        run: |
+          psql -h 127.0.0.1 -U postgres -d ceami_test -f tests/sql/production_hardening_setup.sql
+          for migration in \
+            supabase/migrations/202607220001_production_hardening.sql \
+            supabase/migrations/202607220002_access_admin_and_maintenance.sql \
+            supabase/migrations/202607220003_view_hardening.sql \
+            supabase/migrations/202607220004_course_member_minimum_access.sql
+          do
+            echo "Executando $migration"
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d ceami_test -f "$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d ceami_test -c "select public.get_course_member_options();" >/dev/null
 
       - name: Production build
         run: npm run build

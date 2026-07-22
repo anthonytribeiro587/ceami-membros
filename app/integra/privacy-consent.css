@@ -1,0 +1,46 @@
+.integra-privacy-consent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 1px solid #d6e0e4;
+  border-radius: 14px;
+  padding: 14px;
+  background: #f7fafb;
+  color: #48616d;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.integra-privacy-consent.checked {
+  border-color: #3d8f6e;
+  background: #eef8f3;
+}
+
+.integra-privacy-consent input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.integra-privacy-consent i {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #9fb0b8;
+  border-radius: 7px;
+  background: #fff;
+  color: #fff;
+}
+
+.integra-privacy-consent.checked i {
+  border-color: #247354;
+  background: #247354;
+}
+
+.integra-privacy-consent a,
+.integra-footer a {
+  color: #d94718;
+  font-weight: 800;
+}

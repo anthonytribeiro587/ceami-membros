@@ -26,10 +26,12 @@ import {
   Workflow,
   X,
 } from 'lucide-react';
+import AdminRouteShell from '../components/AdminRouteShell';
 import './automacoes.css';
 
 type AutomationType = 'birthday' | 'reading_plan' | 'custom';
 type ScheduleType = 'daily' | 'weekly' | 'monthly';
+type AutomationView = 'settings' | 'calendar' | 'history';
 
 type Automation = {
   id: string;
@@ -245,6 +247,7 @@ export default function AutomacoesPage() {
   const [entries, setEntries] = useState<ReadingEntry[]>([]);
   const [readingLoading, setReadingLoading] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ReadingEntry | null>(null);
+  const [activeView, setActiveView] = useState<AutomationView>('settings');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -293,6 +296,7 @@ export default function AutomacoesPage() {
     });
     setMessage('');
     setError('');
+    setActiveView('settings');
   }, [selected]);
 
   const loadReadings = useCallback(async (targetMonth: string) => {
@@ -463,20 +467,24 @@ export default function AutomacoesPage() {
 
   if (loading) {
     return (
-      <main className="automation-page automation-loading">
-        <LoaderCircle className="spin" />
-        <strong>Carregando automações...</strong>
-      </main>
+      <AdminRouteShell>
+        <main className="automation-page automation-loading">
+          <LoaderCircle className="spin" />
+          <strong>Carregando automações...</strong>
+        </main>
+      </AdminRouteShell>
     );
   }
 
   if (!data || !selected || !draft) {
     return (
-      <main className="automation-page automation-loading">
-        <strong>Não foi possível abrir as automações.</strong>
-        {error && <p>{error}</p>}
-        <button type="button" onClick={() => void load()}>Tentar novamente</button>
-      </main>
+      <AdminRouteShell>
+        <main className="automation-page automation-loading">
+          <strong>Não foi possível abrir as automações.</strong>
+          {error && <p>{error}</p>}
+          <button type="button" onClick={() => void load()}>Tentar novamente</button>
+        </main>
+      </AdminRouteShell>
     );
   }
 
@@ -485,7 +493,8 @@ export default function AutomacoesPage() {
   const preview = previewMessage({ ...selected, ...draft }, data);
 
   return (
-    <main className="automation-page">
+    <AdminRouteShell>
+      <main className="automation-page">
       <header className="automation-topbar">
         <div className="automation-heading">
           <Link href="/" aria-label="Voltar ao painel"><ArrowLeft /></Link>
@@ -589,126 +598,155 @@ export default function AutomacoesPage() {
             </article>
           </div>
 
-          <div className="automation-form-grid">
-            <section className="automation-card">
-              <div className="automation-card-title">
-                <Settings2 />
-                <div>
-                  <h3>{selected.canDelete ? 'Editar automação' : 'Configuração'}</h3>
-                  <p>Defina frequência, horário, destino e conteúdo.</p>
+          <nav className="automation-workspace-tabs" aria-label="Áreas da automação">
+            <button
+              type="button"
+              className={activeView === 'settings' ? 'active' : ''}
+              onClick={() => setActiveView('settings')}
+            >
+              <Settings2 /> Configuração
+            </button>
+            {selected.type === 'reading_plan' && (
+              <button
+                type="button"
+                className={activeView === 'calendar' ? 'active' : ''}
+                onClick={() => setActiveView('calendar')}
+              >
+                <CalendarDays /> Calendário
+              </button>
+            )}
+            <button
+              type="button"
+              className={activeView === 'history' ? 'active' : ''}
+              onClick={() => setActiveView('history')}
+            >
+              <History /> Histórico
+              <span>{selectedHistory.length}</span>
+            </button>
+          </nav>
+
+          {activeView === 'settings' && (
+            <div className="automation-form-grid">
+              <section className="automation-card">
+                <div className="automation-card-title">
+                  <Settings2 />
+                  <div>
+                    <h3>{selected.canDelete ? 'Editar automação' : 'Configuração'}</h3>
+                    <p>Defina frequência, horário, destino e conteúdo.</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="automation-two-fields">
+                <div className="automation-two-fields">
+                  <label>
+                    <span>Nome da automação</span>
+                    <input
+                      value={draft.name}
+                      onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                    />
+                  </label>
+                  <label>
+                    <span>Horário de envio</span>
+                    <input
+                      type="time"
+                      value={draft.sendTime}
+                      onChange={(event) => setDraft({ ...draft, sendTime: event.target.value })}
+                    />
+                  </label>
+                </div>
+
+                <ScheduleFields
+                  scheduleType={draft.scheduleType}
+                  weekdays={draft.weekdays}
+                  dayOfMonth={draft.dayOfMonth}
+                  locked={selected.type !== 'custom'}
+                  onChange={(schedule) => setDraft({ ...draft, ...schedule })}
+                />
+
                 <label>
-                  <span>Nome da automação</span>
+                  <span>ID do grupo no WhatsApp</span>
                   <input
-                    value={draft.name}
-                    onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                    value={draft.groupId}
+                    onChange={(event) => setDraft({ ...draft, groupId: event.target.value })}
+                    placeholder="120000000000000000@g.us"
+                  />
+                  <small>O identificador precisa terminar em @g.us.</small>
+                </label>
+
+                <label>
+                  <span>Mensagem enviada</span>
+                  <textarea
+                    value={draft.messageTemplate}
+                    onChange={(event) => setDraft({ ...draft, messageTemplate: event.target.value })}
+                    rows={9}
                   />
                 </label>
-                <label>
-                  <span>Horário de envio</span>
-                  <input
-                    type="time"
-                    value={draft.sendTime}
-                    onChange={(event) => setDraft({ ...draft, sendTime: event.target.value })}
-                  />
-                </label>
-              </div>
 
-              <ScheduleFields
-                scheduleType={draft.scheduleType}
-                weekdays={draft.weekdays}
-                dayOfMonth={draft.dayOfMonth}
-                locked={selected.type !== 'custom'}
-                onChange={(schedule) => setDraft({ ...draft, ...schedule })}
-              />
+                <div className="automation-placeholders">
+                  <small>Variáveis disponíveis</small>
+                  <div>
+                    {PLACEHOLDERS[selected.type].map((placeholder) => (
+                      <button
+                        type="button"
+                        key={placeholder}
+                        onClick={() =>
+                          setDraft({
+                            ...draft,
+                            messageTemplate: `${draft.messageTemplate}${draft.messageTemplate.endsWith(' ') || draft.messageTemplate.endsWith('\n') ? '' : ' '}${placeholder}`,
+                          })
+                        }
+                      >
+                        {placeholder}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <label>
-                <span>ID do grupo no WhatsApp</span>
-                <input
-                  value={draft.groupId}
-                  onChange={(event) => setDraft({ ...draft, groupId: event.target.value })}
-                  placeholder="120000000000000000@g.us"
-                />
-                <small>O identificador precisa terminar em @g.us.</small>
-              </label>
-
-              <label>
-                <span>Mensagem enviada</span>
-                <textarea
-                  value={draft.messageTemplate}
-                  onChange={(event) => setDraft({ ...draft, messageTemplate: event.target.value })}
-                  rows={12}
-                />
-              </label>
-
-              <div className="automation-placeholders">
-                <small>Variáveis disponíveis</small>
-                <div>
-                  {PLACEHOLDERS[selected.type].map((placeholder) => (
-                    <button
-                      type="button"
-                      key={placeholder}
-                      onClick={() =>
-                        setDraft({
-                          ...draft,
-                          messageTemplate: `${draft.messageTemplate}${draft.messageTemplate.endsWith(' ') || draft.messageTemplate.endsWith('\n') ? '' : ' '}${placeholder}`,
-                        })
-                      }
-                    >
-                      {placeholder}
+                <div className="automation-actions">
+                  {selected.canDelete && (
+                    <button type="button" className="danger" onClick={() => void deleteAutomation()}>
+                      <Trash2 /> Excluir automação
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="automation-actions">
-                {selected.canDelete && (
-                  <button type="button" className="danger" onClick={() => void deleteAutomation()}>
-                    <Trash2 /> Excluir automação
+                  )}
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={testing || !scheduleIsValid(draft)}
+                    onClick={() => void sendTest()}
+                  >
+                    {testing ? <LoaderCircle className="spin" /> : <Play />} Enviar teste
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={testing || !scheduleIsValid(draft)}
-                  onClick={() => void sendTest()}
-                >
-                  {testing ? <LoaderCircle className="spin" /> : <Play />} Enviar teste
-                </button>
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={saving || !scheduleIsValid(draft)}
-                  onClick={() => void saveAutomation()}
-                >
-                  {saving ? <LoaderCircle className="spin" /> : <Save />} Salvar alterações
-                </button>
-              </div>
-            </section>
-
-            <aside className="automation-card automation-preview">
-              <div className="automation-card-title">
-                <MessageSquareText />
-                <div><h3>Prévia da mensagem</h3><p>Exemplo com os dados de hoje.</p></div>
-              </div>
-              <div className="automation-phone">
-                <header><span>Comunidade CEAMI</span><small>WhatsApp</small></header>
-                <div><p>{preview}</p><small>{draft.sendTime}</small></div>
-              </div>
-              {selected.lastError && (
-                <div className="automation-last-error">
-                  <strong>Último erro</strong>
-                  <p>{selected.lastError}</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={saving || !scheduleIsValid(draft)}
+                    onClick={() => void saveAutomation()}
+                  >
+                    {saving ? <LoaderCircle className="spin" /> : <Save />} Salvar alterações
+                  </button>
                 </div>
-              )}
-            </aside>
-          </div>
+              </section>
 
-          {selected.type === 'reading_plan' && (
-            <section className="automation-card automation-calendar-card">
+              <aside className="automation-card automation-preview">
+                <div className="automation-card-title">
+                  <MessageSquareText />
+                  <div><h3>Prévia da mensagem</h3><p>Exemplo com os dados de hoje.</p></div>
+                </div>
+                <div className="automation-phone">
+                  <header><span>Comunidade CEAMI</span><small>WhatsApp</small></header>
+                  <div><p>{preview}</p><small>{draft.sendTime}</small></div>
+                </div>
+                {selected.lastError && (
+                  <div className="automation-last-error">
+                    <strong>Último erro</strong>
+                    <p>{selected.lastError}</p>
+                  </div>
+                )}
+              </aside>
+            </div>
+          )}
+
+          {activeView === 'calendar' && selected.type === 'reading_plan' && (
+            <section className="automation-card automation-calendar-card automation-tab-panel">
               <div className="automation-calendar-header">
                 <div className="automation-card-title">
                   <CalendarDays />
@@ -733,31 +771,39 @@ export default function AutomacoesPage() {
             </section>
           )}
 
-          <section className="automation-card automation-history-card">
-            <div className="automation-card-title">
-              <History />
-              <div><h3>Histórico de execuções</h3><p>Últimas tentativas desta automação.</p></div>
-            </div>
-            <div className="automation-history-list">
-              {selectedHistory.length ? (
-                selectedHistory.slice(0, 15).map((item) => (
-                  <article key={item.id}>
-                    <span className={`automation-run-status ${item.status}`}>
-                      {item.status === 'queued' ? <Check /> : item.status === 'failed' ? <X /> : <Clock3 />}
-                    </span>
-                    <div>
-                      <strong>{item.run_type === 'manual' ? 'Teste manual' : 'Execução automática'}</strong>
-                      <small>{formatDateTime(item.created_at)} · {item.destination_group_id}</small>
-                      {item.error_message && <p>{item.error_message}</p>}
-                    </div>
-                    <b>{item.status === 'queued' ? 'Aceita' : item.status === 'failed' ? 'Falhou' : 'Sem envio'}</b>
-                  </article>
-                ))
-              ) : (
-                <div className="automation-empty-history">Nenhuma execução registrada ainda.</div>
-              )}
-            </div>
-          </section>
+          {activeView === 'history' && (
+            <section className="automation-card automation-history-card automation-tab-panel">
+              <div className="automation-card-title">
+                <History />
+                <div><h3>Histórico de mensagens</h3><p>Envios, testes, falhas e execuções sem conteúdo.</p></div>
+              </div>
+              <div className="automation-history-list">
+                {selectedHistory.length ? (
+                  selectedHistory.slice(0, 30).map((item) => (
+                    <article key={item.id}>
+                      <span className={`automation-run-status ${item.status}`}>
+                        {item.status === 'queued' ? <Check /> : item.status === 'failed' ? <X /> : <Clock3 />}
+                      </span>
+                      <div>
+                        <strong>{item.run_type === 'manual' ? 'Envio manual' : 'Execução automática'}</strong>
+                        <small>{formatDateTime(item.created_at)} · {item.destination_group_id}</small>
+                        {item.message && (
+                          <details className="automation-history-message">
+                            <summary>Ver mensagem</summary>
+                            <p>{item.message}</p>
+                          </details>
+                        )}
+                        {item.error_message && <p className="automation-history-note">{item.error_message}</p>}
+                      </div>
+                      <b>{item.status === 'queued' ? 'Aceita' : item.status === 'failed' ? 'Falhou' : 'Sem envio'}</b>
+                    </article>
+                  ))
+                ) : (
+                  <div className="automation-empty-history">Nenhuma execução registrada ainda.</div>
+                )}
+              </div>
+            </section>
+          )}
         </section>
       </div>
 
@@ -782,7 +828,8 @@ export default function AutomacoesPage() {
           onSave={saveReadingEntry}
         />
       )}
-    </main>
+      </main>
+    </AdminRouteShell>
   );
 }
 

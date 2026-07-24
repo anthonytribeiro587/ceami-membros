@@ -1,34 +1,36 @@
-CEAMI MEMBROS — AUTOMAÇÕES COM RECORRÊNCIA E CRUD
+CEAMI MEMBROS — AJUSTES DE HISTÓRICO, LAYOUT E AUTOMAÇÕES
+Data: 24/07/2026
 
-Este pacote contém somente os arquivos novos ou alterados nesta atualização.
-
-O QUE FOI IMPLEMENTADO
-- Frequência diária, semanal ou mensal para novas automações personalizadas.
-- Na frequência semanal, é possível selecionar um ou vários dias da semana.
-- Na frequência mensal, é possível escolher o dia de 1 a 31.
-- Para meses menores, os dias 29, 30 ou 31 são executados no último dia disponível.
-- Edição completa das automações personalizadas: nome, frequência, dias, horário, grupo e mensagem.
-- Exclusão das automações personalizadas com confirmação.
-- Aniversários e Plano de leitura continuam protegidos como automações do sistema: podem ser editados, pausados e testados, mas permanecem diários e não podem ser excluídos.
-- Validação no navegador, na API e no banco de dados.
-- Proteção contra envio em dia diferente do programado.
-
-ORDEM CORRETA PARA APLICAR
-1. No Supabase SQL Editor, execute primeiro:
-   supabase/migrations/202607240002_automation_recurrence_crud.sql
-
-2. Copie os demais arquivos para o repositório, preservando as pastas.
-
+COMO APLICAR
+1. Extraia o ZIP na raiz do repositório, preservando as pastas.
+2. Substitua os arquivos existentes quando solicitado.
 3. Faça o commit e o deploy na Vercel.
 
-4. Abra /automacoes e teste uma automação personalizada pausada antes de ativá-la.
+NÃO É NECESSÁRIO
+- Executar migration no Supabase.
+- Criar ou alterar variável de ambiente.
 
-OBSERVAÇÕES
-- As automações personalizadas já existentes serão mantidas e configuradas como diárias.
-- A migration não apaga automações, históricos, aniversários ou leituras.
-- Nenhuma variável de ambiente nova é necessária.
+ALTERAÇÕES PRINCIPAIS
+- A aba Mensagens agora consulta todas as automações, incluindo Plano de leitura,
+  Aniversários e mensagens personalizadas.
+- Status "queued" da Evolution passa a ser exibido corretamente como mensagem enviada,
+  e execuções sem conteúdo não são tratadas como falha.
+- A tela de Automações foi dividida nas abas Configuração, Calendário e Histórico,
+  reduzindo o comprimento vertical da página.
+- O histórico dentro de cada automação permite abrir e conferir a mensagem registrada.
+- Cursos e Automações agora usam a mesma barra lateral persistente do painel principal.
+- Links da barra lateral retornam diretamente para Início, Membros, Aniversários ou Mensagens.
+- Tipografia, espaçamentos, cartões e largura da barra lateral foram reduzidos e padronizados.
+- A automação oficial de aniversário possui bloqueio explícito: quando não existe
+  aniversariante ativo no dia, nenhuma chamada de envio é feita para a Evolution.
+- A execução sem aniversariante é registrada como "Sem envio", sem falso erro visual.
+
+OBSERVAÇÃO SOBRE TESTES MANUAIS
+O envio manual de teste de Aniversários continua podendo usar um membro de simulação.
+Essa simulação não se aplica à execução automática/oficial.
 
 VALIDAÇÕES EXECUTADAS
-- 9 testes automatizados aprovados.
+- 12 testes automatizados aprovados.
 - Sintaxe TypeScript/TSX validada nos arquivos alterados.
-- O build completo não foi executado porque as dependências npm não estavam disponíveis no ambiente de execução.
+- Typecheck/build completos não foram executados porque as dependências npm não estavam
+  disponíveis no ambiente de montagem.

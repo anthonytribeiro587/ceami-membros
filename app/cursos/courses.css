@@ -854,3 +854,7 @@
     width: 100%;
   }
 }
+
+/* Tipografia alinhada ao restante do painel */
+.courses-page{padding:24px 26px 70px;font-size:13px}.courses-topbar{margin-bottom:18px}.courses-topbar>div:first-child>span{margin-top:12px;font-size:10px}.courses-topbar h1{font-size:26px;line-height:1.08;margin:5px 0}.courses-topbar p{font-size:13px}.courses-metrics article{padding:15px}.courses-metrics strong{font-size:1.3rem}.courses-panel{padding:18px}.courses-panel-head h2{font-size:19px}.class-card h3{font-size:1.08rem}
+@media(max-width:760px){.courses-page{padding:68px 14px 90px}.courses-back{display:none}.courses-topbar h1{font-size:23px}}

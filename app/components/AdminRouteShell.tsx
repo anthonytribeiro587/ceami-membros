@@ -1,0 +1,147 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  Cake,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Users,
+  Workflow,
+  X,
+} from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+
+const MAIN_LINKS = [
+  { href: '/?screen=dashboard', label: 'Início', icon: LayoutDashboard },
+  { href: '/?screen=members', label: 'Membros', icon: Users },
+  { href: '/?screen=birthdays', label: 'Aniversários', icon: Cake },
+  { href: '/?screen=messages', label: 'Mensagens', icon: MessageCircle },
+] as const;
+
+export default function AdminRouteShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || !active) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (active) setRole(data?.role || null);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
+
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    router.replace('/login');
+    router.refresh();
+  }
+
+  const showAdminLinks = role === 'admin' || pathname.startsWith('/automacoes');
+
+  return (
+    <div className="member-v3-shell admin-route-shell">
+      <aside className={`member-v3-sidebar ${menuOpen ? 'open' : ''}`}>
+        <div className="member-v3-brand">
+          <img src="/brand/ceami-icon.svg?v=official-2" alt="CEAMI" />
+          <div>
+            <strong>CEAMI</strong>
+            <span>Membros</span>
+          </div>
+          <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar menu">
+            <X />
+          </button>
+        </div>
+
+        <nav className="member-v3-nav">
+          {showAdminLinks &&
+            MAIN_LINKS.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href} onClick={() => setMenuOpen(false)}>
+                <Icon size={19} />
+                <span>{label}</span>
+              </Link>
+            ))}
+
+          {showAdminLinks && (
+            <Link
+              href="/automacoes"
+              className={pathname.startsWith('/automacoes') ? 'active' : ''}
+              onClick={() => setMenuOpen(false)}
+            >
+              <Workflow size={19} />
+              <span>Automações</span>
+            </Link>
+          )}
+
+          <Link
+            href="/cursos"
+            className={pathname.startsWith('/cursos') ? 'active' : ''}
+            onClick={() => setMenuOpen(false)}
+          >
+            <GraduationCap size={19} />
+            <span>Cursos</span>
+          </Link>
+        </nav>
+
+        <div className="member-v3-sidebar-bottom">
+          <button
+            type="button"
+            className="member-v3-signout"
+            disabled={signingOut}
+            onClick={() => void signOut()}
+          >
+            <LogOut size={18} />
+            <span>{signingOut ? 'Saindo...' : 'Sair'}</span>
+          </button>
+          <small>
+            Comunidade Evangélica
+            <br />
+            Amigo Mais Que Irmão
+          </small>
+        </div>
+      </aside>
+
+      <section className="admin-route-content">
+        <button
+          type="button"
+          className="admin-route-menu"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir menu"
+        >
+          <Menu />
+        </button>
+        {children}
+      </section>
+
+      {menuOpen && (
+        <button
+          type="button"
+          className="member-v3-overlay"
+          onClick={() => setMenuOpen(false)}
+          aria-label="Fechar menu"
+        />
+      )}
+    </div>
+  );
+}

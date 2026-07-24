@@ -16,6 +16,7 @@ const ADMIN_API_PATHS = [
   '/api/birthdays/official',
   '/api/birthdays/settings',
   '/api/birthdays/history',
+  '/api/messages/history',
   '/api/birthdays/diagnostics',
   '/api/automations',
 ];

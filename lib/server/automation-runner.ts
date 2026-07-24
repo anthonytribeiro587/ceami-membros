@@ -177,6 +177,10 @@ async function prepareBirthdayMessage(
     )
     .filter((member) => member.birth_date?.slice(5) === clock.monthDay);
 
+  // Regra de negócio: a automação oficial nunca envia nada quando não há aniversariantes.
+  // Somente o envio manual de teste pode usar um membro de simulação.
+  if (!rows.length && mode === 'automatic') return null;
+
   let isSimulation = false;
   if (!rows.length && mode === 'manual') {
     const firstAvailable = ((data || []) as MemberRow[]).find(
@@ -433,7 +437,8 @@ export async function runAutomation(
         ...(options.mode === 'automatic' ? { last_sent_date: clock.date } : {}),
         last_sent_at: new Date().toISOString(),
         last_status: 'skipped',
-        last_error: reason,
+        // Ausência de aniversariante ou leitura é uma execução válida sem envio, não uma falha.
+        last_error: null,
       });
 
       return {

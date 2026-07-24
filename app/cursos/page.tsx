@@ -1,3 +1,4 @@
+import AdminRouteShell from '../components/AdminRouteShell';
 import CoursesWorkspace from './CoursesWorkspace';
 import CoursePortalSession from './CoursePortalSession';
 import CourseDeletionControls from './CourseDeletionControls';
@@ -10,12 +11,12 @@ import './course-deletion.css';
 
 export default function CoursesPage() {
   return (
-    <>
+    <AdminRouteShell>
       <CoursesWorkspace />
       <CourseTablePortal />
       <CoursePortalSession />
       <CourseDeletionControls />
       <QrCodeReliability />
-    </>
+    </AdminRouteShell>
   );
 }

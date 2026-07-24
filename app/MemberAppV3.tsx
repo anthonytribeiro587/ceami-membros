@@ -213,6 +213,14 @@ export default function MemberAppV3() {
   }, []);
 
   useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('screen');
+    if (requested && NAV.some(([key]) => key === requested)) {
+      setScreen(requested as Screen);
+      setProfileId(null);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(''), 2600);
     return () => window.clearTimeout(timer);

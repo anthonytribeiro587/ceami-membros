@@ -89,3 +89,28 @@ test('security headers prevent framing and indexing', async () => {
   assert.match(config, /X-Content-Type-Options/);
   assert.match(config, /noindex, nofollow/);
 });
+
+test('birthday automation skips official sends when there are no birthdays', async () => {
+  const runner = await read('lib/server/automation-runner.ts');
+  assert.match(runner, /if \(!rows\.length && mode === 'automatic'\) return null/);
+  assert.match(runner, /if \(!prepared\) \{/);
+  assert.match(runner, /Nenhum aniversariante encontrado para hoje/);
+  assert.match(runner, /last_status: 'skipped'/);
+});
+
+test('message history includes every automation type', async () => {
+  const route = await read('app/api/messages/history/route.ts');
+  const component = await read('app/components/BirthdayHistory.tsx');
+  assert.match(route, /from\('automation_runs'\)/);
+  assert.doesNotMatch(route, /eq\('automation_id', 'birthdays'\)/);
+  assert.match(component, /Plano de leitura/);
+  assert.match(component, /\/api\/messages\/history/);
+});
+
+test('courses and automations use the persistent navigation shell', async () => {
+  const courses = await read('app/cursos/page.tsx');
+  const automations = await read('app/automacoes/page.tsx');
+  assert.match(courses, /AdminRouteShell/);
+  assert.match(automations, /AdminRouteShell/);
+  assert.match(automations, /automation-workspace-tabs/);
+});

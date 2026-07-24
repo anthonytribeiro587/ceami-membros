@@ -109,8 +109,10 @@ test('message history includes every automation type', async () => {
 
 test('courses and automations use the persistent navigation shell', async () => {
   const courses = await read('app/cursos/page.tsx');
-  const automations = await read('app/automacoes/page.tsx');
+  const automationsPage = await read('app/automacoes/page.tsx');
+  const automationsClient = await read('app/automacoes/AutomacoesClient.tsx');
   assert.match(courses, /AdminRouteShell/);
-  assert.match(automations, /AdminRouteShell/);
-  assert.match(automations, /automation-workspace-tabs/);
+  assert.match(automationsPage, /AutomacoesClient/);
+  assert.match(automationsClient, /AdminRouteShell/);
+  assert.match(automationsClient, /automation-workspace-tabs/);
 });

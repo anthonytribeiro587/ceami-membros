@@ -93,10 +93,10 @@ export default function QrCodeReliability() {
       repairExistingModal();
 
       const page = document.querySelector('.lesson-attendance-page');
-      const header = page?.querySelector('.courses-topbar');
+      const header = page?.querySelector('.admin-page-header');
       const actions = header?.querySelector('.courses-actions');
       const heading = header?.querySelector('h1')?.textContent?.trim() || '';
-      const context = header?.querySelector('div:first-child > span')?.textContent?.trim() || '';
+      const context = header?.querySelector('.admin-page-heading-copy > span')?.textContent?.trim() || '';
 
       if (!page || !header || !actions || !heading || !context) {
         setActionTarget((current) => (current ? null : current));

@@ -232,3 +232,8 @@
     align-self: center;
   }
 }
+
+/* A tabela responde ao espaço do conteúdo, não apenas à largura total da janela. */
+@container admin-content (max-width:980px){.course-class-table-head,.course-class-table-row{grid-template-columns:minmax(250px,1.45fr) 68px 76px minmax(145px,.8fr) 24px;gap:12px;padding-left:14px;padding-right:14px}}
+@container admin-content (max-width:700px){.course-class-table{border:0;border-radius:0;background:transparent;overflow:visible}.course-class-table-head{display:none}.course-class-table-body{gap:10px}.course-class-table-row{grid-template-columns:repeat(3,minmax(0,1fr)) 22px;gap:12px;min-height:0;border:1px solid #dfe7e3;border-radius:15px;padding:14px;background:#fff}.course-class-main{grid-column:1/-1}.course-class-stat,.course-class-next{padding-top:9px;border-top:1px solid #edf1ef}.course-class-stat small,.course-class-next small{display:block}.course-class-next strong{font-size:.78rem;white-space:normal}.course-class-arrow{align-self:end;margin-bottom:3px}.course-class-copy strong{font-size:.95rem}.course-class-copy small{white-space:normal}}
+@container admin-content (max-width:430px){.course-class-table-row{grid-template-columns:repeat(2,minmax(0,1fr)) 22px}.course-class-next{grid-column:1/3}.course-class-arrow{grid-column:3;grid-row:2/4;align-self:center}}

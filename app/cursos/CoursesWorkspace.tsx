@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   ArrowLeft,
   BookOpen,
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import AdminPageHeader from '../components/AdminPageHeader';
 
 type Course = {
   id: string;
@@ -262,31 +262,27 @@ export default function CoursesWorkspace() {
 
   return (
     <main className="courses-page">
-      <header className="courses-topbar">
-        <div>
-          <Link href="/" className="courses-back">
-            <ArrowLeft size={18} /> CEAMI Membros
-          </Link>
-          <span>GESTÃO DE FORMAÇÃO</span>
-          <h1>Cursos e presença</h1>
-          <p>Organize turmas, aulas, alunos, chamada manual e check-in por QR Code.</p>
-        </div>
-        <div className="courses-actions">
-          <button type="button" className="secondary" onClick={() => void load()}>
-            <RefreshCw size={17} /> Atualizar
-          </button>
-          {canManage && (
-            <>
-              <button type="button" className="secondary" onClick={() => setCourseModal(true)}>
-                <BookOpen size={17} /> Novo curso
-              </button>
-              <button type="button" className="primary" onClick={() => setClassModal(true)}>
-                <Plus size={17} /> Nova turma
-              </button>
-            </>
-          )}
-        </div>
-      </header>
+      <AdminPageHeader
+        title="Cursos e presença"
+        description="Organize turmas, aulas, alunos, chamada manual e check-in por QR Code."
+        actions={
+          <div className="courses-actions">
+            <button type="button" className="secondary" onClick={() => void load()}>
+              <RefreshCw size={17} /> Atualizar
+            </button>
+            {canManage && (
+              <>
+                <button type="button" className="secondary" onClick={() => setCourseModal(true)}>
+                  <BookOpen size={17} /> Novo curso
+                </button>
+                <button type="button" className="primary" onClick={() => setClassModal(true)}>
+                  <Plus size={17} /> Nova turma
+                </button>
+              </>
+            )}
+          </div>
+        }
+      />
 
       {loading && <section className="courses-panel">Carregando cursos...</section>}
       {error && <section className="courses-error">{error}</section>}
@@ -613,14 +609,16 @@ function ClassWorkspace({
 
   return (
     <main className="courses-page class-workspace">
-      <header className="courses-topbar">
-        <div>
-          <button type="button" className="courses-back button-link" onClick={onBack}><ArrowLeft size={18} />Voltar às turmas</button>
-          <span>{classInfo.courseName}</span>
-          <h1>{classInfo.name}</h1>
-          <p>{classInfo.organizer_name || 'Organizador não informado'} {classInfo.location ? `· ${classInfo.location}` : ''}</p>
-        </div>
-        {canManage && (
+      <AdminPageHeader
+        eyebrow={`CURSOS · ${classInfo.courseName}`}
+        title={classInfo.name}
+        description={`${classInfo.organizer_name || 'Organizador não informado'}${classInfo.location ? ` · ${classInfo.location}` : ''}`}
+        backAction={
+          <button type="button" className="admin-page-back" onClick={onBack}>
+            <ArrowLeft size={18} /> Voltar às turmas
+          </button>
+        }
+        actions={canManage ? (
           <div className="courses-actions">
             <select value={classInfo.status} onChange={(event) => void setClassStatus(event.target.value as CourseClass['status'])}>
               <option value="planned">Planejada</option>
@@ -631,8 +629,8 @@ function ClassWorkspace({
             <button type="button" className="secondary" onClick={() => setStudentsModal(true)}><UserPlus size={17} />Adicionar alunos</button>
             <button type="button" className="primary" onClick={() => setLessonModal(true)}><Plus size={17} />Nova aula</button>
           </div>
-        )}
-      </header>
+        ) : undefined}
+      />
 
       <section className="courses-metrics">
         <article><Users /><div><small>Alunos ativos</small><strong>{enrollments.filter((item) => item.status === 'enrolled').length}</strong></div></article>
@@ -1047,14 +1045,16 @@ function LessonAttendance({
 
   return (
     <main className="courses-page lesson-attendance-page">
-      <header className="courses-topbar">
-        <div>
-          <button type="button" className="courses-back button-link" onClick={onBack}><ArrowLeft size={18} />Voltar à turma</button>
-          <span>{classInfo.courseName} · {classInfo.name}</span>
-          <h1>Aula {lesson.lesson_number}: {lesson.title}</h1>
-          <p>{formatDateTime(lesson.starts_at)} {classInfo.location ? `· ${classInfo.location}` : ''}</p>
-        </div>
-        {canManage && (
+      <AdminPageHeader
+        eyebrow={`${classInfo.courseName} · ${classInfo.name}`}
+        title={`Aula ${lesson.lesson_number}: ${lesson.title}`}
+        description={`${formatDateTime(lesson.starts_at)}${classInfo.location ? ` · ${classInfo.location}` : ''}`}
+        backAction={
+          <button type="button" className="admin-page-back" onClick={onBack}>
+            <ArrowLeft size={18} /> Voltar à turma
+          </button>
+        }
+        actions={canManage ? (
           <div className="courses-actions">
             <button type="button" className="secondary" onClick={printAttendanceSheet}><Printer size={17} />Imprimir lista</button>
             {lesson.checkin_enabled ? (
@@ -1066,8 +1066,8 @@ function LessonAttendance({
               <button type="button" className="primary" disabled={working} onClick={() => void openCheckin()}><QrCode size={17} />Abrir check-in</button>
             ) : null}
           </div>
-        )}
-      </header>
+        ) : undefined}
+      />
 
       <section className="courses-metrics">
         <article><Users /><div><small>Matriculados</small><strong>{enrollments.length}</strong></div></article>

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import type { UiRole } from '@/lib/types/ui-role';
 
 const MAIN_LINKS = [
   { href: '/?screen=dashboard', label: 'Início', icon: LayoutDashboard },
@@ -23,32 +24,48 @@ const MAIN_LINKS = [
   { href: '/?screen=messages', label: 'Mensagens', icon: MessageCircle },
 ] as const;
 
-export default function AdminRouteShell({ children }: { children: ReactNode }) {
+type AdminRouteShellProps = {
+  children: ReactNode;
+  initialRole?: UiRole;
+};
+
+export default function AdminRouteShell({
+  children,
+  initialRole = null,
+}: AdminRouteShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<UiRole>(initialRole);
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
+    if (role !== null) return;
+
     let active = true;
     void (async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user || !active) return;
+
       const { data } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, course_only, is_active')
         .eq('id', user.id)
         .maybeSingle();
-      if (active) setRole(data?.role || null);
+
+      if (!active || !data || data.is_active !== true) return;
+      if (data.role === 'admin') setRole('admin');
+      else if (data.course_only) setRole('course');
+      else setRole('member');
     })();
+
     return () => {
       active = false;
     };
-  }, [supabase]);
+  }, [role, supabase]);
 
   async function signOut() {
     if (signingOut) return;
@@ -58,7 +75,10 @@ export default function AdminRouteShell({ children }: { children: ReactNode }) {
     router.refresh();
   }
 
-  const showAdminLinks = role === 'admin' || pathname.startsWith('/automacoes');
+  const showMainLinks = role !== 'course';
+  const showAutomations = role === 'admin' || pathname.startsWith('/automacoes');
+  const showCourses =
+    role === 'admin' || role === 'course' || pathname.startsWith('/cursos');
 
   return (
     <div className="member-v3-shell admin-route-shell">
@@ -74,19 +94,21 @@ export default function AdminRouteShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="member-v3-nav">
-          {showAdminLinks &&
+        <nav className="member-v3-nav" aria-label="Navegação principal">
+          {showMainLinks &&
             MAIN_LINKS.map(({ href, label, icon: Icon }) => (
-              <Link key={href} href={href} onClick={() => setMenuOpen(false)}>
+              <Link key={href} href={href} prefetch onClick={() => setMenuOpen(false)}>
                 <Icon size={19} />
                 <span>{label}</span>
               </Link>
             ))}
 
-          {showAdminLinks && (
+          {showAutomations && (
             <Link
               href="/automacoes"
+              prefetch
               className={pathname.startsWith('/automacoes') ? 'active' : ''}
+              aria-current={pathname.startsWith('/automacoes') ? 'page' : undefined}
               onClick={() => setMenuOpen(false)}
             >
               <Workflow size={19} />
@@ -94,14 +116,18 @@ export default function AdminRouteShell({ children }: { children: ReactNode }) {
             </Link>
           )}
 
-          <Link
-            href="/cursos"
-            className={pathname.startsWith('/cursos') ? 'active' : ''}
-            onClick={() => setMenuOpen(false)}
-          >
-            <GraduationCap size={19} />
-            <span>Cursos</span>
-          </Link>
+          {showCourses && (
+            <Link
+              href="/cursos"
+              prefetch
+              className={pathname.startsWith('/cursos') ? 'active' : ''}
+              aria-current={pathname.startsWith('/cursos') ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
+              <GraduationCap size={19} />
+              <span>Cursos</span>
+            </Link>
+          )}
         </nav>
 
         <div className="member-v3-sidebar-bottom">

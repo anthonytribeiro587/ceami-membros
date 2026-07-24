@@ -50,8 +50,9 @@ export default function CoursePortalSession() {
 
     const locate = () => {
       setTarget(
-        document.querySelector('.courses-topbar .courses-actions') ||
-          document.querySelector('.courses-topbar'),
+        document.querySelector('.admin-page-header .courses-actions') ||
+          document.querySelector('.admin-page-header .admin-page-actions') ||
+          document.querySelector('.admin-page-header'),
       );
     };
 

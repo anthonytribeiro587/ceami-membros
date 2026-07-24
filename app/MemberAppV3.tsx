@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -192,7 +193,7 @@ function screenTitle(screen: Screen) {
   return 'Mensagens';
 }
 
-export default function MemberAppV3() {
+export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin?: boolean }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [members, setMembers] = useState<Member[]>([]);
@@ -204,7 +205,7 @@ export default function MemberAppV3() {
   const [filter, setFilter] = useState<Filter>('all');
   const [profileId, setProfileId] = useState<string | null>(null);
   const [toast, setToast] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(initialIsAdmin);
   const [editing, setEditing] = useState<Member | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -341,15 +342,15 @@ export default function MemberAppV3() {
           ))}
 
           {isAdmin && (
-            <button type="button" onClick={() => router.push('/automacoes')}>
+            <Link href="/automacoes" prefetch onClick={() => setMenuOpen(false)}>
               <Workflow size={19} /><span>Automações</span>
-            </button>
+            </Link>
           )}
 
           {isAdmin && (
-            <button type="button" onClick={() => router.push('/cursos')}>
+            <Link href="/cursos" prefetch onClick={() => setMenuOpen(false)}>
               <GraduationCap size={19} /><span>Cursos</span>
-            </button>
+            </Link>
           )}
         </nav>
 

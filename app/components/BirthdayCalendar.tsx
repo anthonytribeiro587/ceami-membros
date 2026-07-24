@@ -143,6 +143,7 @@ export default function BirthdayCalendar({ members, onOpenMember }: Props) {
           {cells.map((cell) => {
             const visibleMembers = cell.members.slice(0, 2);
             const hiddenCount = Math.max(0, cell.members.length - visibleMembers.length);
+            const compactHiddenCount = Math.max(0, cell.members.length - 1);
             return (
               <button
                 type="button"
@@ -152,8 +153,13 @@ export default function BirthdayCalendar({ members, onOpenMember }: Props) {
               >
                 <span className={styles.dayNumber}>{cell.day}</span>
                 <div className={styles.names}>
-                  {visibleMembers.map((member) => <span key={member.id} title={member.name}><Cake size={11} />{firstName(member.name)}</span>)}
-                  {hiddenCount > 0 && <strong>+{hiddenCount}</strong>}
+                  {visibleMembers.map((member, index) => (
+                    <span key={member.id} className={index > 0 ? styles.secondaryName : undefined} title={member.name}>
+                      <Cake size={11} />{firstName(member.name)}
+                    </span>
+                  ))}
+                  {hiddenCount > 0 && <strong className={styles.desktopCount}>+{hiddenCount}</strong>}
+                  {compactHiddenCount > 0 && <strong className={styles.mobileCount}>+{compactHiddenCount}</strong>}
                 </div>
               </button>
             );

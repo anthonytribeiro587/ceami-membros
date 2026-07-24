@@ -44,3 +44,84 @@ body:has(.member-v3-shell) .site-footer{display:none}
 @container admin-content (max-width:900px){.admin-page-header{align-items:stretch;flex-direction:column}.admin-page-actions{justify-content:flex-start}.admin-page-heading-copy p{max-width:none}}
 @media(max-width:900px){.member-v3-shell{grid-template-columns:220px minmax(0,1fr)}}
 @media(max-width:760px){html{scrollbar-gutter:auto}.member-v3-shell{display:block;overflow:visible}.member-v3-sidebar{height:100dvh;max-height:100dvh}.member-v3-content,.admin-route-content{min-height:100dvh}.member-v3-content{padding:68px 14px calc(92px + env(safe-area-inset-bottom))}.member-v3-topbar,.admin-page-header{min-height:0;margin-bottom:16px}.member-v3-topbar h1,.admin-page-heading-copy h1{font-size:23px}.admin-page-heading-copy p{font-size:12px}.admin-page-heading{gap:9px}.admin-page-back{min-height:38px;padding:0 10px;font-size:0}.admin-page-back svg{width:18px}.admin-page-actions{width:100%}.admin-route-menu{top:14px}}
+
+/* Navegação e densidade mobile unificadas. */
+@media(max-width:760px){
+  body:has(.member-v3-shell){font-size:14px}
+  .member-v3-shell{width:100%;max-width:100%;min-height:100dvh;overflow-x:hidden}
+  .member-v3-content{width:100%;padding:66px 10px calc(82px + env(safe-area-inset-bottom));overflow-x:hidden}
+  .member-v3-topbar{align-items:center;gap:10px;margin-bottom:12px}
+  .member-v3-topbar>div{min-width:0}
+  .member-v3-topbar span,.admin-page-heading-copy>span{font-size:8.5px;letter-spacing:.13em}
+  .member-v3-topbar h1,.admin-page-heading-copy h1{margin-top:3px;font-size:20px;line-height:1.08}
+  .member-v3-menu,.admin-route-menu{width:42px;height:42px;border-radius:12px;flex:0 0 42px}
+  .member-v3-menu svg,.admin-route-menu svg{width:21px;height:21px}
+  .member-v3-panel{min-width:0;padding:13px 11px;border-radius:17px}
+  .member-v3-simple-page{min-height:0;padding:14px 11px 16px}
+  .member-v3-panel-head{gap:10px}
+  .member-v3-panel-head h2{font-size:18px}
+  .member-v3-panel-head p{font-size:12px;line-height:1.4}
+  .member-v3-members-page{min-height:0}
+  .member-v3-sidebar{width:min(88vw,300px);padding:16px 13px calc(16px + env(safe-area-inset-bottom))}
+  .member-v3-brand{gap:10px;padding:2px 4px 15px}
+  .member-v3-brand img{width:40px;height:40px;border-radius:12px}
+  .member-v3-brand strong{font-size:17px}.member-v3-brand span{font-size:11px}
+  .member-v3-nav{gap:4px;margin-top:16px}
+  .member-v3-nav button,.member-v3-nav a{min-height:42px;padding:10px 11px;border-radius:11px;font-size:12px}
+  .member-v3-sidebar-bottom{gap:13px}.member-v3-sidebar-bottom small{font-size:10.5px}
+  .member-v3-signout{padding:11px 12px;border-radius:12px;font-size:12px}
+
+  .member-v3-bottom-nav{left:6px;right:6px;bottom:calc(6px + env(safe-area-inset-bottom));height:62px;grid-template-columns:repeat(5,minmax(0,1fr));border-radius:18px;padding:3px;overflow:hidden}
+  .member-v3-bottom-nav button,.member-v3-bottom-nav a{min-width:0;border:0;background:transparent;color:#819199;text-decoration:none;display:grid;place-items:center;align-content:center;gap:2px;padding:3px 1px;font-size:8.5px;line-height:1.05;font-weight:800}
+  .member-v3-bottom-nav button.active,.member-v3-bottom-nav a.active{color:var(--v3-orange)}
+  .member-v3-bottom-nav svg{width:18px;height:18px}
+  .member-v3-bottom-nav span{display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+  .admin-route-bottom-nav{display:grid}
+  .admin-route-bottom-nav.course-only{grid-template-columns:repeat(2,minmax(0,1fr));max-width:220px;left:50%;right:auto;width:calc(100% - 12px);transform:translateX(-50%)}
+  .admin-route-content{min-width:0;max-width:100%;padding-bottom:calc(76px + env(safe-area-inset-bottom));overflow-x:hidden}
+  .admin-route-menu{left:10px;top:12px}
+  .member-v3-toast{max-width:calc(100vw - 20px);bottom:calc(76px + env(safe-area-inset-bottom));padding:10px 13px;font-size:12px;white-space:normal;text-align:center}
+}
+@media(max-width:420px){
+  .member-v3-content{padding-left:7px;padding-right:7px}
+  .member-v3-topbar h1,.admin-page-heading-copy h1{font-size:19px}
+  .member-v3-panel{padding:11px 9px;border-radius:16px}
+  .member-v3-simple-page{padding:12px 9px 14px}
+  .member-v3-bottom-nav{left:4px;right:4px;height:60px;border-radius:17px}
+  .member-v3-bottom-nav button,.member-v3-bottom-nav a{font-size:8px}
+  .member-v3-bottom-nav svg{width:17px;height:17px}
+}
+
+/* Escala tipográfica mobile das páginas principais. */
+@media(max-width:760px){
+  .member-v3-dashboard{gap:12px}
+  .member-v3-hero{padding:18px 16px;border-radius:18px;border-bottom-width:5px}
+  .member-v3-hero span{font-size:8.5px}
+  .member-v3-hero h2{margin:8px 0 7px;font-size:21px;line-height:1.15}
+  .member-v3-hero p{font-size:12px;line-height:1.45}
+  .member-v3-hero-actions{gap:7px;margin-top:15px}
+  .member-v3-hero button{min-height:42px;padding:10px 8px;font-size:11px}
+  .member-v3-metrics{gap:7px}
+  .member-v3-metrics article{padding:11px;border-radius:15px}
+  .member-v3-metric-icon{width:38px;height:38px;border-radius:12px;margin-bottom:6px}
+  .member-v3-metric-icon svg{width:19px}
+  .member-v3-metrics small{font-size:10px}
+  .member-v3-metrics strong{font-size:19px}
+  .member-v3-row{grid-template-columns:40px minmax(0,1fr) 16px;gap:9px;padding:10px 1px}
+  .member-v3-avatar{width:40px;height:40px;border-radius:13px;font-size:11px}
+  .member-v3-row strong{font-size:13px}
+  .member-v3-row span{font-size:10.5px;margin-top:2px}
+  .member-v3-birthday-list button{grid-template-columns:36px minmax(0,1fr) 16px;gap:8px;padding:9px 1px}
+  .member-v3-mini-avatar{width:36px;height:36px;border-radius:11px;font-size:10px}
+  .member-v3-birthday-list span strong{font-size:12px}
+  .member-v3-birthday-list span small{font-size:10px}
+  .member-v3-search{margin:13px 0 10px;padding:0 12px;border-radius:12px}
+  .member-v3-search input{padding:12px 0;font-size:14px}
+  .member-v3-chips{gap:6px}
+  .member-v3-chips button{padding:7px 10px;font-size:10.5px}
+  .member-v3-profile-title h2{font-size:19px}
+  .member-v3-card-title h3{font-size:16px}
+  .member-v3-detail-card{padding:13px;border-radius:17px}
+  .member-v3-detail-row>span,.member-v3-status-row span{font-size:11px}
+  .member-v3-detail-row strong,.member-v3-contact-row strong{font-size:12px}
+}

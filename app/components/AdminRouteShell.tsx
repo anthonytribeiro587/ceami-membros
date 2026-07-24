@@ -160,6 +160,35 @@ export default function AdminRouteShell({
         {children}
       </section>
 
+      <nav
+        className={`member-v3-bottom-nav admin-route-bottom-nav ${showMainLinks ? '' : 'course-only'}`}
+        aria-label="Navegação móvel"
+      >
+        {showMainLinks ? (
+          MAIN_LINKS.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} prefetch>
+              <Icon size={19} />
+              <span>{label}</span>
+            </Link>
+          ))
+        ) : (
+          <Link href="/cursos" prefetch className={pathname.startsWith('/cursos') ? 'active' : ''}>
+            <GraduationCap size={19} />
+            <span>Cursos</span>
+          </Link>
+        )}
+        <button
+          type="button"
+          className="active"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir todas as opções"
+          aria-expanded={menuOpen}
+        >
+          <Menu size={19} />
+          <span>Mais</span>
+        </button>
+      </nav>
+
       {menuOpen && (
         <button
           type="button"

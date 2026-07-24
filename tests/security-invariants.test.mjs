@@ -116,3 +116,15 @@ test('courses and automations use the persistent navigation shell', async () => 
   assert.match(automationsClient, /AdminRouteShell/);
   assert.match(automationsClient, /automation-workspace-tabs/);
 });
+
+test('mobile navigation keeps all destinations accessible without crowding the bar', async () => {
+  const main = await read('app/MemberAppV3.tsx');
+  const shell = await read('app/components/AdminRouteShell.tsx');
+  const css = await read('app/member-v3.css');
+
+  assert.match(main, /<span>Mais<\/span>/);
+  assert.match(main, /aria-label="Abrir todas as opções"/);
+  assert.match(shell, /admin-route-bottom-nav/);
+  assert.match(shell, /MAIN_LINKS\.map/);
+  assert.match(css, /grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+});

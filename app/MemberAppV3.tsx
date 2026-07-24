@@ -421,7 +421,7 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
         )}
       </section>
 
-      <div className="member-v3-bottom-nav">
+      <nav className="member-v3-bottom-nav" aria-label="Navegação móvel">
         {NAV.map(([key, label, Icon]) => (
           <button
             type="button"
@@ -432,10 +432,19 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
               setScreen(key);
             }}
           >
-            <Icon size={20} /><span>{label}</span>
+            <Icon size={19} /><span>{label}</span>
           </button>
         ))}
-      </div>
+        <button
+          type="button"
+          className={menuOpen ? 'active' : ''}
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir todas as opções"
+          aria-expanded={menuOpen}
+        >
+          <Menu size={19} /><span>Mais</span>
+        </button>
+      </nav>
 
       {menuOpen && <button type="button" className="member-v3-overlay" onClick={() => setMenuOpen(false)} aria-label="Fechar menu" />}
 

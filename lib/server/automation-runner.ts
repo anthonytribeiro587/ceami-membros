@@ -236,7 +236,9 @@ async function prepareReadingPlanMessage(
   });
 
   return {
-    message: mode === 'manual' ? `🧪 *Teste de automação*\n\n${message}` : message,
+    // O envio manual do plano usa a mesma mensagem oficial exibida na prévia.
+    // A execução continua identificada como manual apenas no histórico interno.
+    message,
     mentioned: [],
     metadata: { readingDate: data.reading_date, reference: data.reference },
     contentLabel: String(data.reference),

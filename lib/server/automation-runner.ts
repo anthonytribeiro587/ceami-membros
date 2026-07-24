@@ -8,6 +8,7 @@ import {
 
 export type AutomationType = 'birthday' | 'reading_plan' | 'custom';
 export type AutomationMode = 'automatic' | 'manual';
+export type AutomationScheduleType = 'daily' | 'weekly' | 'monthly';
 
 export type AutomationRow = {
   id: string;
@@ -18,6 +19,9 @@ export type AutomationRow = {
   timezone: string;
   group_id: string;
   message_template: string;
+  schedule_type: AutomationScheduleType;
+  weekdays: number[] | null;
+  day_of_month: number | null;
   config: Record<string, unknown> | null;
   last_sent_date: string | null;
   last_sent_at: string | null;
@@ -97,7 +101,11 @@ export function clockInTimezone(timezone = DEFAULT_TIMEZONE, now = new Date()) {
   const get = (type: string) => parts.find((item) => item.type === type)?.value || '';
   const hour = get('hour');
   const minute = get('minute');
+  const year = Number(get('year'));
+  const month = Number(get('month'));
+  const day = Number(get('day'));
   const date = `${get('year')}-${get('month')}-${get('day')}`;
+  const weekdayIndex = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
 
   return {
     date,
@@ -109,7 +117,26 @@ export function clockInTimezone(timezone = DEFAULT_TIMEZONE, now = new Date()) {
     }).format(now),
     time: `${hour}:${minute}`,
     minutes: Number(hour) * 60 + Number(minute),
+    day,
+    weekdayIndex,
+    daysInMonth: new Date(Date.UTC(year, month, 0)).getUTCDate(),
   };
+}
+
+export function automationRunsOnClock(
+  automation: Pick<AutomationRow, 'schedule_type' | 'weekdays' | 'day_of_month'>,
+  clock: ReturnType<typeof clockInTimezone>,
+) {
+  const scheduleType = automation.schedule_type || 'daily';
+  if (scheduleType === 'weekly') {
+    return (automation.weekdays || []).includes(clock.weekdayIndex);
+  }
+  if (scheduleType === 'monthly') {
+    const configuredDay = Number(automation.day_of_month || 1);
+    const effectiveDay = Math.min(Math.max(configuredDay, 1), clock.daysInMonth);
+    return clock.day === effectiveDay;
+  }
+  return true;
 }
 
 function renderTemplate(template: string, variables: Record<string, string>) {
@@ -324,6 +351,18 @@ export async function runAutomation(
   if (
     options.mode === 'automatic' &&
     !options.force &&
+    !automationRunsOnClock(automation, clock)
+  ) {
+    return {
+      ok: true,
+      automationId,
+      status: 'skipped',
+      skipped: 'not_scheduled_today',
+    };
+  }
+  if (
+    options.mode === 'automatic' &&
+    !options.force &&
     automation.last_sent_date === clock.date
   ) {
     return {
@@ -516,6 +555,16 @@ export async function runDueAutomations(service: SupabaseClient) {
   const results: AutomationRunResult[] = [];
   for (const automation of (data || []) as AutomationRow[]) {
     const clock = clockInTimezone(automation.timezone);
+    if (!automationRunsOnClock(automation, clock)) {
+      results.push({
+        ok: true,
+        automationId: automation.id,
+        status: 'skipped',
+        skipped: 'not_scheduled_today',
+      });
+      continue;
+    }
+
     const [hour, minute] = String(automation.send_time).split(':').map(Number);
     const target = hour * 60 + minute;
     const difference = clock.minutes - target;

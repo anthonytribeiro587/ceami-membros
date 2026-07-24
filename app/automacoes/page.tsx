@@ -18,6 +18,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Repeat2,
   Save,
   Send,
   Settings2,
@@ -28,6 +29,7 @@ import {
 import './automacoes.css';
 
 type AutomationType = 'birthday' | 'reading_plan' | 'custom';
+type ScheduleType = 'daily' | 'weekly' | 'monthly';
 
 type Automation = {
   id: string;
@@ -38,6 +40,9 @@ type Automation = {
   timezone: string;
   groupId: string;
   messageTemplate: string;
+  scheduleType: ScheduleType;
+  weekdays: number[];
+  dayOfMonth: number | null;
   lastSentDate: string | null;
   lastSentAt: string | null;
   lastStatus: string | null;
@@ -76,7 +81,17 @@ type DashboardData = {
 
 type ReadingEntry = { reading_date: string; reference: string };
 
-type Draft = Pick<Automation, 'name' | 'enabled' | 'sendTime' | 'groupId' | 'messageTemplate'>;
+type Draft = Pick<
+  Automation,
+  | 'name'
+  | 'enabled'
+  | 'sendTime'
+  | 'groupId'
+  | 'messageTemplate'
+  | 'scheduleType'
+  | 'weekdays'
+  | 'dayOfMonth'
+>;
 
 const TYPE_INFO: Record<AutomationType, { label: string; description: string }> = {
   birthday: {
@@ -89,7 +104,7 @@ const TYPE_INFO: Record<AutomationType, { label: string; description: string }> 
   },
   custom: {
     label: 'Mensagem programada',
-    description: 'Envia uma mensagem fixa no horário definido.',
+    description: 'Envia uma mensagem diária, semanal ou mensal no horário definido.',
   },
 };
 
@@ -113,6 +128,58 @@ const MONTHS = [
   'Novembro',
   'Dezembro',
 ];
+
+const WEEKDAYS = [
+  { value: 0, short: 'Dom', label: 'domingo' },
+  { value: 1, short: 'Seg', label: 'segunda-feira' },
+  { value: 2, short: 'Ter', label: 'terça-feira' },
+  { value: 3, short: 'Qua', label: 'quarta-feira' },
+  { value: 4, short: 'Qui', label: 'quinta-feira' },
+  { value: 5, short: 'Sex', label: 'sexta-feira' },
+  { value: 6, short: 'Sáb', label: 'sábado' },
+];
+
+function scheduleLabel(automation: Pick<Automation, 'scheduleType' | 'weekdays' | 'dayOfMonth'>) {
+  if (automation.scheduleType === 'weekly') {
+    const labels = WEEKDAYS.filter((day) => automation.weekdays.includes(day.value)).map(
+      (day) => day.short,
+    );
+    return labels.length ? `Semanal · ${labels.join(', ')}` : 'Semanal';
+  }
+  if (automation.scheduleType === 'monthly') {
+    return `Mensal · dia ${automation.dayOfMonth || 1}`;
+  }
+  return 'Diária';
+}
+
+function scheduleDescription(
+  automation: Pick<Automation, 'scheduleType' | 'weekdays' | 'dayOfMonth' | 'sendTime'>,
+) {
+  if (automation.scheduleType === 'weekly') {
+    const labels = WEEKDAYS.filter((day) => automation.weekdays.includes(day.value)).map(
+      (day) => day.label,
+    );
+    return labels.length
+      ? `${labels.join(', ')} às ${automation.sendTime}`
+      : 'Selecione os dias da semana';
+  }
+  if (automation.scheduleType === 'monthly') {
+    return `Todo dia ${automation.dayOfMonth || 1} às ${automation.sendTime}`;
+  }
+  return `Todos os dias às ${automation.sendTime}`;
+}
+
+function scheduleIsValid(
+  automation: Pick<Automation, 'scheduleType' | 'weekdays' | 'dayOfMonth'>,
+) {
+  if (automation.scheduleType === 'weekly') return automation.weekdays.length > 0;
+  if (automation.scheduleType === 'monthly') {
+    return Boolean(
+      automation.dayOfMonth && automation.dayOfMonth >= 1 && automation.dayOfMonth <= 31,
+    );
+  }
+  return true;
+}
 
 function iconFor(type: AutomationType) {
   if (type === 'birthday') return <Cake />;
@@ -220,6 +287,9 @@ export default function AutomacoesPage() {
       sendTime: selected.sendTime,
       groupId: selected.groupId,
       messageTemplate: selected.messageTemplate,
+      scheduleType: selected.scheduleType,
+      weekdays: selected.weekdays,
+      dayOfMonth: selected.dayOfMonth,
     });
     setMessage('');
     setError('');
@@ -469,7 +539,10 @@ export default function AutomacoesPage() {
               <span className="automation-list-icon">{iconFor(automation.type)}</span>
               <span className="automation-list-copy">
                 <strong>{automation.name}</strong>
-                <small>{automation.sendTime} · {automation.enabled ? 'Ativa' : 'Pausada'}</small>
+                <small>
+                  {scheduleLabel(automation)} · {automation.sendTime} ·{' '}
+                  {automation.enabled ? 'Ativa' : 'Pausada'}
+                </small>
               </span>
               <i className={automation.enabled ? 'on' : ''} />
             </button>
@@ -500,8 +573,11 @@ export default function AutomacoesPage() {
 
           <div className="automation-status-grid">
             <article>
-              <Clock3 />
-              <div><small>Horário diário</small><strong>{draft.sendTime}</strong></div>
+              <Repeat2 />
+              <div>
+                <small>Programação</small>
+                <strong>{scheduleDescription({ ...selected, ...draft })}</strong>
+              </div>
             </article>
             <article>
               <History />
@@ -517,7 +593,10 @@ export default function AutomacoesPage() {
             <section className="automation-card">
               <div className="automation-card-title">
                 <Settings2 />
-                <div><h3>Configuração</h3><p>Defina horário, destino e conteúdo.</p></div>
+                <div>
+                  <h3>{selected.canDelete ? 'Editar automação' : 'Configuração'}</h3>
+                  <p>Defina frequência, horário, destino e conteúdo.</p>
+                </div>
               </div>
 
               <div className="automation-two-fields">
@@ -537,6 +616,14 @@ export default function AutomacoesPage() {
                   />
                 </label>
               </div>
+
+              <ScheduleFields
+                scheduleType={draft.scheduleType}
+                weekdays={draft.weekdays}
+                dayOfMonth={draft.dayOfMonth}
+                locked={selected.type !== 'custom'}
+                onChange={(schedule) => setDraft({ ...draft, ...schedule })}
+              />
 
               <label>
                 <span>ID do grupo no WhatsApp</span>
@@ -580,13 +667,23 @@ export default function AutomacoesPage() {
               <div className="automation-actions">
                 {selected.canDelete && (
                   <button type="button" className="danger" onClick={() => void deleteAutomation()}>
-                    <Trash2 /> Excluir
+                    <Trash2 /> Excluir automação
                   </button>
                 )}
-                <button type="button" className="secondary" disabled={testing} onClick={() => void sendTest()}>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={testing || !scheduleIsValid(draft)}
+                  onClick={() => void sendTest()}
+                >
                   {testing ? <LoaderCircle className="spin" /> : <Play />} Enviar teste
                 </button>
-                <button type="button" className="primary" disabled={saving} onClick={() => void saveAutomation()}>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={saving || !scheduleIsValid(draft)}
+                  onClick={() => void saveAutomation()}
+                >
                   {saving ? <LoaderCircle className="spin" /> : <Save />} Salvar alterações
                 </button>
               </div>
@@ -689,6 +786,112 @@ export default function AutomacoesPage() {
   );
 }
 
+function ScheduleFields({
+  scheduleType,
+  weekdays,
+  dayOfMonth,
+  locked = false,
+  onChange,
+}: {
+  scheduleType: ScheduleType;
+  weekdays: number[];
+  dayOfMonth: number | null;
+  locked?: boolean;
+  onChange: (value: {
+    scheduleType: ScheduleType;
+    weekdays: number[];
+    dayOfMonth: number | null;
+  }) => void;
+}) {
+  function changeType(nextType: ScheduleType) {
+    if (nextType === 'weekly') {
+      onChange({
+        scheduleType: nextType,
+        weekdays: weekdays.length ? weekdays : [1],
+        dayOfMonth: null,
+      });
+      return;
+    }
+    if (nextType === 'monthly') {
+      onChange({ scheduleType: nextType, weekdays: [], dayOfMonth: dayOfMonth || 1 });
+      return;
+    }
+    onChange({ scheduleType: 'daily', weekdays: [], dayOfMonth: null });
+  }
+
+  function toggleWeekday(value: number) {
+    const next = weekdays.includes(value)
+      ? weekdays.filter((weekday) => weekday !== value)
+      : [...weekdays, value].sort((left, right) => left - right);
+    onChange({ scheduleType: 'weekly', weekdays: next, dayOfMonth: null });
+  }
+
+  return (
+    <div className={`automation-schedule ${locked ? 'locked' : ''}`}>
+      <label>
+        <span>Frequência</span>
+        <select
+          value={scheduleType}
+          disabled={locked}
+          onChange={(event) => changeType(event.target.value as ScheduleType)}
+        >
+          <option value="daily">Diária</option>
+          <option value="weekly">Semanal</option>
+          <option value="monthly">Mensal</option>
+        </select>
+        {locked && (
+          <small>
+            Esta automação faz parte do sistema e permanece diária. Você pode alterar o horário ou
+            pausá-la.
+          </small>
+        )}
+      </label>
+
+      {!locked && scheduleType === 'weekly' && (
+        <div className="automation-weekdays">
+          <span>Dias da semana</span>
+          <div>
+            {WEEKDAYS.map((weekday) => (
+              <button
+                type="button"
+                key={weekday.value}
+                className={weekdays.includes(weekday.value) ? 'selected' : ''}
+                onClick={() => toggleWeekday(weekday.value)}
+              >
+                {weekday.short}
+              </button>
+            ))}
+          </div>
+          {!weekdays.length && <small>Selecione pelo menos um dia.</small>}
+        </div>
+      )}
+
+      {!locked && scheduleType === 'monthly' && (
+        <label>
+          <span>Dia do mês</span>
+          <select
+            value={dayOfMonth || 1}
+            onChange={(event) =>
+              onChange({
+                scheduleType: 'monthly',
+                weekdays: [],
+                dayOfMonth: Number(event.target.value),
+              })
+            }
+          >
+            {Array.from({ length: 31 }, (_, index) => index + 1).map((day) => (
+              <option key={day} value={day}>
+                Dia {day}
+              </option>
+            ))}
+          </select>
+          <small>Em meses menores, os dias 29, 30 e 31 serão enviados no último dia do mês.</small>
+        </label>
+      )}
+    </div>
+  );
+}
+
 function ReadingCalendar({ month, entries, today, onEdit }: {
   month: string;
   entries: ReadingEntry[];
@@ -741,6 +944,9 @@ function CreateAutomationModal({ defaultGroupId, onClose, onCreated }: {
   const [sendTime, setSendTime] = useState('19:00');
   const [groupId, setGroupId] = useState(defaultGroupId);
   const [messageTemplate, setMessageTemplate] = useState('📢 *{{nome_automacao}}*\n\nEscreva aqui a mensagem que será enviada em {{data}}.');
+  const [scheduleType, setScheduleType] = useState<ScheduleType>('daily');
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [dayOfMonth, setDayOfMonth] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -751,7 +957,15 @@ function CreateAutomationModal({ defaultGroupId, onClose, onCreated }: {
       const response = await fetch('/api/automations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, sendTime, groupId, messageTemplate }),
+        body: JSON.stringify({
+          name,
+          sendTime,
+          groupId,
+          messageTemplate,
+          scheduleType,
+          weekdays,
+          dayOfMonth,
+        }),
       });
       const payload = (await response.json()) as { automation?: Automation; error?: string };
       if (!response.ok || !payload.automation) {
@@ -778,12 +992,29 @@ function CreateAutomationModal({ defaultGroupId, onClose, onCreated }: {
             <label><span>Horário</span><input type="time" value={sendTime} onChange={(event) => setSendTime(event.target.value)} /></label>
             <label><span>ID do grupo</span><input value={groupId} onChange={(event) => setGroupId(event.target.value)} /></label>
           </div>
+          <ScheduleFields
+            scheduleType={scheduleType}
+            weekdays={weekdays}
+            dayOfMonth={dayOfMonth}
+            onChange={(schedule) => {
+              setScheduleType(schedule.scheduleType);
+              setWeekdays(schedule.weekdays);
+              setDayOfMonth(schedule.dayOfMonth);
+            }}
+          />
           <label><span>Mensagem</span><textarea rows={9} value={messageTemplate} onChange={(event) => setMessageTemplate(event.target.value)} /></label>
           {error && <div className="automation-alert error">{error}</div>}
         </div>
         <footer>
           <button type="button" className="secondary" onClick={onClose}>Cancelar</button>
-          <button type="button" className="primary" disabled={saving} onClick={() => void create()}>{saving ? <LoaderCircle className="spin" /> : <Plus />}Criar automação</button>
+          <button
+            type="button"
+            className="primary"
+            disabled={saving || !scheduleIsValid({ scheduleType, weekdays, dayOfMonth })}
+            onClick={() => void create()}
+          >
+            {saving ? <LoaderCircle className="spin" /> : <Plus />}Criar automação
+          </button>
         </footer>
       </section>
     </div>

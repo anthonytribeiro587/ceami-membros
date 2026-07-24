@@ -19,6 +19,9 @@ type UpdatePayload = {
   groupId?: string;
   messageTemplate?: string;
   name?: string;
+  scheduleType?: string;
+  weekdays?: unknown;
+  dayOfMonth?: unknown;
 };
 
 type ReadingRow = { reading_date: string; reference: string };
@@ -29,7 +32,12 @@ type CreatePayload = {
   sendTime?: string;
   groupId?: string;
   messageTemplate?: string;
+  scheduleType?: string;
+  weekdays?: unknown;
+  dayOfMonth?: unknown;
 };
+
+type ScheduleType = 'daily' | 'weekly' | 'monthly';
 
 function validTime(value: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -37,6 +45,44 @@ function validTime(value: string) {
 
 function validGroup(value: string) {
   return /^\d+@g\.us$/.test(value);
+}
+
+function normalizeSchedule(input: {
+  scheduleType?: unknown;
+  weekdays?: unknown;
+  dayOfMonth?: unknown;
+}) {
+  const scheduleType = String(input.scheduleType || 'daily').trim() as ScheduleType;
+  if (!['daily', 'weekly', 'monthly'].includes(scheduleType)) {
+    throw new Error('Frequência inválida.');
+  }
+
+  if (scheduleType === 'weekly') {
+    const rawWeekdays = Array.isArray(input.weekdays) ? input.weekdays : [];
+    const weekdays = Array.from(
+      new Set(
+        rawWeekdays
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6),
+      ),
+    ).sort((left, right) => left - right);
+
+    if (!weekdays.length) {
+      throw new Error('Selecione pelo menos um dia da semana.');
+    }
+
+    return { scheduleType, weekdays, dayOfMonth: null };
+  }
+
+  if (scheduleType === 'monthly') {
+    const dayOfMonth = Number(input.dayOfMonth);
+    if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
+      throw new Error('Selecione um dia válido do mês.');
+    }
+    return { scheduleType, weekdays: [] as number[], dayOfMonth };
+  }
+
+  return { scheduleType: 'daily' as const, weekdays: [] as number[], dayOfMonth: null };
 }
 
 function tomorrowFrom(date: string) {
@@ -55,6 +101,9 @@ function normalizeAutomation(row: AutomationRow) {
     timezone: row.timezone,
     groupId: row.group_id,
     messageTemplate: row.message_template,
+    scheduleType: row.schedule_type || 'daily',
+    weekdays: Array.isArray(row.weekdays) ? row.weekdays : [],
+    dayOfMonth: row.day_of_month,
     lastSentDate: row.last_sent_date,
     lastSentAt: row.last_sent_at,
     lastStatus: row.last_status,
@@ -154,6 +203,17 @@ export async function PATCH(request: NextRequest) {
     const id = String(body.id || '').trim();
     if (!id) return NextResponse.json({ error: 'Automação não informada.' }, { status: 400 });
 
+    const { data: existingAutomation, error: lookupError } = await service
+      .from('automations')
+      .select('id,type')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (lookupError) throw new Error(lookupError.message);
+    if (!existingAutomation) {
+      return NextResponse.json({ error: 'Automação não encontrada.' }, { status: 404 });
+    }
+
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
     if (typeof body.enabled === 'boolean') updates.enabled = body.enabled;
@@ -199,6 +259,39 @@ export async function PATCH(request: NextRequest) {
       updates.name = name;
     }
 
+    if (
+      body.scheduleType !== undefined ||
+      body.weekdays !== undefined ||
+      body.dayOfMonth !== undefined
+    ) {
+      let schedule: ReturnType<typeof normalizeSchedule>;
+      try {
+        schedule = normalizeSchedule(body);
+      } catch (scheduleError) {
+        return NextResponse.json(
+          {
+            error:
+              scheduleError instanceof Error
+                ? scheduleError.message
+                : 'Frequência inválida.',
+          },
+          { status: 400 },
+        );
+      }
+      if (existingAutomation.type !== 'custom' && schedule.scheduleType !== 'daily') {
+        return NextResponse.json(
+          {
+            error:
+              'Aniversários e Plano de leitura são automações diárias. Altere somente o horário ou pause o envio.',
+          },
+          { status: 409 },
+        );
+      }
+      updates.schedule_type = schedule.scheduleType;
+      updates.weekdays = schedule.weekdays;
+      updates.day_of_month = schedule.dayOfMonth;
+    }
+
     const { data, error } = await service
       .from('automations')
       .update(updates)
@@ -232,6 +325,20 @@ export async function POST(request: NextRequest) {
     const sendTime = String(body.sendTime || '').trim();
     const groupId = String(body.groupId || '').trim();
     const messageTemplate = String(body.messageTemplate || '').trim();
+    let schedule: ReturnType<typeof normalizeSchedule>;
+    try {
+      schedule = normalizeSchedule(body);
+    } catch (scheduleError) {
+      return NextResponse.json(
+        {
+          error:
+            scheduleError instanceof Error
+              ? scheduleError.message
+              : 'Frequência inválida.',
+        },
+        { status: 400 },
+      );
+    }
 
     if (name.length < 3 || name.length > 80) {
       return NextResponse.json(
@@ -266,6 +373,9 @@ export async function POST(request: NextRequest) {
         timezone: 'America/Sao_Paulo',
         group_id: groupId,
         message_template: messageTemplate,
+        schedule_type: schedule.scheduleType,
+        weekdays: schedule.weekdays,
+        day_of_month: schedule.dayOfMonth,
         config: {},
       })
       .select('*')

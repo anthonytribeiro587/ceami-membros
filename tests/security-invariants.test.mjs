@@ -44,6 +44,20 @@ test('reading plan migration contains all 365 days and admin-only policies', asy
   assert.match(migration, /ceami-automations/);
 });
 
+test('automation recurrence supports daily, weekly and monthly schedules safely', async () => {
+  const migration = await read('supabase/migrations/202607240002_automation_recurrence_crud.sql');
+  const runner = await read('lib/server/automation-runner.ts');
+  const api = await read('app/api/automations/route.ts');
+
+  assert.match(migration, /schedule_type in \('daily', 'weekly', 'monthly'\)/);
+  assert.match(migration, /weekdays <@ array\[0, 1, 2, 3, 4, 5, 6\]/);
+  assert.match(migration, /day_of_month between 1 and 31/);
+  assert.match(runner, /automationRunsOnClock/);
+  assert.match(runner, /not_scheduled_today/);
+  assert.match(api, /Selecione pelo menos um dia da semana/);
+  assert.match(api, /Selecione um dia válido do mês/);
+});
+
 test('public service-role routes have rate limiting and body limits', async () => {
   const routes = [
     'app/api/integra/route.ts',

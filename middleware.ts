@@ -8,14 +8,16 @@ const PUBLIC_API_PATHS = [
   '/api/public/update-member',
   '/api/public/course-checkin',
   '/api/birthdays/automatic',
+  '/api/automations/automatic',
 ];
-const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/materiais'];
+const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais'];
 const ADMIN_API_PATHS = [
   '/api/birthdays/test',
   '/api/birthdays/official',
   '/api/birthdays/settings',
   '/api/birthdays/history',
   '/api/birthdays/diagnostics',
+  '/api/automations',
 ];
 
 type CookieToSet = {

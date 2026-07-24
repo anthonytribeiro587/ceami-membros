@@ -18,7 +18,7 @@ async function run(request: NextRequest) {
 
   try {
     const results = await runDueAutomations(service);
-    return NextResponse.json({ ok: true, legacyEndpoint: true, results });
+    return NextResponse.json({ ok: true, results });
   } catch (error) {
     return NextResponse.json(
       {

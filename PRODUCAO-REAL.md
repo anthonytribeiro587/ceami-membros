@@ -78,7 +78,7 @@ Em **Production**, confira:
 - `API_RATE_LIMIT_SALT`
 - `EVOLUTION_API_URL`
 - `EVOLUTION_API_KEY`
-- `EVOLUTION_INSTANCE=ceamirs`
+- `EVOLUTION_INSTANCE=Ceami Igreja`
 - `EVOLUTION_GROUP_ID=120363148206200208@g.us`
 
 Regras:
@@ -88,7 +88,7 @@ Regras:
 - Rotacione a service role e a chave Evolution caso já tenham sido copiadas para chats, prints, documentos ou repositórios.
 - Restrinja os segredos aos ambientes que realmente precisam deles.
 
-## 4. Automação de aniversários
+## 4. Automações de WhatsApp
 
 A migration recria o cron com `Authorization: Bearer <segredo interno>`.
 
@@ -97,15 +97,15 @@ Confirme:
 ```sql
 select jobid, jobname, schedule, active
 from cron.job
-where jobname in ('ceami-birthday-automation', 'ceami-rate-limit-cleanup');
+where jobname in ('ceami-automations', 'ceami-rate-limit-cleanup');
 ```
 
 Teste de segurança:
 
-- abrir `/api/birthdays/automatic` no navegador deve retornar `401`;
+- abrir `/api/automations/automatic` no navegador deve retornar `401`;
 - o cron autenticado deve continuar registrando execução;
-- mantenha `test_mode = true` até validar a instância e o grupo;
-- faça um único teste manual antes de ativar o modo oficial.
+- abra `/automacoes`, mantenha cada nova automação pausada e faça um único envio de teste;
+- ative aniversários e plano de leitura somente depois de confirmar o grupo e os horários.
 
 ## 5. Backups e recuperação
 

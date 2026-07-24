@@ -1,51 +1,21 @@
 import { NextResponse } from 'next/server';
+import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const OFFICIAL_INSTANCE = 'ceamirs';
-const OFFICIAL_GROUP_ID = '120363148206200208@g.us';
-const OFFICIAL_GROUP_NAME = 'CEAMI GRUPO';
-
 export async function GET() {
-  const apiUrl = String(process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
-  const apiKey = process.env.EVOLUTION_API_KEY || '';
-  const configuredInstance = process.env.EVOLUTION_INSTANCE || '';
-  const configuredGroupId = process.env.EVOLUTION_GROUP_ID || process.env.EVOLUTION_TEST_GROUP_ID || '';
+  const config = getEvolutionConfig();
+  const configured = evolutionConfigured(config) && Boolean(config.defaultGroupId);
 
-  if (configuredInstance !== OFFICIAL_INSTANCE) {
+  if (!configured) {
     return NextResponse.json(
       {
         ok: false,
-        instance: configuredInstance,
-        expectedInstance: OFFICIAL_INSTANCE,
-        groupId: configuredGroupId || OFFICIAL_GROUP_ID,
-        error: `A instância da Vercel deve ser “${OFFICIAL_INSTANCE}”. Nenhuma mensagem foi enviada.`,
-      },
-      { status: 409 },
-    );
-  }
-
-  if (configuredGroupId !== OFFICIAL_GROUP_ID) {
-    return NextResponse.json(
-      {
-        ok: false,
-        instance: configuredInstance,
-        groupId: configuredGroupId,
-        expectedGroupId: OFFICIAL_GROUP_ID,
-        error: `O grupo oficial deve ser “${OFFICIAL_GROUP_ID}”. Nenhuma mensagem foi enviada.`,
-      },
-      { status: 409 },
-    );
-  }
-
-  if (!apiUrl || !apiKey) {
-    return NextResponse.json(
-      {
-        ok: false,
-        instance: configuredInstance,
-        groupId: configuredGroupId,
-        error: 'A URL ou a chave da Evolution não está configurada na Vercel.',
+        instance: config.instance,
+        groupId: config.defaultGroupId,
+        error:
+          'Confira EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE e EVOLUTION_GROUP_ID na Vercel.',
       },
       { status: 503 },
     );
@@ -53,12 +23,12 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
-    instance: OFFICIAL_INSTANCE,
-    groupId: OFFICIAL_GROUP_ID,
+    instance: config.instance,
+    groupId: config.defaultGroupId,
     groupFound: true,
-    groupName: OFFICIAL_GROUP_NAME,
-    validationMethod: 'configuration',
-    message: 'Configuração oficial pronta. A confirmação real acontece somente no envio.',
+    groupName: 'Grupo configurado',
+    validationMethod: 'environment',
+    message: 'A configuração da Evolution está preenchida. Use o envio de teste para confirmar a conexão.',
     error: null,
   });
 }

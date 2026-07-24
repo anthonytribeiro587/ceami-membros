@@ -23,11 +23,11 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Settings,
   ShieldCheck,
   Sparkles,
   UserRound,
   Users,
+  Workflow,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -332,9 +332,11 @@ export default function MemberAppV3() {
             </button>
           ))}
 
-          <button type="button" onClick={() => router.push('/ajustes-aniversario')}>
-            <Settings size={19} /><span>Ajustes</span>
-          </button>
+          {isAdmin && (
+            <button type="button" onClick={() => router.push('/automacoes')}>
+              <Workflow size={19} /><span>Automações</span>
+            </button>
+          )}
 
           {isAdmin && (
             <button type="button" onClick={() => router.push('/cursos')}>

@@ -29,6 +29,21 @@ test('birthday cron requires a database-backed bearer secret', async () => {
   assert.match(route, /status: 401/);
 });
 
+
+test('automation cron requires a database-backed bearer secret', async () => {
+  const route = await read('app/api/automations/automatic/route.ts');
+  assert.match(route, /hasValidBearer\(request, 'birthday_cron'\)/);
+  assert.match(route, /status: 401/);
+});
+
+test('reading plan migration contains all 365 days and admin-only policies', async () => {
+  const migration = await read('supabase/migrations/202607240001_automations_reading_plan.sql');
+  const datedEntries = migration.match(/\('2026-\d{2}-\d{2}',/g) || [];
+  assert.equal(datedEntries.length, 365);
+  assert.match(migration, /public\.is_ceami_admin\(\)/);
+  assert.match(migration, /ceami-automations/);
+});
+
 test('public service-role routes have rate limiting and body limits', async () => {
   const routes = [
     'app/api/integra/route.ts',

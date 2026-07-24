@@ -1,0 +1,75 @@
+CEAMI MEMBROS — CENTRAL DE AUTOMAÇÕES
+Pacote contendo somente arquivos novos ou alterados.
+
+IMPORTANTE
+- O arquivo LEIA-ME-ANTES-DO-COMMIT.txt é apenas um guia e não precisa ser commitado.
+- Não há novas dependências npm.
+- O Plano de Leitura é criado DESATIVADO para permitir revisão e teste antes do primeiro envio automático.
+- A automação de aniversários preserva, na migration, o horário, grupo e estado existentes na tabela birthday_automation_settings.
+
+ORDEM CORRETA DE APLICAÇÃO
+1. No Supabase, execute primeiro:
+   supabase/migrations/202607240001_automations_reading_plan.sql
+
+2. Copie os demais arquivos para o repositório, mantendo exatamente as pastas deste ZIP.
+
+3. Confirme as variáveis da Vercel:
+   EVOLUTION_API_URL=<mesma URL atual>
+   EVOLUTION_API_KEY=<chave atual>
+   EVOLUTION_INSTANCE=Ceami Igreja
+   EVOLUTION_GROUP_ID=<mesmo ID do grupo, terminando em @g.us>
+   SUPABASE_SERVICE_ROLE_KEY=<já configurada>
+
+4. Faça o commit e o deploy.
+
+5. Entre como administrador em /automacoes:
+   - confira o grupo e o horário de Aniversários;
+   - abra Plano de leitura e confira a leitura do dia;
+   - use “Enviar teste” antes de ativar;
+   - só então ative o Plano de leitura.
+
+O QUE FOI INCLUÍDO
+- Página administrativa /automacoes, responsiva.
+- Cards das automações de Aniversários e Plano de leitura.
+- Criação de novas automações diárias personalizadas.
+- Horário, grupo, nome, mensagem e ativação configuráveis por automação.
+- Prévia da mensagem e envio manual de teste.
+- Calendário mensal para revisar e editar cada leitura.
+- Histórico de execuções, erros e mensagens enviadas.
+- Plano bíblico revisado com 365 dias de 2026.
+- Execução automática centralizada e protegida por bearer secret.
+- Prevenção de envio duplicado no mesmo dia.
+- Integração Evolution usando a instância definida na Vercel.
+- Compatibilidade com as rotas antigas de aniversários.
+- RLS administrativo nas novas tabelas.
+
+ARQUIVOS NOVOS
+app/automacoes/page.tsx
+app/automacoes/automacoes.css
+app/api/automations/route.ts
+app/api/automations/reading-plan/route.ts
+app/api/automations/test/route.ts
+app/api/automations/automatic/route.ts
+lib/server/automation-runner.ts
+lib/server/evolution.ts
+supabase/migrations/202607240001_automations_reading_plan.sql
+
+ARQUIVOS ALTERADOS
+.env.example
+PRODUCAO-REAL.md
+app/MemberAppV3.tsx
+app/ajustes-aniversario/page.tsx
+app/api/birthdays/automatic/route.ts
+app/api/birthdays/diagnostics/route.ts
+app/api/birthdays/history/route.ts
+app/api/birthdays/official/route.ts
+middleware.ts
+tests/security-invariants.test.mjs
+
+VALIDAÇÕES REALIZADAS
+- 8 de 8 testes automatizados aprovados.
+- 365 datas do plano validadas pelo teste de segurança/integridade.
+- Sintaxe dos 14 arquivos TypeScript/TSX alterados validada por transpiração TypeScript.
+
+OBSERVAÇÃO DE BUILD
+O build completo do Next.js não foi executado neste ambiente porque o registro npm ficou indisponível durante a instalação das dependências. Os testes existentes e a validação de sintaxe foram concluídos com sucesso.

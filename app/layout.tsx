@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import AdminMemberEnhancements from './components/AdminMemberEnhancements';
 import PendingMemberUpdates from './components/PendingMemberUpdates';
 import QrCodeRepair from './components/QrCodeRepair';
+import MemberDetailsPolish from './components/MemberDetailsPolish';
 import './globals.css';
 import './ceami.css';
 import './modal-fixes.css';
@@ -9,6 +10,7 @@ import './mobile-fixes.css';
 import './brand.css';
 import './course-entry.css';
 import './member-v3.css';
+import './member-details-polish.css';
 import './integra/privacy-consent.css';
 
 export const metadata: Metadata = {
@@ -47,6 +49,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AdminMemberEnhancements />
         <PendingMemberUpdates />
         <QrCodeRepair />
+        <MemberDetailsPolish />
         <footer className="site-footer">
           <span>CEAMI Membros</span>
           <span aria-hidden="true">•</span>

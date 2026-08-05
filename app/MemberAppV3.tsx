@@ -35,7 +35,7 @@ import { createClient } from '@/lib/supabase/client';
 import BirthdayHistory from './components/BirthdayHistory';
 import BirthdayCalendar from './components/BirthdayCalendar';
 
-type Screen = 'dashboard' | 'members' | 'birthdays' | 'messages';
+type Screen = 'dashboard' | 'members' | 'birthdays' | 'messages' | 'integra';
 type Filter = 'all' | 'birthday' | 'baptized' | 'fundamentos' | 'missingPhone' | 'missingBirthDate';
 
 type Member = {
@@ -103,6 +103,7 @@ const NAV = [
   ['messages', 'Mensagens', MessageCircle],
 ] as const;
 
+const INTEGRA_FORM_URL = 'https://ceami-membros.vercel.app/integra';
 const LOWERCASE_WORDS = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
 
 function titleCase(value: string) {
@@ -190,6 +191,7 @@ function screenTitle(screen: Screen) {
   if (screen === 'dashboard') return 'Visão geral';
   if (screen === 'members') return 'Membros';
   if (screen === 'birthdays') return 'Aniversários';
+  if (screen === 'integra') return 'Integra';
   return 'Mensagens';
 }
 
@@ -215,7 +217,7 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('screen');
-    if (requested && NAV.some(([key]) => key === requested)) {
+    if (requested === 'integra' || (requested && NAV.some(([key]) => key === requested))) {
       setScreen(requested as Screen);
       setProfileId(null);
     }
@@ -346,6 +348,20 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
           ))}
 
           {isAdmin && (
+            <button
+              type="button"
+              className={!selected && screen === 'integra' ? 'active' : ''}
+              onClick={() => {
+                setProfileId(null);
+                setScreen('integra');
+                setMenuOpen(false);
+              }}
+            >
+              <CalendarCheck2 size={19} /><span>Integra</span>
+            </button>
+          )}
+
+          {isAdmin && (
             <Link href="/automacoes" prefetch onClick={() => setMenuOpen(false)}>
               <Workflow size={19} /><span>Automações</span>
             </Link>
@@ -420,6 +436,10 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
               <section className="member-v3-panel member-v3-simple-page">
                 <BirthdayHistory />
               </section>
+            )}
+
+            {!loading && !loadError && screen === 'integra' && (
+              <IntegraWorkspace members={members} onOpen={setProfileId} onRefresh={() => void loadMembers()} />
             )}
           </>
         )}
@@ -544,6 +564,140 @@ function Dashboard({ members, onOpen, onRefresh, onNew }: {
             <button type="button" onClick={() => window.location.assign('/cursos')}><GraduationCap /><span>Ver cursos</span></button>
           </div>
         </aside>
+      </div>
+    </div>
+  );
+}
+
+function IntegraWorkspace({ members, onOpen, onRefresh }: {
+  members: Member[];
+  onOpen: (id: string) => void;
+  onRefresh: () => void;
+}) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [copied, setCopied] = useState(false);
+
+  const sessions = useMemo(() => {
+    const grouped = new Map<string, Member[]>();
+    for (const member of members) {
+      if (!member.integraDate) continue;
+      const current = grouped.get(member.integraDate) || [];
+      current.push(member);
+      grouped.set(member.integraDate, current);
+    }
+    return Array.from(grouped.entries())
+      .map(([date, people]) => ({
+        date,
+        people: [...people].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [members]);
+
+  const selectedSession = sessions.find((session) => session.date === selectedDate);
+  const selectedMembers = selectedSession?.people || [];
+  const todayCount = sessions.find((session) => session.date === today)?.people.length || 0;
+  const totalWithIntegra = sessions.reduce((total, session) => total + session.people.length, 0);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=14&format=png&data=${encodeURIComponent(INTEGRA_FORM_URL)}`;
+
+  async function copyFormLink() {
+    try {
+      await navigator.clipboard.writeText(INTEGRA_FORM_URL);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      window.prompt('Copie o link do formulário:', INTEGRA_FORM_URL);
+    }
+  }
+
+  return (
+    <div className="member-v3-dashboard">
+      <section className="member-v3-panel">
+        <div className="member-v3-panel-head">
+          <div>
+            <h2>Integra CEAMI</h2>
+            <p>QR Code, formulário e conferência dos participantes de cada encontro.</p>
+          </div>
+          <button type="button" className="member-v3-primary" onClick={onRefresh}><RefreshCw size={18} />Atualizar</button>
+        </div>
+
+        <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
+          <div style={{ display: 'grid', placeItems: 'center', gap: 14, padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
+            <img src={qrUrl} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(290px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
+            <div style={{ width: '100%', textAlign: 'center' }}>
+              <strong style={{ display: 'block', fontSize: 17 }}>Formulário dos novos membros</strong>
+              <span style={{ display: 'block', marginTop: 6, color: '#6d7f88', fontSize: 12, wordBreak: 'break-all' }}>{INTEGRA_FORM_URL}</span>
+            </div>
+            <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <button type="button" className="member-v3-primary" onClick={() => void copyFormLink()}>{copied ? 'Link copiado' : 'Copiar link'}</button>
+              <a href={INTEGRA_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir formulário</a>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
+            <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>CONFERÊNCIA DE HOJE</span>
+              <h3 style={{ margin: '8px 0 7px', fontSize: 24 }}>{todayCount} {todayCount === 1 ? 'cadastro' : 'cadastros'}</h3>
+              <p style={{ margin: 0, color: '#6d7f88', lineHeight: 1.55 }}>Durante o encontro, conte quantas pessoas estão presentes e compare com esta quantidade. Clique em Atualizar conforme os formulários forem sendo enviados.</p>
+            </div>
+            <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+              <strong style={{ display: 'block' }}>Como o controle funciona</strong>
+              <p style={{ margin: '8px 0 0', color: '#6d7f88', lineHeight: 1.55 }}>Cada ficha fica vinculada à Data do Integra informada no formulário. Assim, o painel separa automaticamente os participantes por encontro e mantém o histórico das turmas anteriores.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="member-v3-metrics">
+        <Metric icon={<CalendarCheck2 />} label="Encontros registrados" value={sessions.length} />
+        <Metric icon={<Users />} label="Participantes hoje" value={todayCount} />
+        <Metric icon={<Check />} label="Pessoas com Integra" value={totalWithIntegra} />
+      </section>
+
+      <div className="member-v3-dashboard-grid">
+        <section className="member-v3-panel">
+          <div className="member-v3-panel-head">
+            <div><h2>Histórico de Integras</h2><p>Selecione uma data para conferir quem participou.</p></div>
+          </div>
+          <div className="member-v3-list">
+            {sessions.length ? sessions.map((session) => (
+              <button
+                type="button"
+                className="member-v3-row"
+                key={session.date}
+                onClick={() => setSelectedDate(session.date)}
+                style={selectedDate === session.date ? { background: '#fff3ee' } : undefined}
+              >
+                <div className="member-v3-avatar"><CalendarCheck2 size={22} /></div>
+                <div>
+                  <strong>{formatDate(session.date)}{session.date === today ? ' · Hoje' : ''}</strong>
+                  <span>{session.people.length} {session.people.length === 1 ? 'participante cadastrado' : 'participantes cadastrados'}</span>
+                </div>
+                <ChevronRight />
+              </button>
+            )) : (
+              <div style={{ padding: '24px 4px', color: '#6d7f88' }}>Ainda não há nenhum Integra registrado nos cadastros.</div>
+            )}
+          </div>
+        </section>
+
+        <section className="member-v3-panel">
+          <div className="member-v3-panel-head">
+            <div>
+              <h2>{selectedDate === today ? 'Integra de hoje' : `Integra de ${formatDate(selectedDate)}`}</h2>
+              <p>{selectedMembers.length} {selectedMembers.length === 1 ? 'participante encontrado' : 'participantes encontrados'}.</p>
+            </div>
+          </div>
+          <div className="member-v3-list">
+            {selectedMembers.length ? selectedMembers.map((member) => (
+              <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />
+            )) : (
+              <div style={{ padding: '24px 4px', color: '#6d7f88', lineHeight: 1.55 }}>
+                Nenhuma ficha foi vinculada a esta data ainda. Conforme os participantes enviarem o formulário, clique em <strong>Atualizar</strong> para conferir.
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

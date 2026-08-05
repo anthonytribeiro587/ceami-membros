@@ -276,8 +276,12 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
       roleMap.set(String(link.member_id), current);
     }
 
+    const activeRows = (memberRows || []).filter(
+      (row) => String((row as MemberRowDb).status || 'ativo').trim().toLocaleLowerCase('pt-BR') !== 'inativo',
+    );
+
     setMembers(
-      (memberRows || []).map((row) =>
+      activeRows.map((row) =>
         normalizeMember(row as MemberRowDb, roleMap.get(row.id) || []),
       ),
     );
@@ -458,6 +462,12 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
             await loadMembers();
             setProfileId(editedId);
             setToast('Cadastro atualizado');
+          }}
+          onDeleted={async () => {
+            setEditing(null);
+            setProfileId(null);
+            await loadMembers();
+            setToast('Membro excluído do painel e das automações');
           }}
         />
       )}
@@ -659,7 +669,7 @@ function StatusRow({ label, active, activeText }: { label: string; active: boole
   return <div className="member-v3-status-row"><span>{label}</span><strong className={active ? 'active' : ''}>{active ? activeText : 'Não informado'}</strong></div>;
 }
 
-function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
+function AdminEditor({ member, onClose, onSaved, onDeleted }: { member: Member; onClose: () => void; onSaved: () => void; onDeleted: () => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<EditData>({
     name: member.name,
@@ -677,6 +687,7 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
     notes: member.notes,
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
   function update<K extends keyof EditData>(key: K, value: EditData[K]) {
@@ -685,6 +696,7 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
 
   async function save() {
     if (!data.name.trim()) return setError('Informe o nome.');
+    if (deleting) return;
     setSaving(true);
     setError('');
     const { error: saveError } = await supabase
@@ -712,6 +724,28 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
     onSaved();
   }
 
+  async function removeMember() {
+    if (saving || deleting) return;
+    const confirmed = window.confirm(
+      `Excluir ${member.name}?\n\nO membro será removido do painel e deixará de participar das automações de aniversário. O histórico já registrado será preservado.`,
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError('');
+    const { error: deleteError } = await supabase
+      .from('members')
+      .update({
+        status: 'inativo',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', member.id);
+
+    setDeleting(false);
+    if (deleteError) return setError(`Não foi possível excluir o membro: ${deleteError.message}`);
+    onDeleted();
+  }
+
   return (
     <div className="member-v3-modal-overlay">
       <section className="member-v3-modal">
@@ -729,7 +763,19 @@ function AdminEditor({ member, onClose, onSaved }: { member: Member; onClose: ()
           <Field label="Habilidades e observações"><textarea value={data.notes} onChange={(event) => update('notes', event.target.value)} /></Field>
           {error && <p className="member-v3-form-error">{error}</p>}
         </div>
-        <footer><button type="button" className="secondary" onClick={onClose}>Cancelar</button><button type="button" className="primary" disabled={saving} onClick={() => void save()}>{saving ? 'Salvando...' : 'Salvar alterações'}</button></footer>
+        <footer>
+          <button type="button" className="secondary" disabled={saving || deleting} onClick={onClose}>Cancelar</button>
+          <button
+            type="button"
+            className="secondary"
+            style={{ background: '#fff0ea', color: '#a83b18' }}
+            disabled={saving || deleting}
+            onClick={() => void removeMember()}
+          >
+            {deleting ? 'Excluindo...' : 'Excluir membro'}
+          </button>
+          <button type="button" className="primary" disabled={saving || deleting} onClick={() => void save()}>{saving ? 'Salvando...' : 'Salvar alterações'}</button>
+        </footer>
       </section>
     </div>
   );

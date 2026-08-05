@@ -143,8 +143,8 @@ export async function GET() {
         .in('id', memberIds);
 
       if (membersError) throw new Error(membersError.message);
-      for (const member of members || []) {
-        membersById.set(String(member.id), member as Record<string, unknown>);
+      for (const member of (members || []) as unknown as Array<Record<string, unknown>>) {
+        membersById.set(String(member.id), member);
       }
     }
 

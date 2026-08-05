@@ -1,0 +1,86 @@
+/* Ajustes finais da tela de detalhes e dos botões administrativos. */
+.member-v3-profile-header{
+  grid-template-columns:70px minmax(0,1fr) auto auto;
+  column-gap:12px;
+  row-gap:12px;
+  align-items:center;
+}
+.member-v3-profile-header>button{
+  min-height:48px;
+  margin-left:0!important;
+  padding:0 17px;
+  justify-content:center;
+  white-space:nowrap;
+  box-shadow:0 5px 18px rgba(7,63,87,.04);
+}
+.member-v3-profile-header>[data-ceami-print-single]{
+  background:#073f57;
+  border-color:#073f57;
+  color:#fff;
+}
+.member-v3-profile-header>[data-ceami-print-single]:hover{background:#052f42;border-color:#052f42}
+.member-v3-profile-header>button:last-child{background:#fff}
+.member-v3-details{max-width:1500px;margin:0 auto}
+.member-v3-details-grid{align-items:stretch}
+.member-v3-detail-card{height:100%}
+
+@media(max-width:1180px) and (min-width:761px){
+  .member-v3-profile-header{
+    grid-template-columns:70px minmax(0,1fr) auto;
+  }
+  .member-v3-profile-header>[data-ceami-print-single]{grid-column:3;grid-row:1}
+  .member-v3-profile-header>button:last-child{grid-column:3;grid-row:2}
+}
+
+@media(max-width:760px){
+  .member-v3-details{width:100%}
+  .member-v3-breadcrumb{margin:0 2px 16px;gap:8px;font-size:12px}
+  .member-v3-profile-header{
+    grid-template-columns:66px minmax(0,1fr);
+    gap:10px 14px;
+    margin:0 0 18px;
+    padding:0 2px;
+  }
+  .member-v3-profile-avatar{
+    width:66px;
+    height:66px;
+    border-radius:20px;
+    font-size:22px;
+  }
+  .member-v3-profile-title{gap:7px;align-items:flex-start}
+  .member-v3-profile-title h2{font-size:22px;line-height:1.14;letter-spacing:-.02em}
+  .member-v3-profile-title span{font-size:10px;padding:5px 9px}
+  .member-v3-profile-header p{font-size:13px;line-height:1.4;margin-top:7px}
+  .member-v3-profile-header>button{
+    grid-column:1/-1!important;
+    grid-row:auto!important;
+    width:100%;
+    min-height:52px;
+    border-radius:14px;
+    padding:0 14px;
+    font-size:14px;
+    box-shadow:none;
+  }
+  .member-v3-profile-header>[data-ceami-print-single]{margin-top:5px}
+  .member-v3-details-grid{gap:12px}
+  .member-v3-detail-card{padding:16px 15px;border-radius:19px}
+  .member-v3-card-title{margin-bottom:8px}
+  .member-v3-card-title>span{width:40px;height:40px;border-radius:13px}
+  .member-v3-card-title h3{font-size:17px;line-height:1.2}
+  .member-v3-detail-row,.member-v3-faith-card .member-v3-detail-row{padding:13px 2px;gap:6px}
+  .member-v3-detail-row>span,.member-v3-status-row span{font-size:11.5px}
+  .member-v3-detail-row strong,.member-v3-contact-row strong{font-size:13px;line-height:1.35}
+  .member-v3-contact-row{padding:13px 2px}
+  .member-v3-contact-icon{width:40px;height:40px}
+  .member-v3-role-tags{gap:6px;padding:10px 0}
+  .member-v3-role-tags span{font-size:10px;padding:6px 9px}
+}
+
+@media(max-width:420px){
+  .member-v3-profile-header{grid-template-columns:60px minmax(0,1fr);gap:10px 12px}
+  .member-v3-profile-avatar{width:60px;height:60px;border-radius:18px;font-size:20px}
+  .member-v3-profile-title h2{font-size:20px}
+  .member-v3-profile-header p{font-size:12px}
+  .member-v3-profile-header>button{min-height:49px;font-size:13px}
+  .member-v3-detail-card{padding:14px 13px}
+}

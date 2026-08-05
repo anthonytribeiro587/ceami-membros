@@ -104,6 +104,9 @@ const NAV = [
 ] as const;
 
 const INTEGRA_FORM_URL = 'https://ceami-membros.vercel.app/integra';
+const CONSULT_FORM_URL = 'https://ceami-membros.vercel.app/consultar';
+const INTEGRA_QR_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAAFoAQAAAABSnlx4AAACdUlEQVR4nO2bzY7CMAyEZ1Z9/1eePfgnQZyQAtjUPZSUfoeR1zJjJ0vhhevvFXjooYceeug30hcA0NYCBUIARUAgICrfVtLdlb4AWCxBABTECDwAQdvbQrqb06RlsSgKgDz4ILe39XQ3p90cWnQpWnX5hpJb0LSUBgQQlunfUfKztNVvz2IRIATLaypCnnGvo7srbfH28my2xAu4vIAr3r5ZyT3oh5pBRLjBNII7UEd3V9rjTXfbvqYXcGNWIa+juzXNcH/ronlvQRIVhrCY7ra0BMoTOo24BZ32G6oPKfl1OutJ1hLAYy//wDKHdXS3pmkZTmALt31Pkfb5ESU/T3v6wsdT8Ecxltof6+juSl8AVtEAYI6bvljme/L7IG1dpAiC1lyGWSEAZdyr6e5He39pVjvv9NpC5TB28vsobWNuxcBEUpYSS/HJ74N0bDCQYFgSxpwwfjQ/ouQWNMMRZqmmqG00OPXkMO07OZbZyjEKSFCyXbbPKLkD7TUb6cCV0xTJ15PfB2nG4MQGKbTfx7TejGU13f1o63Tilu2kssvE3nnW0d2V9v20NRjM3l0xvFplppDurnROvZ/G30+7Dm9Wcg86ds/sZn1m3GIPc/0p6uhuTdvBnmzfCUnmCjO9p985Q6/cjaGs1jRFnPngYfrKlbyrjFj7dwirMvX7BP14PtbMCf3UiTsVKp1hHd1d6YfzsYoTPuLuwpMopLs5nSdg7dy3pbS7Ey5zXk53O/raH/yQvdb572guOfn9Hpo+l+WaxAJTv4/Rj+djsXI8/qdkm7BU0t2bJvcq7ce/s5bEbk893f3o5zP131Iy9NBDDz30K9c/bxYZ9N084xQAAAAASUVORK5CYII=';
+const CONSULT_QR_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAAFoAQAAAABSnlx4AAACgklEQVR4nO2aS47jQAxDyUHuf2X2QpTKRmMWARy3ylGySGy/BSEItD5F4Y3Pv3fgoYceeuihP0i/AIDxXyAEUIQoAtDpaSfdu9IvACuuIsUIOCD6Xbqi3kf3rnTEGwQEEIo/AhjX/o2YN9L9EDqiy8hm/aoV2+rekxYAZtAB2lj+QMljaftJRTVCnGbi+/W0j+5daUhlG/rPd4F9dO9K8+QXhCi4EnRVeAT66N6dJkGWg8M/WRKS9yl5Nm0/EcJO4Iu0bhuKghs/uYxWlN7xqtTJZtz83KXkC+gourMajAhHejMS30+76d6VplhzE0CEaDMX4/2p6S8vpKN919lHCIKEKA+v7lDyeNou4tSGS0C6UIncjmDPfPAyWiIEyVNBV4HRaJ5yvpnuDWkeEtlTb9UDp/maEPbRvTct5CtRUY0gPSSm4XS90k33fnRaB6o0Qd3wCgKiooJppHtXuuIdQc2XY1TeXCu2zyv5JlpywLPPST8hUOZyi5Kn0zmQCtuolK4SsF6lH1fyRbS7mmgkuYZXJKsHmvnJhbR3OSK5El6QlPu1qU+uob1PAz0ZjAqcIkG/LNderZHuvWn55IlO3Q0IhKNg5icX0ZHfXLMqVZcjV+Cs8yiNdO9K0x07szph1d6efvPQ5ffRvSudIUWdF2S2k3Gjau/J7yvoF5CbS6+F3ePkP5vK5Pc19Pl8bE5iFZsG5FV6Sx/du9Kn87HygqHyu5zbDWcf3RvSv87Hln2QsbNf3Xwn3c+hCc+vDmdPcjreWfce9Ot4kW5S00Fx7ejHvy+k89Cmq3Ento5r45uUPJx2f7luUMolfVYnqoj30b0rfT4f+5dKhh566KGHfufzA1VjXJWSJ3fIAAAAAElFTkSuQmCC';
 const LOWERCASE_WORDS = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
 
 function titleCase(value: string) {
@@ -576,7 +579,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
 }) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   const [selectedDate, setSelectedDate] = useState(today);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'form' | 'consult' | 'message' | ''>('');
 
   const sessions = useMemo(() => {
     const grouped = new Map<string, Member[]>();
@@ -598,15 +601,15 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
   const selectedMembers = selectedSession?.people || [];
   const todayCount = sessions.find((session) => session.date === today)?.people.length || 0;
   const totalWithIntegra = sessions.reduce((total, session) => total + session.people.length, 0);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=14&format=png&data=${encodeURIComponent(INTEGRA_FORM_URL)}`;
+  const consultationMessage = `Olá! 👋\n\nA CEAMI está conferindo e atualizando o cadastro dos membros.\n\nAcesse o link abaixo e verifique se o seu cadastro já existe e se as informações estão corretas:\n${CONSULT_FORM_URL}\n\nImportante: informe seu *nome completo* e confirme sua identidade com a data de nascimento, WhatsApp ou e-mail.\n\nSe o sistema não localizar seu cadastro, ele vai direcionar você para a ficha completa do Integra. 🧡`;
 
-  async function copyFormLink() {
+  async function copyText(value: string, kind: 'form' | 'consult' | 'message') {
     try {
-      await navigator.clipboard.writeText(INTEGRA_FORM_URL);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(''), 2200);
     } catch {
-      window.prompt('Copie o link do formulário:', INTEGRA_FORM_URL);
+      window.prompt('Copie o conteúdo:', value);
     }
   }
 
@@ -623,13 +626,13 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
 
         <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
           <div style={{ display: 'grid', placeItems: 'center', gap: 14, padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
-            <img src={qrUrl} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(290px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
+            <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(290px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
             <div style={{ width: '100%', textAlign: 'center' }}>
               <strong style={{ display: 'block', fontSize: 17 }}>Formulário dos novos membros</strong>
               <span style={{ display: 'block', marginTop: 6, color: '#6d7f88', fontSize: 12, wordBreak: 'break-all' }}>{INTEGRA_FORM_URL}</span>
             </div>
             <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button type="button" className="member-v3-primary" onClick={() => void copyFormLink()}>{copied ? 'Link copiado' : 'Copiar link'}</button>
+              <button type="button" className="member-v3-primary" onClick={() => void copyText(INTEGRA_FORM_URL, 'form')}>{copied === 'form' ? 'Link copiado' : 'Copiar link'}</button>
               <a href={INTEGRA_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir formulário</a>
             </div>
           </div>
@@ -643,6 +646,42 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
             <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
               <strong style={{ display: 'block' }}>Como o controle funciona</strong>
               <p style={{ margin: '8px 0 0', color: '#6d7f88', lineHeight: 1.55 }}>Cada ficha fica vinculada à Data do Integra informada no formulário. Assim, o painel separa automaticamente os participantes por encontro e mantém o histórico das turmas anteriores.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="member-v3-panel">
+        <div className="member-v3-panel-head">
+          <div>
+            <h2>Consulta de cadastro</h2>
+            <p>Use este link no grupo para os membros conferirem se já possuem cadastro antes de preencher uma nova ficha.</p>
+          </div>
+          <ShieldCheck size={24} />
+        </div>
+
+        <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
+          <div style={{ display: 'grid', placeItems: 'center', gap: 12, padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
+            <img src={CONSULT_QR_DATA_URI} alt="QR Code da consulta de cadastro CEAMI" style={{ width: 'min(220px, 100%)', aspectRatio: '1', borderRadius: 16, background: '#fff', padding: 10 }} />
+            <strong>Verificar meu cadastro</strong>
+            <span style={{ color: '#6d7f88', fontSize: 12, wordBreak: 'break-all', textAlign: 'center' }}>{CONSULT_FORM_URL}</span>
+            <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <button type="button" className="member-v3-primary" onClick={() => void copyText(CONSULT_FORM_URL, 'consult')}>{copied === 'consult' ? 'Link copiado' : 'Copiar link'}</button>
+              <a href={CONSULT_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir consulta</a>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
+            <div style={{ padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>MENSAGEM PRONTA PARA O GRUPO</span>
+              <p style={{ margin: '12px 0 0', color: '#405864', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{consultationMessage}</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <button type="button" className="member-v3-primary" onClick={() => void copyText(consultationMessage, 'message')}>{copied === 'message' ? 'Mensagem copiada' : 'Copiar mensagem'}</button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(consultationMessage)}`} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir WhatsApp</a>
+            </div>
+            <div style={{ padding: 14, borderRadius: 15, background: '#f4f7f8', color: '#6d7f88', fontSize: 12, lineHeight: 1.55 }}>
+              <strong style={{ color: '#073f57' }}>Para evitar erro na consulta:</strong> peça que a pessoa informe o <strong>nome completo</strong>. O sistema confirma a identidade com data de nascimento, WhatsApp ou e-mail e não exibe os dados pessoais completos.
             </div>
           </div>
         </div>

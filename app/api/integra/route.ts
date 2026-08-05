@@ -50,8 +50,17 @@ function validDate(value: string) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+function todayInSaoPaulo() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 function isFutureDate(value: string) {
-  return new Date(`${value}T23:59:59`).getTime() > Date.now();
+  return value > todayInSaoPaulo();
 }
 
 export async function POST(request: NextRequest) {

@@ -32,8 +32,8 @@ function yesNo(value: unknown) {
   return value === true ? 'Sim' : value === false ? 'Não' : 'Não informado';
 }
 
-function field(label: string, value: string) {
-  return `<div class="field"><span>${escapeHtml(label)}</span><strong>${value}</strong></div>`;
+function field(label: string, value: string, className = '') {
+  return `<div class="field ${className}"><span>${escapeHtml(label)}</span><strong>${value}</strong></div>`;
 }
 
 function memberSheetHtml(member: MemberSheet) {
@@ -109,8 +109,8 @@ function memberSheetHtml(member: MemberSheet) {
       <section class="card wide">
         <h2>Ministério, habilidades e observações</h2>
         ${field('Ministério', display(member.ministry))}
-        ${field('Talentos e habilidades', display(member.talents))}
-        ${field('Observações', display(member.notes))}
+        ${field('Talentos e habilidades', display(member.talents), 'long-value')}
+        ${field('Observações', display(member.notes), 'long-value')}
       </section>
 
       <section class="review-box">
@@ -137,20 +137,39 @@ function printDocument(members: MemberSheet[], title: string, popup: Window) {
   <style>
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#e9eef0;color:#073f57;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    body{padding:16px 0}
-    .sheet{width:210mm;min-height:297mm;margin:0 auto 14mm;background:#fff;padding:11mm 12mm 12mm;position:relative;page-break-after:always;box-shadow:0 18px 55px rgba(8,48,66,.13)}
-    .sheet:last-child{page-break-after:auto}
-    .sheet-header{display:grid;grid-template-columns:14mm minmax(0,1fr) auto;align-items:center;gap:4mm;padding-bottom:4mm;border-bottom:.55mm solid #e9eff1}
-    .brand-mark{width:13mm;height:13mm;border-radius:4mm;display:grid;place-items:center;background:#ef5a25;color:#fff;font-size:14pt;font-weight:900}
-    .brand-copy{display:grid;gap:.8mm}.brand-copy span{font-size:6.8pt;letter-spacing:.08em;color:#ef5a25;font-weight:800}.brand-copy strong{font-size:16pt;line-height:1}.brand-copy small{font-size:8.5pt;color:#6d7f88}
-    .sheet-meta{text-align:right;display:grid;gap:1mm}.sheet-meta span,.status-box span,.identity>div>span{font-size:7pt;letter-spacing:.13em;color:#ef5a25;font-weight:900}.sheet-meta strong{font-size:11pt}
-    .identity{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8mm;align-items:end;padding:6mm 0 5mm}.identity h1{margin:1.6mm 0 0;font-size:21pt;line-height:1.08;letter-spacing:-.02em}.status-box{min-width:34mm;border:1px solid #dfe8eb;border-radius:4mm;padding:3.2mm 4mm;text-align:right}.status-box strong{display:block;margin-top:1.5mm;font-size:10pt;text-transform:capitalize}
-    .grid{display:grid;gap:3.5mm;margin-bottom:3.5mm}.grid.two{grid-template-columns:1fr 1fr}.card{border:.35mm solid #dce6e9;border-radius:4mm;padding:4mm 4.5mm;break-inside:avoid}.card.wide{margin-bottom:3.5mm}.card h2{margin:0 0 2.5mm;font-size:11.5pt;color:#073f57}
-    .field{display:grid;grid-template-columns:41% minmax(0,1fr);gap:3mm;align-items:start;padding:2.2mm 0;border-top:.25mm solid #edf2f3;line-height:1.25}.field:first-of-type{border-top:0}.field span{font-size:8.6pt;color:#70848d}.field strong{font-size:9.2pt;font-weight:700;overflow-wrap:anywhere}
-    .review-box{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:5mm;padding-top:4mm;border-top:.35mm dashed #cfdadd}.review-box div{display:grid;gap:3mm}.review-box span{font-size:8pt;color:#71848d;font-weight:700}.review-box i{display:block;height:7mm;border-bottom:.3mm solid #9eafb6}
-    .sheet-footer{position:absolute;left:12mm;right:12mm;bottom:7mm;padding-top:2.5mm;border-top:.3mm solid #edf1f2;display:flex;justify-content:space-between;gap:8mm;color:#82949b;font-size:6.8pt}
-    @media(max-width:800px){body{padding:0}.sheet{width:100%;min-height:auto;margin:0;padding:22px;box-shadow:none}.sheet-header{grid-template-columns:50px 1fr}.sheet-meta{grid-column:1/-1;text-align:left}.identity{grid-template-columns:1fr}.status-box{width:100%;text-align:left}.grid.two{grid-template-columns:1fr}.field{grid-template-columns:1fr;gap:4px}.sheet-footer{position:static;margin-top:24px}.review-box{grid-template-columns:1fr}}
-    @media print{html,body{background:#fff;padding:0}.sheet{width:210mm;min-height:297mm;margin:0;box-shadow:none}@page{size:A4;margin:0}}
+    body{padding:14px 0}
+    .sheet{width:210mm;height:297mm;min-height:297mm;max-height:297mm;margin:0 auto 12mm;background:#fff;padding:7mm 9mm 7mm;position:relative;overflow:hidden;page-break-after:always;break-after:page;box-shadow:0 18px 55px rgba(8,48,66,.13)}
+    .sheet:last-child{page-break-after:auto;break-after:auto}
+    .sheet-header{display:grid;grid-template-columns:11mm minmax(0,1fr) auto;align-items:center;gap:3mm;padding-bottom:2.5mm;border-bottom:.4mm solid #e9eff1}
+    .brand-mark{width:10mm;height:10mm;border-radius:3mm;display:grid;place-items:center;background:#ef5a25;color:#fff;font-size:10.5pt;font-weight:900}
+    .brand-copy{display:grid;gap:.35mm}.brand-copy span{font-size:5.8pt;letter-spacing:.08em;color:#ef5a25;font-weight:800}.brand-copy strong{font-size:13.5pt;line-height:1}.brand-copy small{font-size:7pt;color:#6d7f88}
+    .sheet-meta{text-align:right;display:grid;gap:.6mm}.sheet-meta span,.status-box span,.identity>div>span{font-size:6.2pt;letter-spacing:.12em;color:#ef5a25;font-weight:900}.sheet-meta strong{font-size:9pt}
+    .identity{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5mm;align-items:end;padding:3.5mm 0 3mm}.identity h1{margin:1mm 0 0;font-size:17pt;line-height:1.05;letter-spacing:-.02em}.status-box{min-width:27mm;border:.3mm solid #dfe8eb;border-radius:3mm;padding:2mm 2.8mm;text-align:right}.status-box strong{display:block;margin-top:.8mm;font-size:8.5pt;text-transform:capitalize}
+    .grid{display:grid;gap:2.5mm;margin-bottom:2.5mm;align-items:stretch}.grid.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+    .card{border:.3mm solid #dce6e9;border-radius:3mm;padding:2.6mm 3mm;break-inside:avoid;page-break-inside:avoid;min-width:0}.card.wide{margin-bottom:2.5mm}.card h2{margin:0 0 1.4mm;font-size:9.5pt;color:#073f57}
+    .field{display:grid;grid-template-columns:39% minmax(0,1fr);gap:2mm;align-items:start;padding:1.35mm 0;border-top:.2mm solid #edf2f3;line-height:1.18;min-width:0}.field:first-of-type{border-top:0}.field span{font-size:7.2pt;color:#70848d}.field strong{font-size:7.7pt;font-weight:700;overflow-wrap:anywhere;word-break:break-word}.field.long-value strong{max-height:9mm;overflow:hidden}
+    .review-box{display:grid;grid-template-columns:1.35fr .65fr;gap:7mm;margin-top:2mm;padding-top:2.5mm;border-top:.25mm dashed #cfdadd}.review-box div{display:grid;gap:1.5mm}.review-box span{font-size:7pt;color:#71848d;font-weight:700}.review-box i{display:block;height:4mm;border-bottom:.25mm solid #9eafb6}
+    .sheet-footer{position:absolute;left:9mm;right:9mm;bottom:3.5mm;padding-top:1.5mm;border-top:.2mm solid #edf1f2;display:flex;justify-content:space-between;gap:6mm;color:#82949b;font-size:5.8pt}
+
+    @media screen and (max-width:800px){
+      body{padding:0}.sheet{width:100%;height:auto;min-height:100vh;max-height:none;margin:0;padding:20px;overflow:visible;box-shadow:none}
+      .sheet-header{grid-template-columns:46px 1fr}.sheet-meta{grid-column:1/-1;text-align:left}.identity{grid-template-columns:1fr}.status-box{width:100%;text-align:left}
+      .grid.two{grid-template-columns:1fr}.field{grid-template-columns:1fr;gap:3px}.field.long-value strong{max-height:none}.sheet-footer{position:static;margin-top:20px}.review-box{grid-template-columns:1fr}
+    }
+
+    @media print{
+      html,body{width:210mm;background:#fff;padding:0!important;margin:0!important}
+      .sheet{width:210mm!important;height:297mm!important;min-height:297mm!important;max-height:297mm!important;margin:0!important;padding:7mm 9mm 7mm!important;overflow:hidden!important;box-shadow:none!important;page-break-after:always!important;break-after:page!important}
+      .sheet:last-child{page-break-after:auto!important;break-after:auto!important}
+      .sheet-header{grid-template-columns:11mm minmax(0,1fr) auto!important}
+      .identity{grid-template-columns:minmax(0,1fr) auto!important}
+      .grid.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+      .field{grid-template-columns:39% minmax(0,1fr)!important}
+      .sheet-meta{text-align:right!important;grid-column:auto!important}
+      .status-box{text-align:right!important;width:auto!important}
+      .sheet-footer{position:absolute!important}
+      @page{size:A4 portrait;margin:0}
+    }
   </style>
 </head>
 <body>${sheets}<script>window.onload=()=>setTimeout(()=>{window.focus();window.print()},350);<\/script></body>

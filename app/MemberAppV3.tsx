@@ -580,6 +580,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   const [selectedDate, setSelectedDate] = useState(today);
   const [copied, setCopied] = useState<'form' | 'consult' | 'message' | ''>('');
+  const [activeTab, setActiveTab] = useState<'integra' | 'consulta'>('integra');
 
   const sessions = useMemo(() => {
     const grouped = new Map<string, Member[]>();
@@ -601,7 +602,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
   const selectedMembers = selectedSession?.people || [];
   const todayCount = sessions.find((session) => session.date === today)?.people.length || 0;
   const totalWithIntegra = sessions.reduce((total, session) => total + session.people.length, 0);
-  const consultationMessage = `Olá! 👋\n\nA CEAMI está conferindo e atualizando o cadastro dos membros.\n\nAcesse o link abaixo e verifique se o seu cadastro já existe e se as informações estão corretas:\n${CONSULT_FORM_URL}\n\nImportante: informe seu *nome completo* e confirme sua identidade com a data de nascimento, WhatsApp ou e-mail.\n\nSe o sistema não localizar seu cadastro, ele vai direcionar você para a ficha completa do Integra. 🧡`;
+  const consultationMessage = `Olá! 👋\n\nA CEAMI está conferindo e atualizando o cadastro dos membros.\n\nAcesse o link abaixo e verifique se o seu cadastro já existe e se as informações estão corretas:\n${CONSULT_FORM_URL}\n\nInforme seu nome — pode ser apenas o primeiro — e confirme sua identidade com a data de nascimento, WhatsApp ou e-mail.\n\nSe o sistema não localizar seu cadastro, confira os dados informados antes de preencher uma nova ficha do Integra. 🧡`;
 
   async function copyText(value: string, kind: 'form' | 'consult' | 'message') {
     try {
@@ -613,131 +614,162 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
     }
   }
 
+  const tabButtonStyle = (active: boolean) => ({
+    border: 0,
+    borderRadius: 12,
+    padding: '11px 16px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    background: active ? '#ffffff' : 'transparent',
+    color: active ? '#073f57' : '#6d7f88',
+    fontWeight: 850,
+    boxShadow: active ? '0 4px 14px rgba(16,55,71,.08)' : 'none',
+    cursor: 'pointer',
+  } as const);
+
   return (
     <div className="member-v3-dashboard">
-      <section className="member-v3-panel">
-        <div className="member-v3-panel-head">
-          <div>
-            <h2>Integra CEAMI</h2>
-            <p>QR Code, formulário e conferência dos participantes de cada encontro.</p>
-          </div>
-          <button type="button" className="member-v3-primary" onClick={onRefresh}><RefreshCw size={18} />Atualizar</button>
-        </div>
-
-        <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
-          <div style={{ display: 'grid', placeItems: 'center', gap: 14, padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
-            <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(290px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
-            <div style={{ width: '100%', textAlign: 'center' }}>
-              <strong style={{ display: 'block', fontSize: 17 }}>Formulário dos novos membros</strong>
-              <span style={{ display: 'block', marginTop: 6, color: '#6d7f88', fontSize: 12, wordBreak: 'break-all' }}>{INTEGRA_FORM_URL}</span>
-            </div>
-            <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button type="button" className="member-v3-primary" onClick={() => void copyText(INTEGRA_FORM_URL, 'form')}>{copied === 'form' ? 'Link copiado' : 'Copiar link'}</button>
-              <a href={INTEGRA_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir formulário</a>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
-            <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
-              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>CONFERÊNCIA DE HOJE</span>
-              <h3 style={{ margin: '8px 0 7px', fontSize: 24 }}>{todayCount} {todayCount === 1 ? 'cadastro' : 'cadastros'}</h3>
-              <p style={{ margin: 0, color: '#6d7f88', lineHeight: 1.55 }}>Durante o encontro, conte quantas pessoas estão presentes e compare com esta quantidade. Clique em Atualizar conforme os formulários forem sendo enviados.</p>
-            </div>
-            <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
-              <strong style={{ display: 'block' }}>Como o controle funciona</strong>
-              <p style={{ margin: '8px 0 0', color: '#6d7f88', lineHeight: 1.55 }}>Cada ficha fica vinculada à Data do Integra informada no formulário. Assim, o painel separa automaticamente os participantes por encontro e mantém o histórico das turmas anteriores.</p>
-            </div>
-          </div>
+      <section className="member-v3-panel" style={{ padding: 10 }}>
+        <div style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 15, background: '#edf2f4', maxWidth: '100%', overflowX: 'auto' }}>
+          <button type="button" style={tabButtonStyle(activeTab === 'integra')} onClick={() => setActiveTab('integra')}>
+            <CalendarCheck2 size={17} />Integra
+          </button>
+          <button type="button" style={tabButtonStyle(activeTab === 'consulta')} onClick={() => setActiveTab('consulta')}>
+            <ShieldCheck size={17} />Consulta de cadastro
+          </button>
         </div>
       </section>
 
-      <section className="member-v3-panel">
-        <div className="member-v3-panel-head">
-          <div>
-            <h2>Consulta de cadastro</h2>
-            <p>Use este link no grupo para os membros conferirem se já possuem cadastro antes de preencher uma nova ficha.</p>
-          </div>
-          <ShieldCheck size={24} />
-        </div>
-
-        <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
-          <div style={{ display: 'grid', placeItems: 'center', gap: 12, padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
-            <img src={CONSULT_QR_DATA_URI} alt="QR Code da consulta de cadastro CEAMI" style={{ width: 'min(220px, 100%)', aspectRatio: '1', borderRadius: 16, background: '#fff', padding: 10 }} />
-            <strong>Verificar meu cadastro</strong>
-            <span style={{ color: '#6d7f88', fontSize: 12, wordBreak: 'break-all', textAlign: 'center' }}>{CONSULT_FORM_URL}</span>
-            <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button type="button" className="member-v3-primary" onClick={() => void copyText(CONSULT_FORM_URL, 'consult')}>{copied === 'consult' ? 'Link copiado' : 'Copiar link'}</button>
-              <a href={CONSULT_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir consulta</a>
+      {activeTab === 'integra' && (
+        <>
+          <section className="member-v3-panel">
+            <div className="member-v3-panel-head">
+              <div>
+                <h2>Integra CEAMI</h2>
+                <p>QR Code, formulário e conferência dos participantes de cada encontro.</p>
+              </div>
+              <button type="button" className="member-v3-primary" onClick={onRefresh}><RefreshCw size={18} />Atualizar</button>
             </div>
-          </div>
 
-          <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
-            <div style={{ padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
-              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>MENSAGEM PRONTA PARA O GRUPO</span>
-              <p style={{ margin: '12px 0 0', color: '#405864', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{consultationMessage}</p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button type="button" className="member-v3-primary" onClick={() => void copyText(consultationMessage, 'message')}>{copied === 'message' ? 'Mensagem copiada' : 'Copiar mensagem'}</button>
-              <a href={`https://wa.me/?text=${encodeURIComponent(consultationMessage)}`} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir WhatsApp</a>
-            </div>
-            <div style={{ padding: 14, borderRadius: 15, background: '#f4f7f8', color: '#6d7f88', fontSize: 12, lineHeight: 1.55 }}>
-              <strong style={{ color: '#073f57' }}>Para evitar erro na consulta:</strong> peça que a pessoa informe o <strong>nome completo</strong>. O sistema confirma a identidade com data de nascimento, WhatsApp ou e-mail e não exibe os dados pessoais completos.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="member-v3-metrics">
-        <Metric icon={<CalendarCheck2 />} label="Encontros registrados" value={sessions.length} />
-        <Metric icon={<Users />} label="Participantes hoje" value={todayCount} />
-        <Metric icon={<Check />} label="Pessoas com Integra" value={totalWithIntegra} />
-      </section>
-
-      <div className="member-v3-dashboard-grid">
-        <section className="member-v3-panel">
-          <div className="member-v3-panel-head">
-            <div><h2>Histórico de Integras</h2><p>Selecione uma data para conferir quem participou.</p></div>
-          </div>
-          <div className="member-v3-list">
-            {sessions.length ? sessions.map((session) => (
-              <button
-                type="button"
-                className="member-v3-row"
-                key={session.date}
-                onClick={() => setSelectedDate(session.date)}
-                style={selectedDate === session.date ? { background: '#fff3ee' } : undefined}
-              >
-                <div className="member-v3-avatar"><CalendarCheck2 size={22} /></div>
-                <div>
-                  <strong>{formatDate(session.date)}{session.date === today ? ' · Hoje' : ''}</strong>
-                  <span>{session.people.length} {session.people.length === 1 ? 'participante cadastrado' : 'participantes cadastrados'}</span>
+            <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
+              <div style={{ display: 'grid', placeItems: 'center', gap: 14, padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
+                <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(290px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
+                <div style={{ width: '100%', textAlign: 'center' }}>
+                  <strong style={{ display: 'block', fontSize: 17 }}>Formulário dos novos membros</strong>
+                  <span style={{ display: 'block', marginTop: 6, color: '#6d7f88', fontSize: 12, wordBreak: 'break-all' }}>{INTEGRA_FORM_URL}</span>
                 </div>
-                <ChevronRight />
-              </button>
-            )) : (
-              <div style={{ padding: '24px 4px', color: '#6d7f88' }}>Ainda não há nenhum Integra registrado nos cadastros.</div>
-            )}
-          </div>
-        </section>
+                <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button type="button" className="member-v3-primary" onClick={() => void copyText(INTEGRA_FORM_URL, 'form')}>{copied === 'form' ? 'Link copiado' : 'Copiar link'}</button>
+                  <a href={INTEGRA_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir formulário</a>
+                </div>
+              </div>
 
+              <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
+                <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+                  <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>CONFERÊNCIA DE HOJE</span>
+                  <h3 style={{ margin: '8px 0 7px', fontSize: 24 }}>{todayCount} {todayCount === 1 ? 'cadastro' : 'cadastros'}</h3>
+                  <p style={{ margin: 0, color: '#6d7f88', lineHeight: 1.55 }}>Durante o encontro, conte quantas pessoas estão presentes e compare com esta quantidade. Clique em Atualizar conforme os formulários forem sendo enviados.</p>
+                </div>
+                <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+                  <strong style={{ display: 'block' }}>Como o controle funciona</strong>
+                  <p style={{ margin: '8px 0 0', color: '#6d7f88', lineHeight: 1.55 }}>Cada ficha fica vinculada à Data do Integra informada no formulário. Assim, o painel separa automaticamente os participantes por encontro e mantém o histórico das turmas anteriores.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="member-v3-metrics">
+            <Metric icon={<CalendarCheck2 />} label="Encontros registrados" value={sessions.length} />
+            <Metric icon={<Users />} label="Participantes hoje" value={todayCount} />
+            <Metric icon={<Check />} label="Pessoas com Integra" value={totalWithIntegra} />
+          </section>
+
+          <div className="member-v3-dashboard-grid">
+            <section className="member-v3-panel">
+              <div className="member-v3-panel-head">
+                <div><h2>Histórico de Integras</h2><p>Selecione uma data para conferir quem participou.</p></div>
+              </div>
+              <div className="member-v3-list">
+                {sessions.length ? sessions.map((session) => (
+                  <button
+                    type="button"
+                    className="member-v3-row"
+                    key={session.date}
+                    onClick={() => setSelectedDate(session.date)}
+                    style={selectedDate === session.date ? { background: '#fff3ee' } : undefined}
+                  >
+                    <div className="member-v3-avatar"><CalendarCheck2 size={22} /></div>
+                    <div>
+                      <strong>{formatDate(session.date)}{session.date === today ? ' · Hoje' : ''}</strong>
+                      <span>{session.people.length} {session.people.length === 1 ? 'participante cadastrado' : 'participantes cadastrados'}</span>
+                    </div>
+                    <ChevronRight />
+                  </button>
+                )) : (
+                  <div style={{ padding: '24px 4px', color: '#6d7f88' }}>Ainda não há nenhum Integra registrado nos cadastros.</div>
+                )}
+              </div>
+            </section>
+
+            <section className="member-v3-panel">
+              <div className="member-v3-panel-head">
+                <div>
+                  <h2>{selectedDate === today ? 'Integra de hoje' : `Integra de ${formatDate(selectedDate)}`}</h2>
+                  <p>{selectedMembers.length} {selectedMembers.length === 1 ? 'participante encontrado' : 'participantes encontrados'}.</p>
+                </div>
+              </div>
+              <div className="member-v3-list">
+                {selectedMembers.length ? selectedMembers.map((member) => (
+                  <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />
+                )) : (
+                  <div style={{ padding: '24px 4px', color: '#6d7f88', lineHeight: 1.55 }}>
+                    Nenhuma ficha foi vinculada a esta data ainda. Conforme os participantes enviarem o formulário, clique em <strong>Atualizar</strong> para conferir.
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'consulta' && (
         <section className="member-v3-panel">
           <div className="member-v3-panel-head">
             <div>
-              <h2>{selectedDate === today ? 'Integra de hoje' : `Integra de ${formatDate(selectedDate)}`}</h2>
-              <p>{selectedMembers.length} {selectedMembers.length === 1 ? 'participante encontrado' : 'participantes encontrados'}.</p>
+              <h2>Consulta de cadastro</h2>
+              <p>Envie este link no grupo para cada pessoa conferir o cadastro sem criar uma ficha duplicada.</p>
+            </div>
+            <ShieldCheck size={24} />
+          </div>
+
+          <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
+            <div style={{ display: 'grid', placeItems: 'center', gap: 12, padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
+              <img src={CONSULT_QR_DATA_URI} alt="QR Code da consulta de cadastro CEAMI" style={{ width: 'min(250px, 100%)', aspectRatio: '1', borderRadius: 16, background: '#fff', padding: 10 }} />
+              <strong>Verificar meu cadastro</strong>
+              <span style={{ color: '#6d7f88', fontSize: 12, wordBreak: 'break-all', textAlign: 'center' }}>{CONSULT_FORM_URL}</span>
+              <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <button type="button" className="member-v3-primary" onClick={() => void copyText(CONSULT_FORM_URL, 'consult')}>{copied === 'consult' ? 'Link copiado' : 'Copiar link'}</button>
+                <a href={CONSULT_FORM_URL} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir consulta</a>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
+              <div style={{ padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+                <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>MENSAGEM PRONTA PARA O GRUPO</span>
+                <p style={{ margin: '12px 0 0', color: '#405864', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{consultationMessage}</p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <button type="button" className="member-v3-primary" onClick={() => void copyText(consultationMessage, 'message')}>{copied === 'message' ? 'Mensagem copiada' : 'Copiar mensagem'}</button>
+                <a href={`https://wa.me/?text=${encodeURIComponent(consultationMessage)}`} target="_blank" rel="noreferrer" className="member-v3-primary" style={{ textDecoration: 'none' }}>Abrir WhatsApp</a>
+              </div>
+              <div style={{ padding: 14, borderRadius: 15, background: '#f4f7f8', color: '#6d7f88', fontSize: 12, lineHeight: 1.55 }}>
+                <strong style={{ color: '#073f57' }}>Consulta mais simples:</strong> agora o membro pode informar só o <strong>primeiro nome</strong>, desde que confirme a identidade com data de nascimento, WhatsApp ou e-mail. Se houver mais de uma pessoa compatível, o sistema não revela nenhum cadastro.
+              </div>
             </div>
           </div>
-          <div className="member-v3-list">
-            {selectedMembers.length ? selectedMembers.map((member) => (
-              <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />
-            )) : (
-              <div style={{ padding: '24px 4px', color: '#6d7f88', lineHeight: 1.55 }}>
-                Nenhuma ficha foi vinculada a esta data ainda. Conforme os participantes enviarem o formulário, clique em <strong>Atualizar</strong> para conferir.
-              </div>
-            )}
-          </div>
         </section>
-      </div>
+      )}
     </div>
   );
 }

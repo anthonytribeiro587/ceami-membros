@@ -30,6 +30,7 @@ type MemberCandidate = {
   fundamentos_fe: boolean | null;
   talents: string | null;
   ministry: string | null;
+  status: string | null;
 };
 
 type SummaryStatus = 'filled' | 'partial' | 'missing';
@@ -45,6 +46,23 @@ function normalize(value: string) {
 function onlyDigits(value: string) {
   const digits = value.replace(/\D/g, '');
   return digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+}
+
+function memberNameMatches(fullName: string, lookupName: string) {
+  const normalizedFullName = normalize(fullName);
+  if (!normalizedFullName || !lookupName) return false;
+  if (normalizedFullName === lookupName) return true;
+
+  const lookupWords = lookupName.split(' ').filter(Boolean);
+  const memberWords = normalizedFullName.split(' ').filter(Boolean);
+
+  // A tela pública permite usar apenas o primeiro nome. A confirmação real
+  // continua dependendo da data de nascimento, WhatsApp ou e-mail.
+  if (lookupWords.length === 1) return memberWords[0] === lookupWords[0];
+
+  // Também aceita o início do nome completo, ex.: "Maria Silva" para
+  // "Maria Silva de Souza", mantendo a segunda confirmação obrigatória.
+  return memberWords.slice(0, lookupWords.length).join(' ') === lookupName;
 }
 
 function maskName(fullName: string) {
@@ -132,9 +150,9 @@ export async function POST(request: NextRequest) {
     const validPhone = normalizedPhone.length >= 10;
     const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    if (normalizedName.length < 5 || (!validBirthDate && !validPhone && !validEmail)) {
+    if (normalizedName.length < 3 || (!validBirthDate && !validPhone && !validEmail)) {
       return NextResponse.json(
-        { found: false, error: 'Informe seu nome completo e a data de nascimento, WhatsApp ou e-mail.' },
+        { found: false, error: 'Informe seu nome e a data de nascimento, WhatsApp ou e-mail.' },
         { status: 400 },
       );
     }
@@ -155,7 +173,7 @@ export async function POST(request: NextRequest) {
     }
 
     const [{ data, error }, { data: departments }] = await Promise.all([
-      service.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry').limit(2000),
+      service.from('members').select('id, full_name, birth_date, phone, email, address, neighborhood, city, marital_status, spouse_name, has_children, children_names, water_baptized, holy_spirit_baptized, fundamentos_fe, talents, ministry, status').limit(2000),
       service.from('departments').select('name').order('name', { ascending: true }),
     ]);
 
@@ -164,13 +182,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ found: false, error: 'Não foi possível consultar agora.' }, { status: 500 });
     }
 
-    const members = (data || []) as MemberCandidate[];
+    const members = ((data || []) as MemberCandidate[]).filter(
+      (member) => String(member.status || 'ativo').trim().toLocaleLowerCase('pt-BR') !== 'inativo',
+    );
     const phoneMatches = validPhone ? members.filter((member) => onlyDigits(member.phone || '') === normalizedPhone).length : 0;
     const emailMatches = validEmail ? members.filter((member) => String(member.email || '').trim().toLowerCase() === email).length : 0;
 
     const candidates = members.filter((member) => {
-      const exactName = normalize(member.full_name) === normalizedName;
-      if (!exactName) return false;
+      if (!memberNameMatches(member.full_name, normalizedName)) return false;
 
       const birthMatches = validBirthDate && member.birth_date === birthDate;
       const uniquePhoneMatches = validPhone && phoneMatches === 1 && onlyDigits(member.phone || '') === normalizedPhone;

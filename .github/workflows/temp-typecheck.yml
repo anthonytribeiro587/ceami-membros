@@ -1,9 +1,9 @@
 name: Temp Typecheck
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/pending-member-updates
+      - main
   workflow_dispatch:
 
 jobs:

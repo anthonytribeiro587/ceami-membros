@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import AdminMemberEnhancements from './components/AdminMemberEnhancements';
+import PendingMemberUpdates from './components/PendingMemberUpdates';
 import './globals.css';
 import './ceami.css';
 import './modal-fixes.css';
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <AdminMemberEnhancements />
+        <PendingMemberUpdates />
         <footer className="site-footer">
           <span>CEAMI Membros</span>
           <span aria-hidden="true">•</span>

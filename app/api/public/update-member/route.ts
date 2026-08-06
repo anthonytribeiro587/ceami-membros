@@ -39,13 +39,30 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function normalizeDateInput(value: unknown) {
+  const raw = String(value ?? '').trim();
+  let iso = '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    iso = raw;
+  } else {
+    const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!br) return '';
+    iso = `${br[3]}-${br[2]}-${br[1]}`;
+  }
+
+  const parsed = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso) return '';
+  return iso;
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!requestComesFromSameSite(request)) {
       return NextResponse.json({ error: 'Origem da solicitação não permitida.' }, { status: 403 });
     }
 
-    const allowed = await consumeRateLimit(request, 'member-update-request', 30 * 60, 6);
+    const allowed = await consumeRateLimit(request, 'member-update-request', 30 * 60, 20);
     if (!allowed) {
       return NextResponse.json(
         { error: 'Muitas solicitações. Aguarde alguns minutos.' },
@@ -65,10 +82,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sua sessão expirou. Faça a consulta novamente.' }, { status: 401 });
     }
 
-    const memberAllowed = await consumeRateLimit(request, 'member-update-id', 24 * 60 * 60, 4, memberId);
+    const memberAllowed = await consumeRateLimit(request, 'member-update-id', 24 * 60 * 60, 30, memberId);
     if (!memberAllowed) {
       return NextResponse.json(
-        { error: 'Já recebemos solicitações recentes para este cadastro. Aguarde a análise da equipe.' },
+        { error: 'Já recebemos muitas alterações para este cadastro hoje. Aguarde a análise da equipe.' },
         { status: 429, headers: { 'Retry-After': '86400' } },
       );
     }
@@ -77,8 +94,8 @@ export async function POST(request: NextRequest) {
     const proposedData: Record<string, unknown> = {};
 
     if ('birthDate' in changes) {
-      const value = String(changes.birthDate || '');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const value = normalizeDateInput(changes.birthDate);
+      if (!value) {
         return NextResponse.json({ error: 'Informe uma data de nascimento válida.' }, { status: 400 });
       }
       proposedData.birth_date = value;
@@ -157,35 +174,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Selecione pelo menos uma informação para corrigir ou completar.' }, { status: 400 });
     }
 
-    const { data: existing } = await service
+    const { data: existing, error: existingError } = await service
       .from('member_update_requests')
-      .select('id')
+      .select('id, proposed_data')
       .eq('member_id', memberId)
       .eq('status', 'pending')
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    const requestPayload = {
-      proposed_data: proposedData,
-      updated_at: new Date().toISOString(),
-    };
+    if (existingError) {
+      console.error('Member update request lookup error:', existingError.message);
+      return NextResponse.json({ error: 'Não foi possível preparar sua alteração.' }, { status: 500 });
+    }
+
+    const existingData = isPlainObject(existing?.proposed_data) ? existing.proposed_data : {};
+    const mergedData = { ...existingData, ...proposedData };
+    const now = new Date().toISOString();
 
     const query = existing
-      ? service.from('member_update_requests').update(requestPayload).eq('id', existing.id)
+      ? service.from('member_update_requests').update({ proposed_data: mergedData, updated_at: now }).eq('id', existing.id)
       : service.from('member_update_requests').insert({
           member_id: memberId,
-          proposed_data: proposedData,
+          proposed_data: mergedData,
           status: 'pending',
           source: 'public_lookup',
+          updated_at: now,
         });
 
     const { error } = await query;
     if (error) {
       console.error('Member update request error:', error.message);
-      return NextResponse.json({ error: 'Não foi possível enviar sua solicitação.' }, { status: 500 });
+      return NextResponse.json({ error: 'Não foi possível salvar sua alteração.' }, { status: 500 });
     }
 
     return NextResponse.json(
-      { ok: true, pendingReview: true },
+      { ok: true, pendingReview: true, savedFields: Object.keys(proposedData) },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import CorrectionSelectionGuard from './CorrectionSelectionGuard';
+import ConsultationCompletion from './ConsultationCompletion';
 
 export const metadata: Metadata = {
   title: 'Consulta de cadastro',
@@ -29,5 +30,5 @@ export const metadata: Metadata = {
 };
 
 export default function ConsultarLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <><CorrectionSelectionGuard />{children}</>;
+  return <><CorrectionSelectionGuard /><ConsultationCompletion />{children}</>;
 }

@@ -56,34 +56,36 @@ function memberNameMatches(fullName: string, lookupName: string) {
   const lookupWords = lookupName.split(' ').filter(Boolean);
   const memberWords = normalizedFullName.split(' ').filter(Boolean);
 
-  // A tela pública permite usar apenas o primeiro nome. A confirmação real
-  // continua dependendo da data de nascimento, WhatsApp ou e-mail.
   if (lookupWords.length === 1) return memberWords[0] === lookupWords[0];
-
-  // Também aceita o início do nome completo, ex.: "Maria Silva" para
-  // "Maria Silva de Souza", mantendo a segunda confirmação obrigatória.
   return memberWords.slice(0, lookupWords.length).join(' ') === lookupName;
 }
 
-function maskName(fullName: string) {
-  const words = fullName.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= 1) return words[0] || 'Membro localizado';
-  return `${words[0]} ${words.slice(1).map((word) => `${word.charAt(0).toUpperCase()}.`).join(' ')}`;
+function normalizeDateInput(value: string) {
+  const raw = value.trim();
+  let iso = '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    iso = raw;
+  } else {
+    const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!br) return '';
+    iso = `${br[3]}-${br[2]}-${br[1]}`;
+  }
+
+  const parsed = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso) return '';
+  return iso;
 }
 
-function maskPhone(phone: string | null): SummaryField {
-  const digits = onlyDigits(phone || '');
-  return digits.length >= 4
-    ? { value: `Cadastrado • final ${digits.slice(-4)}`, status: 'filled' }
-    : { value: 'Não informado', status: 'missing' };
+function formatDate(value: string | null) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Não informado';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
 }
 
-function maskEmail(email: string | null): SummaryField {
-  const clean = String(email || '').trim();
-  const [local, domain] = clean.split('@');
-  return local && domain
-    ? { value: `${local.charAt(0)}***@${domain}`, status: 'filled' }
-    : { value: 'Não informado', status: 'missing' };
+function textSummary(value: string | null, empty = 'Não informado'): SummaryField {
+  const clean = String(value || '').trim();
+  return clean ? { value: clean, status: 'filled' } : { value: empty, status: 'missing' };
 }
 
 function booleanSummary(value: boolean | null): SummaryField {
@@ -92,26 +94,24 @@ function booleanSummary(value: boolean | null): SummaryField {
 }
 
 function addressSummary(member: MemberCandidate): SummaryField {
-  const fields = [member.address, member.neighborhood, member.city];
-  const completed = fields.filter((value) => String(value || '').trim()).length;
-  if (completed === 0) return { value: 'Não informado', status: 'missing' };
-  if (completed === fields.length) return { value: 'Completo', status: 'filled' };
-  const missing = ['endereço', 'bairro', 'cidade'].filter((_, index) => !String(fields[index] || '').trim());
-  return { value: `Incompleto • falta ${missing.join(' e ')}`, status: 'partial' };
+  const pieces = [member.address, member.neighborhood, member.city]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  if (!pieces.length) return { value: 'Não informado', status: 'missing' };
+  const completed = [member.address, member.neighborhood, member.city].filter((value) => String(value || '').trim()).length;
+  return { value: pieces.join(' • '), status: completed === 3 ? 'filled' : 'partial' };
 }
 
 function familySummary(member: MemberCandidate): SummaryField {
   const parts: string[] = [];
   if (member.marital_status) parts.push(member.marital_status);
-  if (member.spouse_name) parts.push('cônjuge cadastrado');
-  if (member.has_children === false) parts.push('sem filhos');
+  if (member.spouse_name) parts.push(`Cônjuge: ${member.spouse_name}`);
+  if (member.has_children === false) parts.push('Sem filhos');
   if (member.has_children === true) {
-    const count = String(member.children_names || '').split(/\n|,|;/).map((item) => item.trim()).filter(Boolean).length;
-    parts.push(count > 0 ? `${count} ${count === 1 ? 'filho cadastrado' : 'filhos cadastrados'}` : 'filhos informados');
+    const children = String(member.children_names || '').trim();
+    parts.push(children ? `Filhos: ${children.replace(/\n+/g, ', ')}` : 'Tem filhos');
   }
-  return parts.length
-    ? { value: parts.join(' • '), status: 'filled' }
-    : { value: 'Não informado', status: 'missing' };
+  return parts.length ? { value: parts.join(' • '), status: 'filled' } : { value: 'Não informado', status: 'missing' };
 }
 
 function sign(memberId: string, secret: string) {
@@ -119,10 +119,6 @@ function sign(memberId: string, secret: string) {
   const payload = `${memberId}.${expiresAt}`;
   const signature = createHmac('sha256', secret).update(payload).digest('hex');
   return Buffer.from(`${payload}.${signature}`).toString('base64url');
-}
-
-function validDate(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
 }
 
 export async function POST(request: NextRequest) {
@@ -141,23 +137,24 @@ export async function POST(request: NextRequest) {
 
     const body = await readLimitedJson<LookupBody>(request, 8_000);
     const name = String(body.name ?? '').trim().replace(/\s+/g, ' ').slice(0, 180);
-    const birthDate = String(body.birthDate ?? '').trim();
+    const birthDateInput = String(body.birthDate ?? '').trim();
     const phone = String(body.phone ?? '').trim().slice(0, 30);
     const email = String(body.email ?? '').trim().toLowerCase().slice(0, 160);
     const normalizedName = normalize(name);
     const normalizedPhone = onlyDigits(phone);
-    const validBirthDate = validDate(birthDate);
+    const birthDate = normalizeDateInput(birthDateInput);
+    const validBirthDate = Boolean(birthDate);
     const validPhone = normalizedPhone.length >= 10;
     const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     if (normalizedName.length < 3 || (!validBirthDate && !validPhone && !validEmail)) {
       return NextResponse.json(
-        { found: false, error: 'Informe seu nome e a data de nascimento, WhatsApp ou e-mail.' },
+        { found: false, error: 'Informe seu nome e uma data de nascimento válida, WhatsApp ou e-mail.' },
         { status: 400 },
       );
     }
 
-    const identity = `${normalizedName}|${validBirthDate ? birthDate : ''}|${validPhone ? normalizedPhone : ''}|${validEmail ? email : ''}`;
+    const identity = `${normalizedName}|${birthDate}|${validPhone ? normalizedPhone : ''}|${validEmail ? email : ''}`;
     const identityAllowed = await consumeRateLimit(request, 'member-lookup-identity', 60 * 60, 5, identity);
     if (!identityAllowed) {
       return NextResponse.json(
@@ -220,24 +217,46 @@ export async function POST(request: NextRequest) {
     const currentMinistries = Array.from(new Set([...importedMinistries, ...manualMinistries]));
 
     const summary: Record<string, SummaryField> = {
-      birthDate: member.birth_date ? { value: 'Cadastrada', status: 'filled' } : { value: 'Não informada', status: 'missing' },
-      phone: maskPhone(member.phone),
-      email: maskEmail(member.email),
+      birthDate: member.birth_date ? { value: formatDate(member.birth_date), status: 'filled' } : { value: 'Não informado', status: 'missing' },
+      phone: textSummary(member.phone),
+      email: textSummary(member.email),
       address: addressSummary(member),
       family: familySummary(member),
       waterBaptized: booleanSummary(member.water_baptized),
       holySpiritBaptized: booleanSummary(member.holy_spirit_baptized),
       fundamentosFe: booleanSummary(member.fundamentos_fe),
-      talents: member.talents ? { value: 'Preenchido', status: 'filled' } : { value: 'Não informado', status: 'missing' },
+      talents: textSummary(member.talents),
       ministries: currentMinistries.length ? { value: currentMinistries.join(', '), status: 'filled' } : { value: 'Nenhum informado', status: 'missing' },
     };
+
+    const yesNoValue = (value: boolean | null) => value == null ? '' : value ? 'yes' : 'no';
 
     return NextResponse.json({
       found: true,
       token: sign(member.id, signingSecret),
       ministryOptions,
       currentMinistries,
-      member: { displayName: maskName(member.full_name), summary },
+      member: {
+        displayName: member.full_name,
+        summary,
+        current: {
+          birthDate: member.birth_date || '',
+          phone: member.phone || '',
+          email: member.email || '',
+          address: member.address || '',
+          neighborhood: member.neighborhood || '',
+          city: member.city || '',
+          maritalStatus: member.marital_status || '',
+          spouseName: member.spouse_name || '',
+          hasChildren: yesNoValue(member.has_children),
+          childrenNames: member.children_names || '',
+          waterBaptized: yesNoValue(member.water_baptized),
+          holySpiritBaptized: yesNoValue(member.holy_spirit_baptized),
+          fundamentosFe: yesNoValue(member.fundamentos_fe),
+          talents: member.talents || '',
+          ministries: currentMinistries,
+        },
+      },
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const publicError = publicErrorMessage(error);

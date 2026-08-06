@@ -11,7 +11,6 @@ type YesNo = '' | 'yes' | 'no';
 type SummaryStatus = 'filled' | 'partial' | 'missing';
 type SummaryField = { value: string; status: SummaryStatus };
 type SummaryKey = 'birthDate' | 'phone' | 'email' | 'address' | 'family' | 'waterBaptized' | 'holySpiritBaptized' | 'fundamentosFe' | 'talents' | 'ministries';
-type EditableSummaryKey = Exclude<SummaryKey, 'ministries'>;
 type MemberSummary = Record<SummaryKey, SummaryField>;
 type SavedCorrections = Record<SummaryKey, boolean>;
 
@@ -122,7 +121,7 @@ function yesNoText(value: YesNo) {
   return 'Não informado';
 }
 
-function summaryFromForm(key: EditableSummaryKey, form: ReviewForm): SummaryField {
+function summaryFromForm(key: SummaryKey, form: ReviewForm): SummaryField {
   if (key === 'birthDate') return { value: form.birthDate || 'Não informado', status: form.birthDate ? 'filled' : 'missing' };
   if (key === 'phone') return { value: form.phone || 'Não informado', status: form.phone ? 'filled' : 'missing' };
   if (key === 'email') return { value: form.email || 'Não informado', status: form.email ? 'filled' : 'missing' };
@@ -144,7 +143,8 @@ function summaryFromForm(key: EditableSummaryKey, form: ReviewForm): SummaryFiel
   if (key === 'waterBaptized') return { value: yesNoText(form.waterBaptized), status: form.waterBaptized ? 'filled' : 'missing' };
   if (key === 'holySpiritBaptized') return { value: yesNoText(form.holySpiritBaptized), status: form.holySpiritBaptized ? 'filled' : 'missing' };
   if (key === 'fundamentosFe') return { value: yesNoText(form.fundamentosFe), status: form.fundamentosFe ? 'filled' : 'missing' };
-  return { value: form.talents.trim() || 'Não informado', status: form.talents.trim() ? 'filled' : 'missing' };
+  if (key === 'talents') return { value: form.talents.trim() || 'Não informado', status: form.talents.trim() ? 'filled' : 'missing' };
+  return { value: form.ministries.length ? form.ministries.join(', ') : 'Nenhum informado', status: form.ministries.length ? 'filled' : 'missing' };
 }
 
 export default function ConsultarCadastroPage() {
@@ -158,7 +158,8 @@ export default function ConsultarCadastroPage() {
   const [form, setForm] = useState<ReviewForm>(emptyForm);
   const [summary, setSummary] = useState<MemberSummary>(emptySummary);
   const [saved, setSaved] = useState<SavedCorrections>(emptySaved);
-  const [activeCorrection, setActiveCorrection] = useState<EditableSummaryKey | null>(null);
+  const [ministryOptions, setMinistryOptions] = useState<string[]>([]);
+  const [activeCorrection, setActiveCorrection] = useState<SummaryKey | null>(null);
 
   useEffect(() => {
     if (!activeCorrection) return;
@@ -201,6 +202,7 @@ export default function ConsultarCadastroPage() {
           : [];
 
       setToken(data.token);
+      setMinistryOptions(Array.isArray(data.ministryOptions) ? data.ministryOptions.map(String) : []);
       setSummary({ ...emptySummary, ...(data.member?.summary || {}) });
       setSaved(emptySaved);
       setForm({
@@ -233,9 +235,17 @@ export default function ConsultarCadastroPage() {
   }
 
   function openCorrection(key: SummaryKey) {
-    if (key === 'ministries') return;
     setActiveCorrection(key);
     setMessage('');
+  }
+
+  function toggleMinistry(option: string) {
+    update(
+      'ministries',
+      form.ministries.includes(option)
+        ? form.ministries.filter(item => item !== option)
+        : [...form.ministries, option],
+    );
   }
 
   function reset() {
@@ -245,6 +255,7 @@ export default function ConsultarCadastroPage() {
     setForm(emptyForm);
     setSummary(emptySummary);
     setSaved(emptySaved);
+    setMinistryOptions([]);
     setActiveCorrection(null);
     setName('');
     setBirthDate('');
@@ -252,7 +263,7 @@ export default function ConsultarCadastroPage() {
     setLookupEmail('');
   }
 
-  function buildChange(key: EditableSummaryKey): { changes?: Record<string, unknown>; error?: string } {
+  function buildChange(key: SummaryKey): { changes?: Record<string, unknown>; error?: string } {
     if (key === 'birthDate') {
       if (!/^\d{2}\/\d{2}\/\d{4}$/.test(form.birthDate)) return { error: 'Informe a data no formato DD/MM/AAAA.' };
       return { changes: { birthDate: form.birthDate } };
@@ -293,7 +304,8 @@ export default function ConsultarCadastroPage() {
       if (!form.fundamentosFe) return { error: 'Selecione Sim ou Não.' };
       return { changes: { fundamentosFe: form.fundamentosFe === 'yes' } };
     }
-    return { changes: { talents: form.talents } };
+    if (key === 'talents') return { changes: { talents: form.talents } };
+    return { changes: { ministries: form.ministries } };
   }
 
   async function saveActiveCorrection() {
@@ -331,7 +343,7 @@ export default function ConsultarCadastroPage() {
     }
   }
 
-  function renderCorrectionFields(key: EditableSummaryKey) {
+  function renderCorrectionFields(key: SummaryKey) {
     if (key === 'birthDate') {
       return <Field label="Data correta"><input value={form.birthDate} onChange={event => update('birthDate', typedDate(event.target.value))} inputMode="numeric" maxLength={10} placeholder="DD/MM/AAAA" autoFocus /></Field>;
     }
@@ -361,7 +373,16 @@ export default function ConsultarCadastroPage() {
     if (key === 'waterBaptized') return <YesNoField label="Resposta correta" value={form.waterBaptized} onChange={value => update('waterBaptized', value)} />;
     if (key === 'holySpiritBaptized') return <YesNoField label="Resposta correta" value={form.holySpiritBaptized} onChange={value => update('holySpiritBaptized', value)} />;
     if (key === 'fundamentosFe') return <YesNoField label="Concluiu o curso?" value={form.fundamentosFe} onChange={value => update('fundamentosFe', value)} />;
-    return <Field label="Talentos e habilidades"><textarea value={form.talents} onChange={event => update('talents', event.target.value)} autoFocus placeholder="Ex.: música, ensino, recepção, crianças..." /></Field>;
+    if (key === 'talents') return <Field label="Talentos e habilidades"><textarea value={form.talents} onChange={event => update('talents', event.target.value)} autoFocus placeholder="Ex.: música, ensino, recepção, crianças..." /></Field>;
+
+    const options = Array.from(new Set([...ministryOptions, ...form.ministries]));
+    return <div className="ministry-field">
+      <span>Selecione os ministérios</span>
+      <p>Marque todos os ministérios em que você participa atualmente.</p>
+      <div className="ministry-options">
+        {options.length ? options.map(option => <button key={option} type="button" className={form.ministries.includes(option) ? 'selected' : ''} onClick={() => toggleMinistry(option)}>{form.ministries.includes(option) ? '✓ ' : ''}{option}</button>) : <span>Nenhum ministério disponível para seleção.</span>}
+      </div>
+    </div>;
   }
 
   const savedCount = Object.values(saved).filter(Boolean).length;
@@ -388,9 +409,9 @@ export default function ConsultarCadastroPage() {
       {message && !activeCorrection && <div className="no-corrections" style={{ marginBottom: 18 }}><CheckCircle2 size={22} /><div><strong>Alteração salva</strong><span>{message}</span></div></div>}
 
       <section className="summary-section">
-        <div className="summary-heading"><div><h2>Dados cadastrados</h2><p>Confira campo por campo. Ministérios são definidos e mantidos pela liderança.</p></div>{savedCount > 0 && <span>{savedCount} atualizado{savedCount === 1 ? '' : 's'}</span>}</div>
+        <div className="summary-heading"><div><h2>Dados cadastrados</h2><p>Confira campo por campo. Você pode atualizar qualquer informação exibida abaixo.</p></div>{savedCount > 0 && <span>{savedCount} atualizado{savedCount === 1 ? '' : 's'}</span>}</div>
         <div className="summary-grid">
-          {summaryOrder.map(key => <SummaryCard key={key} label={summaryLabels[key]} field={summary[key]} saved={saved[key]} editable={key !== 'ministries'} onOpen={() => openCorrection(key)} />)}
+          {summaryOrder.map(key => <SummaryCard key={key} label={summaryLabels[key]} field={summary[key]} saved={saved[key]} onOpen={() => openCorrection(key)} />)}
         </div>
       </section>
 
@@ -428,6 +449,6 @@ function YesNoField({ label, value, onChange }: { label: string; value: YesNo; o
   return <Field label={label}><select value={value} onChange={event => onChange(event.target.value as YesNo)}><option value="">Selecione</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>;
 }
 
-function SummaryCard({ label, field, saved, editable, onOpen }: { label: string; field: SummaryField; saved: boolean; editable: boolean; onOpen: () => void }) {
-  return <article className={`summary-card ${field.status} ${saved ? 'selected' : ''}`}><div><small>{label}</small><strong>{field.value}</strong></div>{editable ? <button type="button" onClick={onOpen}>{saved ? 'Editar novamente' : field.status === 'missing' ? 'Preencher' : 'Editar'}</button> : <span style={{ fontSize: 12, fontWeight: 800, color: '#6d7f88', textAlign: 'right' }}>Definido pela liderança</span>}</article>;
+function SummaryCard({ label, field, saved, onOpen }: { label: string; field: SummaryField; saved: boolean; onOpen: () => void }) {
+  return <article className={`summary-card ${field.status} ${saved ? 'selected' : ''}`}><div><small>{label}</small><strong>{field.value}</strong></div><button type="button" onClick={onOpen}>{saved ? 'Editar novamente' : field.status === 'missing' ? 'Preencher' : 'Editar'}</button></article>;
 }

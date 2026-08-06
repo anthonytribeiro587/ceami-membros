@@ -14,6 +14,8 @@ export const dynamic = 'force-dynamic';
 
 type UpdateBody = Record<string, unknown>;
 
+const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents';
+
 function verifyToken(token: string, secret: string) {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf8');
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
     const allowed = await consumeRateLimit(request, 'member-update-request', 30 * 60, 20);
     if (!allowed) {
       return NextResponse.json(
-        { error: 'Muitas solicitações. Aguarde alguns minutos.' },
+        { error: 'Muitas alterações em pouco tempo. Aguarde alguns minutos.' },
         { status: 429, headers: { 'Retry-After': '1800' } },
       );
     }
@@ -85,20 +87,26 @@ export async function POST(request: NextRequest) {
     const memberAllowed = await consumeRateLimit(request, 'member-update-id', 24 * 60 * 60, 30, memberId);
     if (!memberAllowed) {
       return NextResponse.json(
-        { error: 'Já recebemos muitas alterações para este cadastro hoje. Aguarde a análise da equipe.' },
+        { error: 'Este cadastro já recebeu muitas alterações hoje. Tente novamente mais tarde.' },
         { status: 429, headers: { 'Retry-After': '86400' } },
       );
     }
 
     const changes = isPlainObject(body.changes) ? body.changes : {};
-    const proposedData: Record<string, unknown> = {};
+
+    if ('ministries' in changes || 'ministry' in changes) {
+      return NextResponse.json(
+        { error: 'Os ministérios são definidos pela liderança e não podem ser alterados nesta página.' },
+        { status: 400 },
+      );
+    }
+
+    const updates: Record<string, unknown> = {};
 
     if ('birthDate' in changes) {
       const value = normalizeDateInput(changes.birthDate);
-      if (!value) {
-        return NextResponse.json({ error: 'Informe uma data de nascimento válida.' }, { status: 400 });
-      }
-      proposedData.birth_date = value;
+      if (!value) return NextResponse.json({ error: 'Informe uma data de nascimento válida.' }, { status: 400 });
+      updates.birth_date = value;
     }
 
     if ('phone' in changes) {
@@ -106,7 +114,7 @@ export async function POST(request: NextRequest) {
       if (!value || value.replace(/\D/g, '').length < 10) {
         return NextResponse.json({ error: 'Informe o novo WhatsApp com DDD.' }, { status: 400 });
       }
-      proposedData.phone = value;
+      updates.phone = value;
     }
 
     if ('email' in changes) {
@@ -114,7 +122,7 @@ export async function POST(request: NextRequest) {
       if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         return NextResponse.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
       }
-      proposedData.email = value.toLowerCase();
+      updates.email = value.toLowerCase();
     }
 
     if ('address' in changes) {
@@ -125,17 +133,17 @@ export async function POST(request: NextRequest) {
       if (!address && !neighborhood && !city) {
         return NextResponse.json({ error: 'Informe ao menos uma informação de endereço.' }, { status: 400 });
       }
-      proposedData.address = address;
-      proposedData.neighborhood = neighborhood;
-      proposedData.city = city;
+      updates.address = address;
+      updates.neighborhood = neighborhood;
+      updates.city = city;
     }
 
     if ('family' in changes) {
       const value = isPlainObject(changes.family) ? changes.family : {};
-      proposedData.marital_status = cleanText(value.maritalStatus, 50);
-      proposedData.spouse_name = cleanText(value.spouseName, 180);
-      if (typeof value.hasChildren === 'boolean') proposedData.has_children = value.hasChildren;
-      proposedData.children_names = cleanText(value.childrenNames, 500);
+      updates.marital_status = cleanText(value.maritalStatus, 50);
+      updates.spouse_name = cleanText(value.spouseName, 180);
+      if (typeof value.hasChildren === 'boolean') updates.has_children = value.hasChildren;
+      updates.children_names = cleanText(value.childrenNames, 500);
     }
 
     const booleanFields: Array<[string, string]> = [
@@ -143,78 +151,68 @@ export async function POST(request: NextRequest) {
       ['holySpiritBaptized', 'holy_spirit_baptized'],
       ['fundamentosFe', 'fundamentos_fe'],
     ];
+
     for (const [requestKey, databaseKey] of booleanFields) {
-      if (requestKey in changes) {
-        if (typeof changes[requestKey] !== 'boolean') {
-          return NextResponse.json({ error: 'Selecione Sim ou Não nos campos escolhidos.' }, { status: 400 });
-        }
-        proposedData[databaseKey] = changes[requestKey];
+      if (!(requestKey in changes)) continue;
+      if (typeof changes[requestKey] !== 'boolean') {
+        return NextResponse.json({ error: 'Selecione Sim ou Não nos campos escolhidos.' }, { status: 400 });
       }
+      updates[databaseKey] = changes[requestKey];
     }
 
-    if ('talents' in changes) proposedData.talents = cleanText(changes.talents, 1000);
+    if ('talents' in changes) updates.talents = cleanText(changes.talents, 1000);
 
-    if ('ministries' in changes) {
-      if (!Array.isArray(changes.ministries)) {
-        return NextResponse.json({ error: 'Seleção de ministérios inválida.' }, { status: 400 });
-      }
-      proposedData.ministry = changes.ministries
-        .map((item: unknown) => String(item).trim())
-        .filter(Boolean)
-        .slice(0, 20)
-        .join(', ')
-        .slice(0, 1000);
+    if (!Object.keys(updates).length) {
+      return NextResponse.json({ error: 'Nenhuma alteração válida foi informada.' }, { status: 400 });
     }
 
-    const notes = cleanText(body.notes, 1000);
-    if (notes) proposedData.notes = notes;
-
-    const changedKeys = Object.keys(proposedData).filter((keyName) => keyName !== 'notes');
-    if (!changedKeys.length) {
-      return NextResponse.json({ error: 'Selecione pelo menos uma informação para corrigir ou completar.' }, { status: 400 });
-    }
-
-    const { data: existing, error: existingError } = await service
-      .from('member_update_requests')
-      .select('id, proposed_data')
-      .eq('member_id', memberId)
-      .eq('status', 'pending')
-      .order('updated_at', { ascending: false })
-      .limit(1)
+    const { data: currentMember, error: currentError } = await service
+      .from('members')
+      .select(MEMBER_SELECT)
+      .eq('id', memberId)
       .maybeSingle();
 
-    if (existingError) {
-      console.error('Member update request lookup error:', existingError.message);
-      return NextResponse.json({ error: 'Não foi possível preparar sua alteração.' }, { status: 500 });
-    }
+    if (currentError) throw new Error(currentError.message);
+    if (!currentMember) return NextResponse.json({ error: 'Cadastro não encontrado.' }, { status: 404 });
 
-    const existingData = isPlainObject(existing?.proposed_data) ? existing.proposed_data : {};
-    const mergedData = { ...existingData, ...proposedData };
+    const currentRecord = currentMember as unknown as Record<string, unknown>;
+    const before: Record<string, unknown> = {};
+    for (const key of Object.keys(updates)) before[key] = currentRecord[key] ?? null;
+
     const now = new Date().toISOString();
+    const { data: updatedMember, error: updateError } = await service
+      .from('members')
+      .update({ ...updates, updated_at: now })
+      .eq('id', memberId)
+      .select(MEMBER_SELECT)
+      .maybeSingle();
 
-    const query = existing
-      ? service.from('member_update_requests').update({ proposed_data: mergedData, updated_at: now }).eq('id', existing.id)
-      : service.from('member_update_requests').insert({
-          member_id: memberId,
-          proposed_data: mergedData,
-          status: 'pending',
-          source: 'public_lookup',
-          updated_at: now,
-        });
+    if (updateError) throw new Error(updateError.message);
+    if (!updatedMember) return NextResponse.json({ error: 'Não foi possível atualizar o cadastro.' }, { status: 500 });
 
-    const { error } = await query;
-    if (error) {
-      console.error('Member update request error:', error.message);
-      return NextResponse.json({ error: 'Não foi possível salvar sua alteração.' }, { status: 500 });
-    }
+    const { error: historyError } = await service.from('member_update_requests').insert({
+      member_id: memberId,
+      proposed_data: { before, after: updates },
+      status: 'approved',
+      source: 'public_lookup',
+      updated_at: now,
+    });
+
+    if (historyError) console.error('Member update history error:', historyError.message);
 
     return NextResponse.json(
-      { ok: true, pendingReview: true, savedFields: Object.keys(proposedData) },
+      {
+        ok: true,
+        applied: true,
+        historyLogged: !historyError,
+        savedFields: Object.keys(updates),
+        member: updatedMember,
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
     const publicError = publicErrorMessage(error);
-    console.error('Member update request error:', error);
+    console.error('Member direct update error:', error);
     return NextResponse.json({ error: publicError.message }, { status: publicError.status });
   }
 }

@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 type UpdateBody = Record<string, unknown>;
 
-const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents';
+const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents,ministry';
 
 function verifyToken(token: string, secret: string) {
   try {
@@ -93,14 +93,6 @@ export async function POST(request: NextRequest) {
     }
 
     const changes = isPlainObject(body.changes) ? body.changes : {};
-
-    if ('ministries' in changes || 'ministry' in changes) {
-      return NextResponse.json(
-        { error: 'Os ministérios são definidos pela liderança e não podem ser alterados nesta página.' },
-        { status: 400 },
-      );
-    }
-
     const updates: Record<string, unknown> = {};
 
     if ('birthDate' in changes) {
@@ -161,6 +153,18 @@ export async function POST(request: NextRequest) {
     }
 
     if ('talents' in changes) updates.talents = cleanText(changes.talents, 1000);
+
+    if ('ministries' in changes) {
+      if (!Array.isArray(changes.ministries)) {
+        return NextResponse.json({ error: 'Seleção de ministérios inválida.' }, { status: 400 });
+      }
+      updates.ministry = changes.ministries
+        .map((item: unknown) => String(item).trim())
+        .filter(Boolean)
+        .slice(0, 20)
+        .join(', ')
+        .slice(0, 1000) || null;
+    }
 
     if (!Object.keys(updates).length) {
       return NextResponse.json({ error: 'Nenhuma alteração válida foi informada.' }, { status: 400 });

@@ -38,6 +38,7 @@ const FIELD_LABELS: Record<string, string> = {
   holy_spirit_baptized: 'Batizado no Espírito Santo',
   fundamentos_fe: 'Fundamentos da Fé',
   talents: 'Talentos e habilidades',
+  ministry: 'Ministérios',
 };
 
 const BOOLEAN_FIELDS = new Set([
@@ -98,7 +99,6 @@ function getChanges(payload: Record<string, unknown>): ChangeEntry[] {
       .map(([key, value]) => ({ key, before: before[key], after: value, hasBefore: key in before }));
   }
 
-  // Compatibilidade com alterações aprovadas antes da criação do histórico antes/depois.
   return Object.entries(payload)
     .filter(([key]) => FIELD_LABELS[key])
     .map(([key, value]) => ({ key, before: undefined, after: value, hasBefore: false }));

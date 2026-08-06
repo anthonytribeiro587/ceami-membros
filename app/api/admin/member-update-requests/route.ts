@@ -21,7 +21,7 @@ type UpdateRequestRow = {
   updated_at: string | null;
 };
 
-const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents';
+const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents,ministry';
 const EDITABLE_FIELD_SET = new Set([
   'birth_date',
   'phone',
@@ -37,6 +37,7 @@ const EDITABLE_FIELD_SET = new Set([
   'holy_spirit_baptized',
   'fundamentos_fe',
   'talents',
+  'ministry',
 ]);
 
 async function isAdmin() {

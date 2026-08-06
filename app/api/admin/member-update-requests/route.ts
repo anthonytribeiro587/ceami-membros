@@ -21,7 +21,8 @@ type UpdateRequestRow = {
   updated_at: string | null;
 };
 
-const EDITABLE_FIELDS = [
+const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents';
+const EDITABLE_FIELD_SET = new Set([
   'birth_date',
   'phone',
   'email',
@@ -36,9 +37,7 @@ const EDITABLE_FIELDS = [
   'holy_spirit_baptized',
   'fundamentos_fe',
   'talents',
-] as const;
-
-const EDITABLE_FIELD_SET = new Set<string>(EDITABLE_FIELDS);
+]);
 
 async function isAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -98,13 +97,14 @@ async function migrateLegacyPending(service: NonNullable<ReturnType<typeof getSe
   const memberIds = Array.from(new Set(rows.map(row => row.member_id).filter(Boolean)));
   const { data: members, error: membersError } = await service
     .from('members')
-    .select(`id,full_name,${EDITABLE_FIELDS.join(',')}`)
+    .select(MEMBER_SELECT)
     .in('id', memberIds);
 
   if (membersError) throw new Error(membersError.message);
   const membersById = new Map<string, Record<string, unknown>>();
-  for (const member of (members || []) as Array<Record<string, unknown>>) {
-    membersById.set(String(member.id), member);
+  for (const member of (members || [])) {
+    const record = member as unknown as Record<string, unknown>;
+    membersById.set(String(record.id), record);
   }
 
   for (const row of rows) {
@@ -164,8 +164,6 @@ export async function GET() {
   if (!service) return NextResponse.json({ error: 'Supabase não configurado.' }, { status: 503 });
 
   try {
-    // As solicitações antigas ainda pendentes foram feitas quando havia aprovação manual.
-    // Como o fluxo agora é automático, elas são aplicadas uma única vez e viram histórico.
     await migrateLegacyPending(service);
 
     const { data: rowsData, error } = await service
@@ -188,8 +186,9 @@ export async function GET() {
         .in('id', memberIds);
 
       if (membersError) throw new Error(membersError.message);
-      for (const member of (members || []) as Array<Record<string, unknown>>) {
-        membersById.set(String(member.id), member);
+      for (const member of (members || [])) {
+        const record = member as unknown as Record<string, unknown>;
+        membersById.set(String(record.id), record);
       }
     }
 

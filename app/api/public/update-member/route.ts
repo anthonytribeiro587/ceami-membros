@@ -14,22 +14,7 @@ export const dynamic = 'force-dynamic';
 
 type UpdateBody = Record<string, unknown>;
 
-const EDITABLE_FIELDS = [
-  'birth_date',
-  'phone',
-  'email',
-  'address',
-  'neighborhood',
-  'city',
-  'marital_status',
-  'spouse_name',
-  'has_children',
-  'children_names',
-  'water_baptized',
-  'holy_spirit_baptized',
-  'fundamentos_fe',
-  'talents',
-] as const;
+const MEMBER_SELECT = 'id,full_name,birth_date,phone,email,address,neighborhood,city,marital_status,spouse_name,has_children,children_names,water_baptized,holy_spirit_baptized,fundamentos_fe,talents';
 
 function verifyToken(token: string, secret: string) {
   try {
@@ -183,22 +168,23 @@ export async function POST(request: NextRequest) {
 
     const { data: currentMember, error: currentError } = await service
       .from('members')
-      .select(`id,full_name,${EDITABLE_FIELDS.join(',')}`)
+      .select(MEMBER_SELECT)
       .eq('id', memberId)
       .maybeSingle();
 
     if (currentError) throw new Error(currentError.message);
     if (!currentMember) return NextResponse.json({ error: 'Cadastro não encontrado.' }, { status: 404 });
 
+    const currentRecord = currentMember as unknown as Record<string, unknown>;
     const before: Record<string, unknown> = {};
-    for (const key of Object.keys(updates)) before[key] = (currentMember as Record<string, unknown>)[key] ?? null;
+    for (const key of Object.keys(updates)) before[key] = currentRecord[key] ?? null;
 
     const now = new Date().toISOString();
     const { data: updatedMember, error: updateError } = await service
       .from('members')
       .update({ ...updates, updated_at: now })
       .eq('id', memberId)
-      .select(`id,full_name,${EDITABLE_FIELDS.join(',')}`)
+      .select(MEMBER_SELECT)
       .maybeSingle();
 
     if (updateError) throw new Error(updateError.message);
@@ -212,9 +198,7 @@ export async function POST(request: NextRequest) {
       updated_at: now,
     });
 
-    if (historyError) {
-      console.error('Member update history error:', historyError.message);
-    }
+    if (historyError) console.error('Member update history error:', historyError.message);
 
     return NextResponse.json(
       {

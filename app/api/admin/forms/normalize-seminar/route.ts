@@ -3,26 +3,19 @@ import { getCurrentUiRole } from '@/lib/server/current-profile';
 import { getServiceClient, requestComesFromSameSite } from '@/lib/server/security';
 
 const SLUG = 'seminario-apocalipse-2026';
-const PHYSICAL = 'Sim — Física (R$ 35,00)';
-const PDF = 'Sim — PDF (R$ 10,00)';
-const NONE = 'Não — Sem custo';
-const OPTIONS = [PHYSICAL, PDF, NONE];
 
-function normalize(value: unknown) {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-}
-
-function canonicalChoice(value: unknown) {
-  const normalized = normalize(value);
-  if (!normalized) return '';
-  if (normalized === 'sim' || normalized.includes('fisica')) return PHYSICAL;
-  if (normalized.includes('pdf')) return PDF;
-  if (normalized === 'nao' || normalized.includes('sem custo') || normalized.includes('nao quero')) return NONE;
-  return String(value);
+function repairOptions(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[];
+  const result: string[] = [];
+  for (const raw of value.map((item) => String(item).trim()).filter(Boolean)) {
+    const previous = result[result.length - 1];
+    if (/^\d{2}\)\s*$/.test(raw) && previous && /R\$\s*\d+\s*$/.test(previous)) {
+      result[result.length - 1] = `${previous},${raw}`;
+    } else {
+      result.push(raw);
+    }
+  }
+  return result;
 }
 
 export async function POST(request: NextRequest) {
@@ -42,20 +35,12 @@ export async function POST(request: NextRequest) {
 
   const { data: form, error: formError } = await service
     .from('forms')
-    .select('id, price')
+    .select('id')
     .eq('slug', SLUG)
     .maybeSingle();
 
   if (formError) return NextResponse.json({ error: formError.message }, { status: 500 });
   if (!form) return NextResponse.json({ ok: true, changed: false });
-
-  let changed = false;
-
-  if (form.price !== null) {
-    const { error } = await service.from('forms').update({ price: null }).eq('id', form.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    changed = true;
-  }
 
   const { data: field, error: fieldError } = await service
     .from('form_fields')
@@ -65,43 +50,19 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (fieldError) return NextResponse.json({ error: fieldError.message }, { status: 500 });
+  if (!field) return NextResponse.json({ ok: true, changed: false });
 
-  const currentOptions = Array.isArray(field?.options) ? field.options.map(String) : [];
-  const fieldNeedsUpdate = Boolean(field) && (
-    field?.field_type !== 'select'
-    || JSON.stringify(currentOptions) !== JSON.stringify(OPTIONS)
-  );
+  const currentOptions = Array.isArray(field.options) ? field.options.map(String) : [];
+  const repairedOptions = repairOptions(currentOptions);
+  const changed = field.field_type !== 'select'
+    || JSON.stringify(currentOptions) !== JSON.stringify(repairedOptions);
 
-  if (field && fieldNeedsUpdate) {
+  if (changed) {
     const { error } = await service
       .from('form_fields')
-      .update({ field_type: 'select', options: OPTIONS })
+      .update({ field_type: 'select', options: repairedOptions })
       .eq('id', field.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    changed = true;
-  }
-
-  const { data: submissions, error: submissionsError } = await service
-    .from('form_submissions')
-    .select('id, answers')
-    .eq('form_id', form.id);
-
-  if (submissionsError) return NextResponse.json({ error: submissionsError.message }, { status: 500 });
-
-  for (const submission of submissions || []) {
-    const answers = submission.answers && typeof submission.answers === 'object' && !Array.isArray(submission.answers)
-      ? (submission.answers as Record<string, unknown>)
-      : {};
-    const current = String(answers.apostila ?? '');
-    const canonical = canonicalChoice(current);
-    if (!canonical || canonical === current) continue;
-
-    const { error } = await service
-      .from('form_submissions')
-      .update({ answers: { ...answers, apostila: canonical } })
-      .eq('id', submission.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    changed = true;
   }
 
   return NextResponse.json(

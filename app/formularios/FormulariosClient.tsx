@@ -134,12 +134,35 @@ function blankDraft(): FormDraft {
   };
 }
 
+function repairStoredOptions(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[];
+  const result: string[] = [];
+  for (const raw of value.map((item) => String(item).trim()).filter(Boolean)) {
+    const previous = result[result.length - 1];
+    if (/^\d{2}\)\s*$/.test(raw) && previous && /R\$\s*\d+\s*$/.test(previous)) {
+      result[result.length - 1] = `${previous},${raw}`;
+    } else {
+      result.push(raw);
+    }
+  }
+  return result;
+}
+
 function optionsText(value: unknown) {
-  return Array.isArray(value) ? value.map((item) => String(item)).join(', ') : '';
+  return repairStoredOptions(value).join('; ');
+}
+
+function parseOptionsText(value: string) {
+  const repairedDecimals = value.replace(/(\d),\s+(\d{2})(?=\D|$)/g, '$1,$2').trim();
+  if (!repairedDecimals) return [];
+  const parts = /[;\n]/.test(repairedDecimals)
+    ? repairedDecimals.split(/[;\n]+/)
+    : repairedDecimals.split(/,\s+(?=[^0-9])/);
+  return parts.map((item) => item.trim()).filter(Boolean);
 }
 
 function optionsArray(value: unknown) {
-  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+  return repairStoredOptions(value);
 }
 
 function csvEscape(value: unknown) {
@@ -314,9 +337,7 @@ export default function FormulariosClient() {
         field_type: field.field_type,
         required: field.required,
         placeholder: field.placeholder.trim(),
-        options: field.field_type === 'select'
-          ? field.optionsText.split(',').map((item) => item.trim()).filter(Boolean)
-          : [],
+        options: field.field_type === 'select' ? parseOptionsText(field.optionsText) : [],
         sort_order: index + 1,
       };
     });
@@ -545,7 +566,7 @@ export default function FormulariosClient() {
                   </div>
                   <div className="forms-field-options-simple">
                     {field.field_type === 'select' ? (
-                      <label><span>Opções (separadas por vírgula)</span><input value={field.optionsText} onChange={(e) => updateField(field.localId, { optionsText: e.target.value })} placeholder="Opção 1, Opção 2, Opção 3" /></label>
+                      <label><span>Opções (separe cada opção com ;)</span><input value={field.optionsText} onChange={(e) => updateField(field.localId, { optionsText: e.target.value })} placeholder="Opção 1; Opção 2; Opção 3" /></label>
                     ) : field.field_type !== 'yes_no' ? (
                       <label><span>Texto de exemplo (opcional)</span><input value={field.placeholder} onChange={(e) => updateField(field.localId, { placeholder: e.target.value })} placeholder="Ex.: Seu nome completo" /></label>
                     ) : null}

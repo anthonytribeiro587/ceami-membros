@@ -1,16 +1,17 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/login-cursos', '/integra', '/consultar'];
+const PUBLIC_PAGES = ['/login', '/login-cursos', '/integra', '/consultar', '/f'];
 const PUBLIC_API_PATHS = [
   '/api/integra',
   '/api/public/check-member',
   '/api/public/update-member',
   '/api/public/course-checkin',
+  '/api/public/forms',
   '/api/birthdays/automatic',
   '/api/automations/automatic',
 ];
-const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais'];
+const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/formularios'];
 const ADMIN_API_PATHS = [
   '/api/birthdays/test',
   '/api/birthdays/official',
@@ -154,5 +155,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

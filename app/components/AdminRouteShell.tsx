@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Cake,
+  ClipboardList,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -76,6 +77,7 @@ export default function AdminRouteShell({
   }
 
   const showMainLinks = role !== 'course';
+  const showForms = role === 'admin' || pathname.startsWith('/formularios');
   const showAutomations = role === 'admin' || pathname.startsWith('/automacoes');
   const showCourses =
     role === 'admin' || role === 'course' || pathname.startsWith('/cursos');
@@ -102,6 +104,19 @@ export default function AdminRouteShell({
                 <span>{label}</span>
               </Link>
             ))}
+
+          {showForms && (
+            <Link
+              href="/formularios"
+              prefetch
+              className={pathname.startsWith('/formularios') ? 'active' : ''}
+              aria-current={pathname.startsWith('/formularios') ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
+              <ClipboardList size={19} />
+              <span>Formulários</span>
+            </Link>
+          )}
 
           {showAutomations && (
             <Link

@@ -1,13 +1,5 @@
-import AdminRouteShell from '@/app/components/AdminRouteShell';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
-import FormPaymentsClient from './FormPaymentsClient';
-import './payments.css';
+import { redirect } from 'next/navigation';
 
-export default async function FormPaymentsPage() {
-  const role = await getCurrentUiRole();
-  return (
-    <AdminRouteShell initialRole={role}>
-      <FormPaymentsClient />
-    </AdminRouteShell>
-  );
+export default function FormPaymentsPage() {
+  redirect('/formularios');
 }

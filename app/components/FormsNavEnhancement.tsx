@@ -10,25 +10,39 @@ const CLIPBOARD_ICON = `
   <path d="M9 16h6"></path>
 </svg>`;
 
+function normalize(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 export default function FormsNavEnhancement() {
   useEffect(() => {
     function enhance() {
       const nav = document.querySelector('.member-v3-nav');
-      if (!nav) return;
+      if (nav) {
+        nav.querySelector('a[href="/formularios/pagamentos"]')?.remove();
+        document.querySelector('[data-ceami-payments-shortcut]')?.remove();
 
-      nav.querySelector('a[href="/formularios/pagamentos"]')?.remove();
-      document.querySelector('[data-ceami-payments-shortcut]')?.remove();
+        const automationsLink = nav.querySelector('a[href="/automacoes"]');
+        if (automationsLink && !nav.querySelector('a[href="/formularios"]')) {
+          const link = document.createElement('a');
+          link.href = '/formularios';
+          link.dataset.ceamiFormsNav = 'true';
+          link.innerHTML = `${CLIPBOARD_ICON}<span>Formulários</span>`;
+          nav.insertBefore(link, automationsLink);
+        }
+      }
 
-      // No painel principal, Automações só existe para administrador.
-      // Assim não expomos Formulários a perfis comuns.
-      const automationsLink = nav.querySelector('a[href="/automacoes"]');
-      if (!automationsLink || nav.querySelector('a[href="/formularios"]')) return;
-
-      const link = document.createElement('a');
-      link.href = '/formularios';
-      link.dataset.ceamiFormsNav = 'true';
-      link.innerHTML = `${CLIPBOARD_ICON}<span>Formulários</span>`;
-      nav.insertBefore(link, automationsLink);
+      const responseTitle = document.querySelector('.forms-responses-head h2')?.textContent?.trim() || '';
+      const isSeminar = responseTitle === 'Seminário de Estudo do Apocalipse';
+      document.querySelectorAll('.forms-response-metrics article').forEach((article) => {
+        const label = normalize(article.querySelector('span')?.textContent);
+        if (label.includes('querem apostila') || label.includes('sem apostila')) {
+          (article as HTMLElement).style.display = isSeminar ? 'none' : '';
+        }
+      });
     }
 
     enhance();

@@ -39,13 +39,6 @@ type EditorState = {
   correctionMessage: string;
 };
 
-const SEMINAR_SLUG = 'seminario-apocalipse-2026';
-const SEMINAR_BOOKLET_OPTIONS = [
-  'Sim — Física (R$ 35,00)',
-  'Sim — PDF (R$ 10,00)',
-  'Não — Sem custo',
-];
-
 function normalize(value: unknown) {
   return String(value ?? '')
     .normalize('NFD')
@@ -67,7 +60,17 @@ function formatPhone(value: string) {
 }
 
 function optionsFrom(value: unknown) {
-  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+  if (!Array.isArray(value)) return [] as string[];
+  const result: string[] = [];
+  for (const raw of value.map((item) => String(item).trim()).filter(Boolean)) {
+    const previous = result[result.length - 1];
+    if (/^\d{2}\)\s*$/.test(raw) && previous && /R\$\s*\d+\s*$/.test(previous)) {
+      result[result.length - 1] = `${previous},${raw}`;
+    } else {
+      result.push(raw);
+    }
+  }
+  return result;
 }
 
 function correctionFromAnswers(answers: Record<string, unknown> | null | undefined) {
@@ -315,14 +318,11 @@ export default function EditSubmissionEnhancement() {
             <div className="ceami-edit-fields">
               {editor.fields.map((field) => {
                 const value = answers[field.key] || '';
-                const seminarBooklet = editor.form.slug === SEMINAR_SLUG && field.key === 'apostila';
-                const choices = seminarBooklet
-                  ? SEMINAR_BOOKLET_OPTIONS
-                  : field.field_type === 'yes_no'
-                    ? ['Sim', 'Não']
-                    : field.field_type === 'select'
-                      ? optionsFrom(field.options)
-                      : [];
+                const choices = field.field_type === 'yes_no'
+                  ? ['Sim', 'Não']
+                  : field.field_type === 'select'
+                    ? optionsFrom(field.options)
+                    : [];
 
                 if (choices.length) {
                   return (

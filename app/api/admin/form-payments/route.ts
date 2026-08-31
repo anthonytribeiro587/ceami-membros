@@ -38,10 +38,21 @@ function normalize(value: unknown) {
     .trim();
 }
 
-function bookletPrice(answers: Record<string, unknown>) {
-  const choice = normalize(answers.apostila);
-  if (choice.includes('fisica') || choice === 'sim') return 35;
-  if (choice.includes('pdf')) return 10;
+function priceFromChoice(value: unknown) {
+  const text = String(value ?? '').trim();
+  const normalized = normalize(text);
+  if (!text || normalized.includes('sem custo') || normalized.includes('gratuit')) return 0;
+  const match = text.match(/R\$\s*([0-9.]+(?:,[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i);
+  if (match) {
+    let raw = match[1];
+    if (raw.includes(',') && raw.includes('.')) raw = raw.replace(/\./g, '').replace(',', '.');
+    else if (raw.includes(',')) raw = raw.replace(',', '.');
+    const number = Number(raw);
+    if (Number.isFinite(number)) return number;
+  }
+  // Compatibilidade com inscrições antigas, anteriores às opções editáveis.
+  if (normalized === 'sim' || normalized.includes('fisica')) return 35;
+  if (normalized.includes('pdf') || normalized.includes('digital')) return 10;
   return 0;
 }
 
@@ -95,7 +106,7 @@ export async function PATCH(request: NextRequest) {
       : {};
 
     const expectedAmount = form?.slug === 'seminario-apocalipse-2026'
-      ? bookletPrice(previousAnswers)
+      ? priceFromChoice(previousAnswers.apostila)
       : (form?.price == null ? 0 : Number(form.price));
 
     if (status === 'paid' && expectedAmount <= 0) {

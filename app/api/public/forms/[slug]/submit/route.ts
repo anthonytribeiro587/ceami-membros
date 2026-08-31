@@ -20,6 +20,13 @@ type SubmissionBody = {
   website?: string;
 };
 
+const SEMINAR_SLUG = 'seminario-apocalipse-2026';
+const SEMINAR_BOOKLET_OPTIONS = [
+  'Sim — Física (R$ 35,00)',
+  'Sim — PDF (R$ 10,00)',
+  'Não — Sem custo',
+] as const;
+
 function cleanText(value: unknown, maxLength = 500) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
@@ -40,7 +47,6 @@ export async function POST(
     const { slug } = await context.params;
     const body = await readLimitedJson<SubmissionBody>(request, 32_000);
 
-    // Honeypot simples contra robôs.
     if (cleanText(body.website, 120)) {
       return NextResponse.json({ ok: true });
     }
@@ -91,11 +97,16 @@ export async function POST(
         );
       }
 
-      if (value && field.field_type === 'yes_no' && !['Sim', 'Não'].includes(value)) {
+      const isSeminarBooklet = slug === SEMINAR_SLUG && field.key === 'apostila';
+      if (value && isSeminarBooklet && !SEMINAR_BOOKLET_OPTIONS.includes(value as typeof SEMINAR_BOOKLET_OPTIONS[number])) {
+        return NextResponse.json({ error: 'Selecione uma opção de apostila válida.' }, { status: 400 });
+      }
+
+      if (value && !isSeminarBooklet && field.field_type === 'yes_no' && !['Sim', 'Não'].includes(value)) {
         return NextResponse.json({ error: `Valor inválido em “${field.label}”.` }, { status: 400 });
       }
 
-      if (value && field.field_type === 'select') {
+      if (value && !isSeminarBooklet && field.field_type === 'select') {
         const options = normalizeOptions(field.options);
         if (options.length && !options.includes(value)) {
           return NextResponse.json({ error: `Valor inválido em “${field.label}”.` }, { status: 400 });

@@ -56,6 +56,11 @@ alter table public.forms enable row level security;
 alter table public.form_fields enable row level security;
 alter table public.form_submissions enable row level security;
 
+-- Permissões explícitas; as RLS abaixo continuam definindo quem pode acessar cada linha.
+grant select on public.forms, public.form_fields to anon, authenticated;
+grant insert, update, delete on public.forms, public.form_fields to authenticated;
+grant select, delete on public.form_submissions to authenticated;
+
 drop policy if exists forms_public_select on public.forms;
 create policy forms_public_select
 on public.forms

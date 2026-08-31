@@ -1,6 +1,7 @@
 import AdminRouteShell from '@/app/components/AdminRouteShell';
 import { getCurrentUiRole } from '@/lib/server/current-profile';
 import FormulariosClient from './FormulariosClient';
+import InlinePaymentsEnhancement from './InlinePaymentsEnhancement';
 import './formularios.css';
 
 export default async function FormulariosPage() {
@@ -8,6 +9,7 @@ export default async function FormulariosPage() {
   return (
     <AdminRouteShell initialRole={role}>
       <FormulariosClient />
+      <InlinePaymentsEnhancement />
     </AdminRouteShell>
   );
 }

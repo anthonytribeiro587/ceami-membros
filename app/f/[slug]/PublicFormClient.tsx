@@ -29,11 +29,31 @@ type PublicForm = {
 };
 
 const SEMINAR_SLUG = 'seminario-apocalipse-2026';
-const SEMINAR_BOOKLET_OPTIONS = [
-  { value: 'Sim — Física (R$ 35,00)', title: 'Sim — Apostila física', detail: 'R$ 35,00' },
-  { value: 'Sim — PDF (R$ 10,00)', title: 'Sim — PDF / e-book', detail: 'R$ 10,00' },
-  { value: 'Não — Sem custo', title: 'Não quero apostila', detail: 'Sem custo' },
-] as const;
+const SEMINAR_DETAILS = `Será nos dias 11 e 12 de Setembro/26.
+
+🗓️ 11/09 Sexta
+🕐 Horário: das 20 hs as 22 hs
+🗓️ 12/09 sábado
+🕐 Horário: das 16 hs as 22 hs
+☕️ Coffee-break 19 hs
+
+Faça sua inscrição antecipadamente para que possamos reservar seu material.
+
+💰 VALORES DA INSCRIÇÃO
+1 - Apostila digital: R$ 10,00
+2 - Apostila física: R$ 35,00
+
+Estaremos entregando a Apostila no início do Seminário.
+
+Atenção:
+Traga sua Bíblia, caneta e caderno de anotações. 👈📖🖊️📒
+
+Desde já solicitamos que no dia do Seminário coloque seu celular no modo avião ✈️ ou silencioso.
+
+Que Deus abençoe grandemente a todos, esperamos vocês ⛪
+Vai ser um tempo de aprendizado e profundidade bíblica, um tempo precioso na Presença do SENHOR 🙌
+
+Comunidade CEAMI ⛪`;
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -44,7 +64,22 @@ function formatPhone(value: string) {
 }
 
 function optionsFrom(value: unknown) {
-  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
+}
+
+function optionPresentation(option: string) {
+  const lower = option.toLowerCase();
+  const isPhysical = lower.includes('físic') || lower.includes('fisic');
+  const isDigital = lower.includes('pdf') || lower.includes('digital') || lower.includes('e-book') || lower.includes('ebook');
+  const priceMatch = option.match(/R\$\s*([0-9]+(?:[.,][0-9]{1,2})?)/i);
+  const detail = priceMatch ? `R$ ${priceMatch[1].replace('.', ',')}` : '';
+  const title = isPhysical ? 'Física' : isDigital ? 'PDF' : option.replace(/\s*\([^)]*R\$[^)]*\)\s*/gi, '').trim();
+  return { title, detail };
+}
+
+function selectedPrice(value: string) {
+  const match = value.match(/R\$\s*([0-9]+(?:[.,][0-9]{1,2})?)/i);
+  return match ? Number(match[1].replace(',', '.')) : 0;
 }
 
 export default function PublicFormClient({ slug }: { slug: string }) {
@@ -85,9 +120,7 @@ export default function PublicFormClient({ slug }: { slug: string }) {
       setLoading(false);
     })();
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [slug, supabase]);
 
   function setAnswer(key: string, value: string) {
@@ -98,7 +131,6 @@ export default function PublicFormClient({ slug }: { slug: string }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form || sending) return;
-
     setSending(true);
     setError('');
 
@@ -127,7 +159,6 @@ export default function PublicFormClient({ slug }: { slug: string }) {
       setCorrectionError('Explique rapidamente o que ficou errado.');
       return;
     }
-
     setCorrectionSending(true);
     setCorrectionError('');
     const response = await fetch(`/api/public/forms/${encodeURIComponent(form.slug)}/correction`, {
@@ -137,38 +168,25 @@ export default function PublicFormClient({ slug }: { slug: string }) {
     });
     const payload = await response.json().catch(() => ({})) as { error?: string };
     setCorrectionSending(false);
-
     if (!response.ok) {
       setCorrectionError(payload.error || 'Não foi possível avisar a equipe.');
       return;
     }
-
     setCorrectionSent(true);
     setCorrectionOpen(false);
   }
 
   if (loading) {
-    return (
-      <main className="public-form-page public-form-center">
-        <LoaderCircle className="public-form-spin" />
-        <p>Carregando formulário...</p>
-      </main>
-    );
+    return <main className="public-form-page public-form-center"><LoaderCircle className="public-form-spin" /><p>Carregando formulário...</p></main>;
   }
 
   if (!form) {
-    return (
-      <main className="public-form-page public-form-center">
-        <Church size={42} />
-        <h1>Formulário indisponível</h1>
-        <p>{error || 'Tente novamente mais tarde.'}</p>
-      </main>
-    );
+    return <main className="public-form-page public-form-center"><Church size={42} /><h1>Formulário indisponível</h1><p>{error || 'Tente novamente mais tarde.'}</p></main>;
   }
 
   const isSeminar = form.slug === SEMINAR_SLUG;
   const bookletChoice = answers.apostila || '';
-  const bookletPrice = bookletChoice.includes('Física') ? 35 : bookletChoice.includes('PDF') ? 10 : 0;
+  const bookletPrice = selectedPrice(bookletChoice);
 
   if (sent) {
     return (
@@ -182,50 +200,29 @@ export default function PublicFormClient({ slug }: { slug: string }) {
           <span>INSCRIÇÃO RECEBIDA</span>
           <h1>Pronto! Sua inscrição foi registrada.</h1>
           {isSeminar && bookletPrice > 0 ? (
-            <p>
-              O seminário é <strong>gratuito</strong>. Sua escolha de material foi registrada em <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bookletPrice)}</strong>. Após o pagamento da apostila, envie o comprovante para a equipe da CEAMI confirmar no sistema.
-            </p>
+            <p>Sua opção de inscrição foi registrada no valor de <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bookletPrice)}</strong>. Após o pagamento, envie o comprovante para a equipe da CEAMI confirmar no sistema.</p>
           ) : (
             <p>Obrigado por se inscrever em <strong>{form.title}</strong>. A equipe da CEAMI já poderá visualizar seus dados no painel.</p>
           )}
 
           {correctionSent ? (
-            <div className="public-form-correction-success">
-              <CheckCircle2 size={18} />
-              <div><strong>Correção sinalizada</strong><span>A equipe da CEAMI verá o aviso junto da sua inscrição.</span></div>
-            </div>
+            <div className="public-form-correction-success"><CheckCircle2 size={18} /><div><strong>Correção sinalizada</strong><span>A equipe da CEAMI verá o aviso junto da sua inscrição.</span></div></div>
           ) : submissionId ? (
             <div className="public-form-correction-box">
-              <div className="public-form-correction-title">
-                <MessageSquareWarning size={19} />
-                <div><strong>Preencheu alguma informação errada?</strong><span>Você pode avisar a equipe agora.</span></div>
-              </div>
+              <div className="public-form-correction-title"><MessageSquareWarning size={19} /><div><strong>Preencheu alguma informação errada?</strong><span>Você pode avisar a equipe agora.</span></div></div>
               {!correctionOpen ? (
                 <button type="button" onClick={() => setCorrectionOpen(true)}>Solicitar correção</button>
               ) : (
                 <div className="public-form-correction-editor">
-                  <textarea
-                    value={correctionMessage}
-                    onChange={(event) => { setCorrectionMessage(event.target.value); setCorrectionError(''); }}
-                    placeholder="Ex.: marquei PDF, mas quero apostila física."
-                    maxLength={600}
-                  />
+                  <textarea value={correctionMessage} onChange={(event) => { setCorrectionMessage(event.target.value); setCorrectionError(''); }} placeholder="Ex.: marquei PDF, mas quero apostila física." maxLength={600} />
                   {correctionError && <small>{correctionError}</small>}
-                  <div>
-                    <button type="button" className="secondary" onClick={() => setCorrectionOpen(false)}>Cancelar</button>
-                    <button type="button" onClick={() => void requestCorrection()} disabled={correctionSending}>
-                      {correctionSending ? <LoaderCircle className="public-form-spin" size={16} /> : null}
-                      {correctionSending ? 'Enviando...' : 'Avisar a CEAMI'}
-                    </button>
-                  </div>
+                  <div><button type="button" className="secondary" onClick={() => setCorrectionOpen(false)}>Cancelar</button><button type="button" onClick={() => void requestCorrection()} disabled={correctionSending}>{correctionSending ? <LoaderCircle className="public-form-spin" size={16} /> : null}{correctionSending ? 'Enviando...' : 'Avisar a CEAMI'}</button></div>
                 </div>
               )}
             </div>
           ) : null}
         </section>
-        <style>{`
-          .public-form-correction-box,.public-form-correction-success{width:100%;margin-top:22px;border-radius:14px;padding:14px 15px}.public-form-correction-box{border:1px solid #e5d8c8;background:#fbf8f3}.public-form-correction-success{border:1px solid #cfe2d2;background:#edf6ef;color:#376c42;display:flex;gap:9px;align-items:flex-start}.public-form-correction-success div,.public-form-correction-title>div{display:grid;gap:2px}.public-form-correction-success span,.public-form-correction-title span{font-size:12px;color:#70665d}.public-form-correction-title{display:flex;align-items:flex-start;gap:9px}.public-form-correction-title svg{color:#8a5a16}.public-form-correction-box>button,.public-form-correction-editor button{min-height:40px;border:0;border-radius:10px;padding:0 12px;background:#70491b;color:#fff;font-weight:800;display:inline-flex;align-items:center;gap:7px;justify-content:center}.public-form-correction-box>button{margin-top:11px}.public-form-correction-editor{margin-top:11px;display:grid;gap:8px}.public-form-correction-editor textarea{width:100%;min-height:92px;border:1px solid #ddd4c8;border-radius:10px;padding:10px 11px;resize:vertical;font:inherit}.public-form-correction-editor small{color:#9b3c2d}.public-form-correction-editor>div{display:flex;justify-content:flex-end;gap:8px}.public-form-correction-editor button.secondary{background:#fff;color:#5f544a;border:1px solid #ddd4c8}
-        `}</style>
+        <style>{`.public-form-correction-box,.public-form-correction-success{width:100%;margin-top:22px;border-radius:14px;padding:14px 15px}.public-form-correction-box{border:1px solid #e5d8c8;background:#fbf8f3}.public-form-correction-success{border:1px solid #cfe2d2;background:#edf6ef;color:#376c42;display:flex;gap:9px;align-items:flex-start}.public-form-correction-success div,.public-form-correction-title>div{display:grid;gap:2px}.public-form-correction-success span,.public-form-correction-title span{font-size:12px;color:#70665d}.public-form-correction-title{display:flex;align-items:flex-start;gap:9px}.public-form-correction-title svg{color:#8a5a16}.public-form-correction-box>button,.public-form-correction-editor button{min-height:40px;border:0;border-radius:10px;padding:0 12px;background:#70491b;color:#fff;font-weight:800;display:inline-flex;align-items:center;gap:7px;justify-content:center}.public-form-correction-box>button{margin-top:11px}.public-form-correction-editor{margin-top:11px;display:grid;gap:8px}.public-form-correction-editor textarea{width:100%;min-height:92px;border:1px solid #ddd4c8;border-radius:10px;padding:10px 11px;resize:vertical;font:inherit}.public-form-correction-editor small{color:#9b3c2d}.public-form-correction-editor>div{display:flex;justify-content:flex-end;gap:8px}.public-form-correction-editor button.secondary{background:#fff;color:#5f544a;border:1px solid #ddd4c8}`}</style>
       </main>
     );
   }
@@ -244,19 +241,10 @@ export default function PublicFormClient({ slug }: { slug: string }) {
           {form.description && <p>{form.description}</p>}
         </div>
 
-        {isSeminar ? (
-          <div className="public-form-event-box">
-            <p>{`11/09/2026 (sexta) — 20h às 22h\n12/09/2026 (sábado) — 16h às 22h\nCoffee-break às 19h\n\nA participação no seminário é gratuita. O valor é somente para quem optar pela apostila.\nApostila física: R$ 35,00 • PDF/e-book: R$ 10,00 • Sem apostila: sem custo.\n\nTraga sua Bíblia, caneta e caderno de anotações.\nNo dia do Seminário, coloque seu celular no modo avião ou silencioso.`}</p>
-            <strong>Seminário gratuito</strong>
-          </div>
-        ) : (form.event_details || form.price !== null) ? (
-          <div className="public-form-event-box">
-            {form.event_details && <p>{form.event_details}</p>}
-            {form.price !== null && (
-              <strong>Valor: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(form.price))}</strong>
-            )}
-          </div>
-        ) : null}
+        <div className="public-form-event-box">
+          <p>{isSeminar ? SEMINAR_DETAILS : form.event_details}</p>
+          {!isSeminar && form.price !== null && <strong>Valor: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(form.price))}</strong>}
+        </div>
 
         <form onSubmit={submit}>
           <div className="public-form-fields">
@@ -265,21 +253,19 @@ export default function PublicFormClient({ slug }: { slug: string }) {
               const isSeminarBooklet = isSeminar && field.key === 'apostila';
 
               if (isSeminarBooklet) {
+                const options = optionsFrom(field.options);
                 return (
                   <fieldset className="public-form-field public-form-choice public-form-booklet-choice" key={field.id}>
                     <legend>{field.label}{field.required && <em>*</em>}</legend>
                     <div>
-                      {SEMINAR_BOOKLET_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={value === option.value ? 'active' : ''}
-                          onClick={() => setAnswer(field.key, option.value)}
-                        >
-                          <FileText size={17} />
-                          <span><b>{option.title}</b><small>{option.detail}</small></span>
-                        </button>
-                      ))}
+                      {options.map((option) => {
+                        const presentation = optionPresentation(option);
+                        return (
+                          <button key={option} type="button" className={value === option ? 'active' : ''} onClick={() => setAnswer(field.key, option)}>
+                            <FileText size={17} /><span><b>{presentation.title}</b>{presentation.detail && <small>{presentation.detail}</small>}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                     <input className="public-form-hidden-required" tabIndex={-1} aria-hidden="true" required={field.required} value={value} onChange={() => undefined} />
                   </fieldset>
@@ -290,56 +276,24 @@ export default function PublicFormClient({ slug }: { slug: string }) {
                 return (
                   <fieldset className="public-form-field public-form-choice" key={field.id}>
                     <legend>{field.label}{field.required && <em>*</em>}</legend>
-                    <div>
-                      {['Sim', 'Não'].map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          className={value === option ? 'active' : ''}
-                          onClick={() => setAnswer(field.key, option)}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
+                    <div>{['Sim', 'Não'].map((option) => <button key={option} type="button" className={value === option ? 'active' : ''} onClick={() => setAnswer(field.key, option)}>{option}</button>)}</div>
                     <input className="public-form-hidden-required" tabIndex={-1} aria-hidden="true" required={field.required} value={value} onChange={() => undefined} />
                   </fieldset>
                 );
               }
 
               if (field.field_type === 'select') {
-                return (
-                  <label className="public-form-field" key={field.id}>
-                    <span>{field.label}{field.required && <em>*</em>}</span>
-                    <select required={field.required} value={value} onChange={(e) => setAnswer(field.key, e.target.value)}>
-                      <option value="">Selecione</option>
-                      {optionsFrom(field.options).map((option) => <option key={option}>{option}</option>)}
-                    </select>
-                  </label>
-                );
+                return <label className="public-form-field" key={field.id}><span>{field.label}{field.required && <em>*</em>}</span><select required={field.required} value={value} onChange={(e) => setAnswer(field.key, e.target.value)}><option value="">Selecione</option>{optionsFrom(field.options).map((option) => <option key={option}>{option}</option>)}</select></label>;
               }
 
               if (field.field_type === 'textarea') {
-                return (
-                  <label className="public-form-field" key={field.id}>
-                    <span>{field.label}{field.required && <em>*</em>}</span>
-                    <textarea required={field.required} placeholder={field.placeholder || undefined} value={value} onChange={(e) => setAnswer(field.key, e.target.value)} />
-                  </label>
-                );
+                return <label className="public-form-field" key={field.id}><span>{field.label}{field.required && <em>*</em>}</span><textarea required={field.required} placeholder={field.placeholder || undefined} value={value} onChange={(e) => setAnswer(field.key, e.target.value)} /></label>;
               }
 
               return (
                 <label className="public-form-field" key={field.id}>
                   <span>{field.label}{field.required && <em>*</em>}</span>
-                  <input
-                    type={field.field_type === 'email' ? 'email' : 'text'}
-                    inputMode={field.field_type === 'phone' ? 'tel' : undefined}
-                    autoComplete={field.field_type === 'email' ? 'email' : field.field_type === 'phone' ? 'tel' : undefined}
-                    required={field.required}
-                    placeholder={field.placeholder || undefined}
-                    value={value}
-                    onChange={(e) => setAnswer(field.key, field.field_type === 'phone' ? formatPhone(e.target.value) : e.target.value)}
-                  />
+                  <input type={field.field_type === 'email' ? 'email' : 'text'} inputMode={field.field_type === 'phone' ? 'tel' : undefined} autoComplete={field.field_type === 'email' ? 'email' : field.field_type === 'phone' ? 'tel' : undefined} required={field.required} placeholder={field.placeholder || undefined} value={value} onChange={(e) => setAnswer(field.key, field.field_type === 'phone' ? formatPhone(e.target.value) : e.target.value)} />
                 </label>
               );
             })}
@@ -347,18 +301,11 @@ export default function PublicFormClient({ slug }: { slug: string }) {
 
           <input name="website" className="public-form-honeypot" tabIndex={-1} autoComplete="off" />
           {error && <div className="public-form-error">{error}</div>}
-
-          <button className="public-form-submit" type="submit" disabled={sending}>
-            {sending ? <><LoaderCircle className="public-form-spin" size={18} />Enviando...</> : <>Confirmar inscrição<ChevronRight size={18} /></>}
-          </button>
+          <button className="public-form-submit" type="submit" disabled={sending}>{sending ? <><LoaderCircle className="public-form-spin" size={18} />Enviando...</> : <>Confirmar inscrição<ChevronRight size={18} /></>}</button>
         </form>
       </section>
 
-      <style>{`
-        .public-form-booklet-choice>div{grid-template-columns:1fr!important}.public-form-booklet-choice button{justify-content:flex-start!important;text-align:left;padding:10px 13px;gap:10px;display:flex;align-items:center}.public-form-booklet-choice button>span{display:grid;gap:2px}.public-form-booklet-choice button b{font-size:14px}.public-form-booklet-choice button small{font-size:12px;font-weight:700;color:#8a7660}.public-form-booklet-choice button.active small{color:#704b1e}
-      `}</style>
-
-      <p className="public-form-footer">Comunidade CEAMI ⛪</p>
+      <style>{`.public-form-booklet-choice>div{grid-template-columns:1fr!important}.public-form-booklet-choice button{justify-content:flex-start!important;text-align:left;padding:10px 13px;gap:10px;display:flex;align-items:center}.public-form-booklet-choice button>span{display:grid;gap:2px}.public-form-booklet-choice button b{font-size:14px}.public-form-booklet-choice button small{font-size:12px;font-weight:700;color:#8a7660}.public-form-booklet-choice button.active small{color:#704b1e}`}</style>
     </main>
   );
 }

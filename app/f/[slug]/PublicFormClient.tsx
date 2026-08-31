@@ -29,6 +29,7 @@ type PublicForm = {
 };
 
 const SEMINAR_SLUG = 'seminario-apocalipse-2026';
+const PUBLIC_FORM_BUILD = '2026-08-31-seminar-copy-v2';
 const SEMINAR_DETAILS = `Será nos dias 11 e 12 de Setembro/26.
 
 🗓️ 11/09 Sexta
@@ -83,6 +84,7 @@ function selectedPrice(value: string) {
 }
 
 export default function PublicFormClient({ slug }: { slug: string }) {
+  void PUBLIC_FORM_BUILD;
   const supabase = useMemo(() => createClient(), []);
   const [form, setForm] = useState<PublicForm | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});

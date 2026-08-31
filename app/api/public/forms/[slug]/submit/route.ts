@@ -121,19 +121,23 @@ export async function POST(
     ) as FormField | undefined;
     const phoneField = (fields || []).find((field: FormField) => field.field_type === 'phone') as FormField | undefined;
 
-    const { error: insertError } = await service.from('form_submissions').insert({
-      form_id: form.id,
-      respondent_name: nameField ? normalized[nameField.key] || null : null,
-      respondent_phone: phoneField ? normalized[phoneField.key] || null : null,
-      answers: normalized,
-    });
+    const { data: inserted, error: insertError } = await service
+      .from('form_submissions')
+      .insert({
+        form_id: form.id,
+        respondent_name: nameField ? normalized[nameField.key] || null : null,
+        respondent_phone: phoneField ? normalized[phoneField.key] || null : null,
+        answers: normalized,
+      })
+      .select('id')
+      .single();
 
-    if (insertError) {
-      console.error('Public form submission failed:', insertError.message);
+    if (insertError || !inserted?.id) {
+      console.error('Public form submission failed:', insertError?.message || 'missing id');
       return NextResponse.json({ error: 'Não foi possível salvar sua inscrição.' }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, submissionId: inserted.id });
   } catch (error) {
     const publicError = publicErrorMessage(error);
     return NextResponse.json({ error: publicError.message }, { status: publicError.status });

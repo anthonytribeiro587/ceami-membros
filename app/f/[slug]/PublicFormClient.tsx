@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronRight, Church, LoaderCircle } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Church, FileText, LoaderCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type FieldType = 'text' | 'phone' | 'email' | 'textarea' | 'yes_no' | 'select';
@@ -27,6 +27,13 @@ type PublicForm = {
   active: boolean;
   form_fields: FormField[] | null;
 };
+
+const SEMINAR_SLUG = 'seminario-apocalipse-2026';
+const SEMINAR_BOOKLET_OPTIONS = [
+  { value: 'Sim — Física (R$ 35,00)', title: 'Sim — Apostila física', detail: 'R$ 35,00' },
+  { value: 'Sim — PDF (R$ 10,00)', title: 'Sim — PDF / e-book', detail: 'R$ 10,00' },
+  { value: 'Não — Sem custo', title: 'Não quero apostila', detail: 'Sem custo' },
+] as const;
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -126,6 +133,10 @@ export default function PublicFormClient({ slug }: { slug: string }) {
     );
   }
 
+  const isSeminar = form.slug === SEMINAR_SLUG;
+  const bookletChoice = answers.apostila || '';
+  const bookletPrice = bookletChoice.includes('Física') ? 35 : bookletChoice.includes('PDF') ? 10 : 0;
+
   if (sent) {
     return (
       <main className="public-form-page">
@@ -137,7 +148,13 @@ export default function PublicFormClient({ slug }: { slug: string }) {
           <CheckCircle2 size={54} />
           <span>INSCRIÇÃO RECEBIDA</span>
           <h1>Pronto! Sua inscrição foi registrada.</h1>
-          <p>Obrigado por se inscrever em <strong>{form.title}</strong>. A equipe da CEAMI já poderá visualizar seus dados no painel.</p>
+          {isSeminar && bookletPrice > 0 ? (
+            <p>
+              O seminário é <strong>gratuito</strong>. Sua escolha de material foi registrada em <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bookletPrice)}</strong>. Após o pagamento da apostila, envie o comprovante para a equipe da CEAMI confirmar no sistema.
+            </p>
+          ) : (
+            <p>Obrigado por se inscrever em <strong>{form.title}</strong>. A equipe da CEAMI já poderá visualizar seus dados no painel.</p>
+          )}
         </section>
       </main>
     );
@@ -157,19 +174,47 @@ export default function PublicFormClient({ slug }: { slug: string }) {
           {form.description && <p>{form.description}</p>}
         </div>
 
-        {(form.event_details || form.price !== null) && (
+        {isSeminar ? (
+          <div className="public-form-event-box">
+            <p>{`11/09/2026 (sexta) — 20h às 22h\n12/09/2026 (sábado) — 16h às 22h\nCoffee-break às 19h\n\nA participação no seminário é gratuita. O valor é somente para quem optar pela apostila.\nApostila física: R$ 35,00 • PDF/e-book: R$ 10,00 • Sem apostila: sem custo.\n\nTraga sua Bíblia, caneta e caderno de anotações.\nNo dia do Seminário, coloque seu celular no modo avião ou silencioso.`}</p>
+            <strong>Seminário gratuito</strong>
+          </div>
+        ) : (form.event_details || form.price !== null) ? (
           <div className="public-form-event-box">
             {form.event_details && <p>{form.event_details}</p>}
             {form.price !== null && (
               <strong>Valor: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(form.price))}</strong>
             )}
           </div>
-        )}
+        ) : null}
 
         <form onSubmit={submit}>
           <div className="public-form-fields">
             {(form.form_fields || []).map((field) => {
               const value = answers[field.key] || '';
+              const isSeminarBooklet = isSeminar && field.key === 'apostila';
+
+              if (isSeminarBooklet) {
+                return (
+                  <fieldset className="public-form-field public-form-choice public-form-booklet-choice" key={field.id}>
+                    <legend>{field.label}{field.required && <em>*</em>}</legend>
+                    <div>
+                      {SEMINAR_BOOKLET_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={value === option.value ? 'active' : ''}
+                          onClick={() => setAnswer(field.key, option.value)}
+                        >
+                          <FileText size={17} />
+                          <span><b>{option.title}</b><small>{option.detail}</small></span>
+                        </button>
+                      ))}
+                    </div>
+                    <input className="public-form-hidden-required" tabIndex={-1} aria-hidden="true" required={field.required} value={value} onChange={() => undefined} />
+                  </fieldset>
+                );
+              }
 
               if (field.field_type === 'yes_no') {
                 return (
@@ -238,6 +283,10 @@ export default function PublicFormClient({ slug }: { slug: string }) {
           </button>
         </form>
       </section>
+
+      <style>{`
+        .public-form-booklet-choice>div{grid-template-columns:1fr!important}.public-form-booklet-choice button{justify-content:flex-start!important;text-align:left;padding:10px 13px;gap:10px;display:flex;align-items:center}.public-form-booklet-choice button>span{display:grid;gap:2px}.public-form-booklet-choice button b{font-size:14px}.public-form-booklet-choice button small{font-size:12px;font-weight:700;color:#8a7660}.public-form-booklet-choice button.active small{color:#704b1e}
+      `}</style>
 
       <p className="public-form-footer">Comunidade CEAMI ⛪</p>
     </main>

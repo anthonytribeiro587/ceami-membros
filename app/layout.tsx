@@ -3,6 +3,7 @@ import AdminMemberEnhancements from './components/AdminMemberEnhancements';
 import PendingMemberUpdates from './components/PendingMemberUpdates';
 import QrCodeRepair from './components/QrCodeRepair';
 import MemberDetailsPolish from './components/MemberDetailsPolish';
+import FormsNavEnhancement from './components/FormsNavEnhancement';
 import './globals.css';
 import './ceami.css';
 import './modal-fixes.css';
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <PendingMemberUpdates />
         <QrCodeRepair />
         <MemberDetailsPolish />
+        <FormsNavEnhancement />
         <footer className="site-footer">
           <span>CEAMI Membros</span>
           <span aria-hidden="true">•</span>

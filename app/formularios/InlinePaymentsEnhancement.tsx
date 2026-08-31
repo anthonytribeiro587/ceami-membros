@@ -39,11 +39,6 @@ type EditorState = {
 };
 
 const SEMINAR_SLUG = 'seminario-apocalipse-2026';
-const BOOKLET_OPTIONS = [
-  'Sim — Física (R$ 35,00)',
-  'Sim — PDF (R$ 10,00)',
-  'Não — Sem custo',
-] as const;
 
 const EMPTY_PAYMENT: PaymentMeta = {
   status: 'pending',
@@ -81,20 +76,37 @@ function paymentFromAnswers(answers: Record<string, unknown> | null | undefined)
   };
 }
 
-function bookletInfo(answers: Record<string, unknown> | null | undefined) {
+function priceFromChoice(value: unknown) {
+  const text = String(value ?? '').trim();
+  const normalized = normalize(text);
+  if (!text || normalized.includes('sem custo') || normalized.includes('gratuit')) return 0;
+  const match = text.match(/R\$\s*([0-9.]+(?:,[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i);
+  if (match) {
+    let raw = match[1];
+    if (raw.includes(',') && raw.includes('.')) raw = raw.replace(/\./g, '').replace(',', '.');
+    else if (raw.includes(',')) raw = raw.replace(',', '.');
+    const number = Number(raw);
+    if (Number.isFinite(number)) return number;
+  }
+  if (normalized === 'sim' || normalized.includes('fisica')) return 35;
+  if (normalized.includes('pdf') || normalized.includes('digital')) return 10;
+  return 0;
+}
+
+function materialInfo(answers: Record<string, unknown> | null | undefined) {
   const value = String(answers?.apostila ?? '').trim();
-  const text = normalize(value);
-  if (text.includes('fisica') || text === 'sim') {
-    return { value: value || 'Sim', label: 'Apostila física', price: 35, kind: 'physical' as const };
-  }
-  if (text.includes('pdf')) {
-    return { value, label: 'PDF / e-book', price: 10, kind: 'pdf' as const };
-  }
-  return { value: value || 'Não', label: 'Sem apostila', price: 0, kind: 'none' as const };
+  const price = priceFromChoice(value);
+  const normalized = normalize(value);
+  let label = value
+    .replace(/\s*\(?R\$\s*[0-9.]+(?:,[0-9]{1,2})?\)?\s*$/i, '')
+    .replace(/\s*[-–—•]?\s*sem custo\s*$/i, '')
+    .trim();
+  if (!label) label = normalized === 'nao' || normalized.includes('sem custo') ? 'Sem apostila' : value || 'Sem apostila';
+  return { value, label, price };
 }
 
 function dueForSubmission(form: FormLite, submission: SubmissionLite) {
-  if (form.slug === SEMINAR_SLUG) return bookletInfo(submission.answers).price;
+  if (form.slug === SEMINAR_SLUG) return materialInfo(submission.answers).price;
   return Number(form.price) || 0;
 }
 
@@ -147,22 +159,6 @@ export default function InlinePaymentsEnhancement() {
         .forEach((node) => node.remove());
     }
 
-    function fixBookletFilter(form: FormLite) {
-      if (form.slug !== SEMINAR_SLUG) return;
-      document.querySelectorAll('.forms-response-filter').forEach((filter) => {
-        const label = normalize(filter.querySelector('span')?.textContent);
-        if (!label.includes('apostila')) return;
-        const select = filter.querySelector('select');
-        if (!select || select.dataset.ceamiBookletFilter === 'true') return;
-        const current = select.value;
-        select.innerHTML = '<option value="">Todos</option>' + BOOKLET_OPTIONS
-          .map((option) => `<option value="${option}">${option}</option>`)
-          .join('');
-        select.value = BOOKLET_OPTIONS.includes(current as typeof BOOKLET_OPTIONS[number]) ? current : '';
-        select.dataset.ceamiBookletFilter = 'true';
-      });
-    }
-
     function matchSubmission(card: Element, submissions: SubmissionLite[], used: Set<string>) {
       const cardName = normalize(card.querySelector('.forms-response-name-row h3')?.textContent);
       const cardPhone = digits(card.querySelector('.forms-response-name-row > div > span')?.textContent);
@@ -201,17 +197,26 @@ export default function InlinePaymentsEnhancement() {
         .filter((submission) => paymentFromAnswers(submission.answers).status !== 'exempt')
         .reduce((total, submission) => total + dueForSubmission(form, submission), 0);
 
-      const physical = form.slug === SEMINAR_SLUG ? submissions.filter((submission) => bookletInfo(submission.answers).kind === 'physical').length : 0;
-      const pdf = form.slug === SEMINAR_SLUG ? submissions.filter((submission) => bookletInfo(submission.answers).kind === 'pdf').length : 0;
-      const free = form.slug === SEMINAR_SLUG ? submissions.filter((submission) => bookletInfo(submission.answers).kind === 'none').length : 0;
+      const materialSummary = new Map<string, { label: string; price: number; count: number }>();
+      if (form.slug === SEMINAR_SLUG) {
+        for (const submission of submissions) {
+          const material = materialInfo(submission.answers);
+          const key = `${material.label}|${material.price}`;
+          const existing = materialSummary.get(key);
+          if (existing) existing.count += 1;
+          else materialSummary.set(key, { label: material.label, price: material.price, count: 1 });
+        }
+      }
+
+      const materialHtml = Array.from(materialSummary.values())
+        .map((item) => `<div><span>${item.label}</span><strong>${item.count}</strong><small>${item.price > 0 ? `${money(item.price)} cada` : 'sem custo'}</small></div>`)
+        .join('');
 
       const overview = document.createElement('div');
       overview.dataset.ceamiPaymentOverview = 'true';
       overview.className = 'ceami-inline-payment-overview';
       overview.innerHTML = form.slug === SEMINAR_SLUG ? `
-        <div><span>Apostila física</span><strong>${physical}</strong><small>${money(35)} cada</small></div>
-        <div><span>PDF / e-book</span><strong>${pdf}</strong><small>${money(10)} cada</small></div>
-        <div><span>Sem apostila</span><strong>${free}</strong><small>sem custo</small></div>
+        ${materialHtml}
         <div class="pending"><span>Pagamentos</span><strong>${paid.length} pagos • ${pending.length} pendentes</strong>${exempt.length ? `<small>${exempt.length} isento(s)</small>` : ''}</div>
         <div class="money"><span>Recebido</span><strong>${money(received)}</strong><small>de ${money(collectible)} a receber</small></div>
       ` : `
@@ -235,7 +240,7 @@ export default function InlinePaymentsEnhancement() {
 
         const payment = paymentFromAnswers(submission.answers);
         const due = dueForSubmission(form, submission);
-        const material = form.slug === SEMINAR_SLUG ? bookletInfo(submission.answers) : null;
+        const material = form.slug === SEMINAR_SLUG ? materialInfo(submission.answers) : null;
         const person = card.querySelector('.forms-response-person');
         const actions = card.querySelector('.forms-response-actions');
         const name = submission.respondent_name || card.querySelector('h3')?.textContent?.trim() || 'Inscrição';
@@ -252,7 +257,7 @@ export default function InlinePaymentsEnhancement() {
         if (material) {
           const materialBadge = document.createElement('div');
           materialBadge.dataset.ceamiMaterialStatus = submission.id;
-          materialBadge.className = `ceami-inline-material ${material.kind}`;
+          materialBadge.className = 'ceami-inline-material';
           materialBadge.innerHTML = `<strong>${material.label}</strong>${material.price ? `<span>${money(material.price)}</span>` : '<span>Sem custo</span>'}`;
           person.appendChild(materialBadge);
         }
@@ -283,7 +288,6 @@ export default function InlinePaymentsEnhancement() {
       const responses = document.querySelector('.forms-responses');
       if (!responses) return;
       if (force) clearInjected(responses);
-      fixBookletFilter(form);
       renderOverview(form, submissions);
       renderCards(form, submissions);
     }
@@ -372,7 +376,7 @@ export default function InlinePaymentsEnhancement() {
         detail: { id: editor.submissionId, payment: payload.payment },
       }));
       setEditor(null);
-      setNotice(status === 'paid' ? 'Pagamento da apostila confirmado.' : status === 'exempt' ? 'Pagamento marcado como isento.' : 'Pagamento voltou para pendente.');
+      setNotice(status === 'paid' ? 'Pagamento confirmado.' : status === 'exempt' ? 'Pagamento marcado como isento.' : 'Pagamento voltou para pendente.');
     } finally {
       setSaving(false);
       window.setTimeout(() => setNotice(''), 2600);
@@ -387,12 +391,12 @@ export default function InlinePaymentsEnhancement() {
 
       {editor && (
         <div className="ceami-payment-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setEditor(null); }}>
-          <section className="ceami-payment-modal" role="dialog" aria-modal="true" aria-label="Pagamento da apostila">
+          <section className="ceami-payment-modal" role="dialog" aria-modal="true" aria-label="Pagamento da inscrição">
             <header>
               <div>
                 <CircleDollarSign size={25} />
                 <div>
-                  <h3>Pagamento da apostila</h3>
+                  <h3>Pagamento</h3>
                   <p>{editor.name}</p>
                 </div>
               </div>
@@ -402,7 +406,7 @@ export default function InlinePaymentsEnhancement() {
             <div className="ceami-payment-body">
               <div className="ceami-payment-material">
                 <FileText size={22} />
-                <div><span>Material escolhido</span><strong>{editor.material} • {money(editor.price)}</strong></div>
+                <div><span>Item escolhido</span><strong>{editor.material} • {money(editor.price)}</strong></div>
               </div>
 
               <div className="ceami-payment-status-options">
@@ -430,8 +434,8 @@ export default function InlinePaymentsEnhancement() {
               ) : (
                 <div className="ceami-payment-info">
                   {status === 'pending'
-                    ? `A apostila continuará pendente de pagamento no valor de ${money(editor.price)}.`
-                    : 'Use Isento somente quando a equipe decidir liberar a apostila sem cobrança.'}
+                    ? `O pagamento continuará pendente no valor de ${money(editor.price)}.`
+                    : 'Use Isento somente quando a equipe decidir liberar este item sem cobrança.'}
                 </div>
               )}
             </div>

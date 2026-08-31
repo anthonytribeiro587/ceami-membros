@@ -30,6 +30,21 @@ function cleanAmount(value: unknown) {
   return Math.round(number * 100) / 100;
 }
 
+function normalize(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function bookletPrice(answers: Record<string, unknown>) {
+  const choice = normalize(answers.apostila);
+  if (choice.includes('fisica') || choice === 'sim') return 35;
+  if (choice.includes('pdf')) return 10;
+  return 0;
+}
+
 export async function PATCH(request: NextRequest) {
   if (!requestComesFromSameSite(request)) {
     return NextResponse.json({ error: 'Origem da solicitação não autorizada.' }, { status: 403 });
@@ -71,7 +86,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: form } = await service
       .from('forms')
-      .select('price')
+      .select('slug, price')
       .eq('id', submission.form_id)
       .maybeSingle();
 
@@ -79,8 +94,16 @@ export async function PATCH(request: NextRequest) {
       ? (submission.answers as Record<string, unknown>)
       : {};
 
+    const expectedAmount = form?.slug === 'seminario-apocalipse-2026'
+      ? bookletPrice(previousAnswers)
+      : (form?.price == null ? 0 : Number(form.price));
+
+    if (status === 'paid' && expectedAmount <= 0) {
+      return NextResponse.json({ error: 'Esta inscrição não possui cobrança.' }, { status: 400 });
+    }
+
     const amount = status === 'paid'
-      ? cleanAmount(body.amount) ?? (form?.price == null ? 0 : Number(form.price))
+      ? cleanAmount(body.amount) ?? expectedAmount
       : status === 'exempt'
         ? 0
         : null;

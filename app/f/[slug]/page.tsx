@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import PublicFormClient from './PublicFormClient';
+import DynamicPublicFormClient from './DynamicPublicFormClient';
 import './form-public.css';
 
 export const metadata: Metadata = {
@@ -14,5 +14,5 @@ export default async function PublicFormPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <PublicFormClient slug={slug} />;
+  return <DynamicPublicFormClient slug={slug} />;
 }

@@ -5,6 +5,7 @@ import QrCodeRepair from './components/QrCodeRepair';
 import MemberDetailsPolish from './components/MemberDetailsPolish';
 import FormsNavEnhancement from './components/FormsNavEnhancement';
 import SeminarPublicHotfix from './components/SeminarPublicHotfix';
+import FormSubmissionDeleteEnhancement from './components/FormSubmissionDeleteEnhancement';
 import './globals.css';
 import './ceami.css';
 import './modal-fixes.css';
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <MemberDetailsPolish />
         <FormsNavEnhancement />
         <SeminarPublicHotfix />
+        <FormSubmissionDeleteEnhancement />
         <footer className="site-footer">
           <span>CEAMI Membros</span>
           <span aria-hidden="true">•</span>

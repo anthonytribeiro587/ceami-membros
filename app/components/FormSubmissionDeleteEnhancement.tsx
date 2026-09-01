@@ -45,7 +45,7 @@ export default function FormSubmissionDeleteEnhancement() {
         button.type = 'button';
         button.setAttribute('data-ceami-delete-submission', 'true');
         button.className = 'ceami-submission-delete-button';
-        button.innerHTML = '<span aria-hidden="true">🗑️</span> Excluir inscrição';
+        button.innerHTML = '<span aria-hidden="true">🗑</span><span>Excluir inscrição</span>';
 
         button.addEventListener('click', async () => {
           if (busy) return;
@@ -95,7 +95,7 @@ export default function FormSubmissionDeleteEnhancement() {
             console.error(error);
             window.alert(error instanceof Error ? error.message : 'Não foi possível excluir a inscrição.');
             button.disabled = false;
-            button.innerHTML = '<span aria-hidden="true">🗑️</span> Excluir inscrição';
+            button.innerHTML = '<span aria-hidden="true">🗑</span><span>Excluir inscrição</span>';
             busy = false;
           }
         });
@@ -107,26 +107,47 @@ export default function FormSubmissionDeleteEnhancement() {
     const style = document.createElement('style');
     style.dataset.ceamiDeleteSubmissionStyle = 'true';
     style.textContent = `
+      .ceami-edit-modal footer{
+        display:flex!important;
+        align-items:center!important;
+        justify-content:flex-end!important;
+        gap:8px!important;
+      }
+      .ceami-edit-modal footer>button{
+        height:42px!important;
+        min-height:42px!important;
+        box-sizing:border-box!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        line-height:1!important;
+      }
       .ceami-edit-modal footer .ceami-submission-delete-button{
-        margin-right:auto;
-        min-height:42px;
+        margin-right:auto!important;
         border:1px solid #e3b5af;
         background:#fff5f3;
         color:#9c3429;
         border-radius:10px;
         padding:0 14px;
         font-weight:900;
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
         gap:7px;
         cursor:pointer;
+        white-space:nowrap;
       }
       .ceami-edit-modal footer .ceami-submission-delete-button:hover{background:#fde8e5}
       .ceami-edit-modal footer .ceami-submission-delete-button:disabled{opacity:.6;cursor:wait}
       @media(max-width:700px){
-        .ceami-edit-modal footer{grid-template-columns:1fr 1fr!important}
-        .ceami-edit-modal footer .ceami-submission-delete-button{grid-column:1/-1;width:100%;margin-right:0}
+        .ceami-edit-modal footer{
+          display:grid!important;
+          grid-template-columns:1fr 1fr!important;
+          align-items:stretch!important;
+        }
+        .ceami-edit-modal footer .ceami-submission-delete-button{
+          grid-column:1/-1!important;
+          width:100%!important;
+          margin-right:0!important;
+        }
+        .ceami-edit-modal footer .cancel,.ceami-edit-modal footer .save{width:100%!important}
       }
     `;
     document.head.appendChild(style);

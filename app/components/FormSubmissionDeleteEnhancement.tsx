@@ -3,20 +3,22 @@
 import { useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-function normalize(value: string) {
-  return value.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-function digits(value: string) {
-  return value.replace(/\D/g, '');
-}
-
 export default function FormSubmissionDeleteEnhancement() {
   useEffect(() => {
     if (!window.location.pathname.startsWith('/formularios')) return;
 
     const supabase = createClient();
     let busy = false;
+    let currentSubmissionId = '';
+
+    function rememberSelectedSubmission(event: Event) {
+      const target = event.target as Element | null;
+      const button = target?.closest('[data-ceami-edit-submission]') as HTMLElement | null;
+      if (!button) return;
+      currentSubmissionId = button.dataset.ceamiEditSubmission || '';
+    }
+
+    document.addEventListener('click', rememberSelectedSubmission, true);
 
     function removeDeleteFromViewResponses() {
       document.querySelectorAll('.forms-response-modal [data-ceami-delete-submission]')
@@ -30,13 +32,12 @@ export default function FormSubmissionDeleteEnhancement() {
       for (const dialog of dialogs) {
         if (dialog.querySelector('[data-ceami-delete-submission]')) continue;
 
-        const title = normalize(dialog.querySelector('h3')?.textContent || '');
+        const title = (dialog.querySelector('h3')?.textContent || '').toLowerCase();
         if (!title.includes('editar inscri')) continue;
 
         const inputs = Array.from(dialog.querySelectorAll('input')) as HTMLInputElement[];
-        const nameInput = inputs.find((input) => /nome/i.test(input.placeholder || input.name || input.getAttribute('aria-label') || '')) || inputs[0];
-        const phoneInput = inputs.find((input) => /telefone|whatsapp/i.test(input.placeholder || input.name || input.getAttribute('aria-label') || '')) || inputs[1];
-        if (!nameInput?.value?.trim()) continue;
+        const nameInput = inputs[0];
+        if (!nameInput?.value?.trim() || !currentSubmissionId) continue;
 
         const footer = dialog.querySelector('footer');
         if (!footer) continue;
@@ -51,7 +52,12 @@ export default function FormSubmissionDeleteEnhancement() {
           if (busy) return;
 
           const name = nameInput.value.trim();
-          const phone = phoneInput?.value?.trim() || '';
+          const submissionId = currentSubmissionId;
+          if (!submissionId) {
+            window.alert('Não foi possível identificar esta inscrição. Feche e abra “Editar inscrição” novamente.');
+            return;
+          }
+
           if (!window.confirm(`Excluir definitivamente a inscrição de ${name}?\n\nEssa ação não pode ser desfeita.`)) return;
 
           busy = true;
@@ -59,35 +65,11 @@ export default function FormSubmissionDeleteEnhancement() {
           button.textContent = 'Excluindo...';
 
           try {
-            const { data, error } = await supabase
-              .from('form_submissions')
-              .select('id, respondent_name, respondent_phone, answers, created_at')
-              .order('created_at', { ascending: false })
-              .limit(500);
-            if (error) throw error;
-
-            const nameMatches = (data || []).filter((row: any) =>
-              normalize(String(row.respondent_name || row.answers?.nome_completo || '')) === normalize(name),
-            );
-
-            const phoneDigits = digits(phone);
-            const matches = phoneDigits
-              ? nameMatches.filter((row: any) => digits(String(row.respondent_phone || row.answers?.telefone || '')) === phoneDigits)
-              : nameMatches;
-
-            if (matches.length !== 1) {
-              throw new Error(
-                matches.length
-                  ? 'Há mais de uma inscrição com estes dados. Não foi feita nenhuma exclusão.'
-                  : 'Não foi possível localizar esta inscrição no banco.',
-              );
-            }
-
-            const { error: deleteError } = await supabase
+            const { error } = await supabase
               .from('form_submissions')
               .delete()
-              .eq('id', matches[0].id);
-            if (deleteError) throw deleteError;
+              .eq('id', submissionId);
+            if (error) throw error;
 
             window.alert('Inscrição excluída com sucesso.');
             window.location.reload();
@@ -162,6 +144,7 @@ export default function FormSubmissionDeleteEnhancement() {
 
     return () => {
       observer.disconnect();
+      document.removeEventListener('click', rememberSelectedSubmission, true);
       style.remove();
       document.querySelectorAll('[data-ceami-delete-submission]').forEach((node) => node.remove());
     };

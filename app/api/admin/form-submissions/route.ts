@@ -22,19 +22,22 @@ type EditBody = {
   answers?: Record<string, unknown>;
 };
 
-const SEMINAR_SLUG = 'seminario-apocalipse-2026';
-const SEMINAR_BOOKLET_OPTIONS = [
-  'Sim — Física (R$ 35,00)',
-  'Sim — PDF (R$ 10,00)',
-  'Não — Sem custo',
-] as const;
-
 function cleanText(value: unknown, max = 1000) {
   return String(value ?? '').trim().slice(0, max);
 }
 
 function optionsFrom(value: unknown) {
-  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+  if (!Array.isArray(value)) return [] as string[];
+  const result: string[] = [];
+  for (const raw of value.map((item) => String(item).trim()).filter(Boolean)) {
+    const previous = result[result.length - 1];
+    if (/^\d{2}\)\s*$/.test(raw) && previous && /R\$\s*\d+\s*$/.test(previous)) {
+      result[result.length - 1] = `${previous},${raw}`;
+    } else {
+      result.push(raw);
+    }
+  }
+  return result;
 }
 
 export async function PATCH(request: NextRequest) {
@@ -75,7 +78,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: form, error: formError } = await service
       .from('forms')
-      .select('id, slug')
+      .select('id')
       .eq('id', submission.form_id)
       .maybeSingle();
 
@@ -105,19 +108,14 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: `Preencha o campo “${field.label}”.` }, { status: 400 });
       }
 
-      const isSeminarBooklet = form.slug === SEMINAR_SLUG && field.key === 'apostila';
-      if (value && isSeminarBooklet && !SEMINAR_BOOKLET_OPTIONS.includes(value as typeof SEMINAR_BOOKLET_OPTIONS[number])) {
-        return NextResponse.json({ error: 'Selecione uma opção de apostila válida.' }, { status: 400 });
-      }
-
-      if (value && !isSeminarBooklet && field.field_type === 'yes_no' && !['Sim', 'Não'].includes(value)) {
+      if (value && field.field_type === 'yes_no' && !['Sim', 'Não'].includes(value)) {
         return NextResponse.json({ error: `Valor inválido em “${field.label}”.` }, { status: 400 });
       }
 
-      if (value && !isSeminarBooklet && field.field_type === 'select') {
+      if (value && field.field_type === 'select') {
         const options = optionsFrom(field.options);
         if (options.length && !options.includes(value)) {
-          return NextResponse.json({ error: `Valor inválido em “${field.label}”.` }, { status: 400 });
+          return NextResponse.json({ error: `Selecione uma opção válida em “${field.label}”.` }, { status: 400 });
         }
       }
 

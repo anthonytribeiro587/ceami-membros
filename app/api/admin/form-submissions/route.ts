@@ -22,6 +22,10 @@ type EditBody = {
   answers?: Record<string, unknown>;
 };
 
+type DeleteBody = {
+  submissionId?: unknown;
+};
+
 function cleanText(value: unknown, max = 1000) {
   return String(value ?? '').trim().slice(0, max);
 }
@@ -177,6 +181,56 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: true, submission: updated }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('Form submission edit failed:', error);
+    const publicError = publicErrorMessage(error);
+    return NextResponse.json({ error: publicError.message }, { status: publicError.status });
+  }
+}
+
+
+export async function DELETE(request: NextRequest) {
+  if (!requestComesFromSameSite(request)) {
+    return NextResponse.json({ error: 'Origem da solicitação não autorizada.' }, { status: 403 });
+  }
+
+  const role = await getCurrentUiRole();
+  if (role !== 'admin') {
+    return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
+  }
+
+  const service = getServiceClient();
+  if (!service) {
+    return NextResponse.json({ error: 'Serviço temporariamente indisponível.' }, { status: 503 });
+  }
+
+  try {
+    const body = await readLimitedJson<DeleteBody>(request, 4_000);
+    const submissionId = cleanText(body.submissionId, 80);
+
+    if (!submissionId) {
+      return NextResponse.json({ error: 'Inscrição inválida.' }, { status: 400 });
+    }
+
+    const { data: submission, error: findError } = await service
+      .from('form_submissions')
+      .select('id')
+      .eq('id', submissionId)
+      .maybeSingle();
+
+    if (findError) throw new Error(findError.message);
+    if (!submission) {
+      return NextResponse.json({ error: 'Inscrição não encontrada.' }, { status: 404 });
+    }
+
+    const { error: deleteError } = await service
+      .from('form_submissions')
+      .delete()
+      .eq('id', submissionId);
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    return NextResponse.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (error) {
+    console.error('Form submission delete failed:', error);
     const publicError = publicErrorMessage(error);
     return NextResponse.json({ error: publicError.message }, { status: publicError.status });
   }

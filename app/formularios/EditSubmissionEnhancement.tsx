@@ -105,6 +105,7 @@ export default function EditSubmissionEnhancement() {
     let timer: number | null = null;
     let loading = false;
     let cachedTitle = '';
+    let cachedFormId = '';
     let cachedForm: FormLite | null = null;
     let cachedFields: FieldLite[] = [];
     let cachedSubmissions: SubmissionLite[] = [];
@@ -132,6 +133,12 @@ export default function EditSubmissionEnhancement() {
     }
 
     function matchSubmission(card: Element, submissions: SubmissionLite[], used: Set<string>) {
+      const directId = (card as HTMLElement).dataset.submissionId || '';
+      if (directId) {
+        const direct = submissions.find((submission) => submission.id === directId && !used.has(submission.id));
+        if (direct) return direct;
+      }
+
       const cardName = normalize(card.querySelector('.forms-response-name-row h3')?.textContent);
       const cardPhone = digits(card.querySelector('.forms-response-name-row > div > span')?.textContent);
       const cardTime = card.querySelector('time')?.textContent?.trim() || '';
@@ -200,27 +207,28 @@ export default function EditSubmissionEnhancement() {
       if (stopped || loading) return;
       maybeReopenResponses();
 
-      const responses = document.querySelector('.forms-responses');
+      const responses = document.querySelector('.forms-responses') as HTMLElement | null;
       const title = responses?.querySelector('.forms-responses-head h2')?.textContent?.trim() || '';
+      const formId = responses?.dataset.formId || '';
       if (!responses || !title) return;
 
       const allDecorated = Array.from(responses.querySelectorAll('.forms-response-card'))
         .every((card) => Boolean(card.querySelector('[data-ceami-edit-submission]')));
-      if (title === cachedTitle && cachedForm && allDecorated) return;
+      if (formId === cachedFormId && title === cachedTitle && cachedForm && allDecorated) return;
 
       loading = true;
       try {
-        if (title !== cachedTitle || !cachedForm) {
-          const { data: formData } = await supabase
+        if (formId !== cachedFormId || title !== cachedTitle || !cachedForm) {
+          const formQuery = supabase
             .from('forms')
-            .select('id, title, slug')
-            .eq('title', title)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .select('id, title, slug');
+          const { data: formData } = formId
+            ? await formQuery.eq('id', formId).maybeSingle()
+            : await formQuery.eq('title', title).order('created_at', { ascending: false }).limit(1).maybeSingle();
           if (!formData || stopped) return;
 
           cachedForm = formData as FormLite;
+          cachedFormId = cachedForm.id;
           cachedTitle = title;
 
           const [{ data: fieldData }, { data: submissionData }] = await Promise.all([

@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
 
 export default function FormSubmissionDeleteEnhancement() {
   useEffect(() => {
     if (!window.location.pathname.startsWith('/formularios')) return;
 
-    const supabase = createClient();
     let busy = false;
     let currentSubmissionId = '';
 
@@ -65,11 +63,13 @@ export default function FormSubmissionDeleteEnhancement() {
           button.textContent = 'Excluindo...';
 
           try {
-            const { error } = await supabase
-              .from('form_submissions')
-              .delete()
-              .eq('id', submissionId);
-            if (error) throw error;
+            const response = await fetch('/api/admin/form-submissions', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ submissionId }),
+            });
+            const payload = await response.json().catch(() => ({})) as { error?: string };
+            if (!response.ok) throw new Error(payload.error || 'Não foi possível excluir a inscrição.');
 
             window.alert('Inscrição excluída com sucesso.');
             window.location.reload();

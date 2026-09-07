@@ -206,6 +206,7 @@ export default function FormulariosClient() {
   const [responseQuery, setResponseQuery] = useState('');
   const [responseFilters, setResponseFilters] = useState<Record<string, string>>({});
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+  const [deletingSubmissionId, setDeletingSubmissionId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadData();
@@ -430,6 +431,37 @@ export default function FormulariosClient() {
     }
   }
 
+  async function deleteSubmission(submission: SubmissionRow) {
+    if (deletingSubmissionId) return;
+
+    const name = submission.respondent_name || answerText(submission.answers?.nome_completo);
+    if (!window.confirm(`Excluir definitivamente a inscrição de ${name}?\n\nEssa ação não pode ser desfeita.`)) return;
+
+    setDeletingSubmissionId(submission.id);
+    try {
+      const response = await fetch('/api/admin/form-submissions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+
+      if (!response.ok) {
+        setToast(payload.error || 'Não foi possível excluir a inscrição');
+        return;
+      }
+
+      setSubmissions((current) => current.filter((item) => item.id !== submission.id));
+      setSelectedSubmissionId(null);
+      setToast('Inscrição excluída');
+      window.dispatchEvent(new CustomEvent('ceami-form-submission-deleted', {
+        detail: { id: submission.id },
+      }));
+    } finally {
+      setDeletingSubmissionId(null);
+    }
+  }
+
   function exportCsv(form: FormRow) {
     const formFields = fields.filter((field) => field.form_id === form.id).sort((a, b) => a.sort_order - b.sort_order);
     const rows = submissions.filter((submission) => submission.form_id === form.id);
@@ -588,7 +620,7 @@ export default function FormulariosClient() {
           </footer>
         </section>
       ) : !loadError && responseForm ? (
-        <section className="forms-responses">
+        <section className="forms-responses" data-form-id={responseForm.id}>
           <div className="forms-responses-head">
             <div>
               <span>INSCRIÇÕES RECEBIDAS</span>
@@ -650,7 +682,7 @@ export default function FormulariosClient() {
                 const whatsappNumber = whatsappDigits.length >= 10 ? (whatsappDigits.startsWith('55') ? whatsappDigits : `55${whatsappDigits}`) : '';
                 const whatsappMessage = `Olá, ${name}! Tudo bem? Estou entrando em contato sobre sua inscrição em ${responseForm.title}.`;
                 return (
-                  <article className="forms-response-card" key={submission.id}>
+                  <article className="forms-response-card" key={submission.id} data-submission-id={submission.id}>
                     <div className="forms-response-avatar">{initials(name)}</div>
                     <div className="forms-response-person">
                       <div className="forms-response-name-row">
@@ -697,6 +729,20 @@ export default function FormulariosClient() {
                     </div>
                   ))}
                 </div>
+                <footer className="forms-response-modal-actions">
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={deletingSubmissionId === selectedSubmission.id}
+                    onClick={() => void deleteSubmission(selectedSubmission)}
+                  >
+                    {deletingSubmissionId === selectedSubmission.id
+                      ? <LoaderCircle className="forms-spin" size={17} />
+                      : <Trash2 size={17} />}
+                    {deletingSubmissionId === selectedSubmission.id ? 'Excluindo...' : 'Excluir inscrição'}
+                  </button>
+                  <button type="button" onClick={() => setSelectedSubmissionId(null)}>Fechar</button>
+                </footer>
               </section>
             </div>
           )}

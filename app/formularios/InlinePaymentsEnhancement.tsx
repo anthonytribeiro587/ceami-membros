@@ -346,16 +346,24 @@ export default function InlinePaymentsEnhancement() {
       if (cachedForm) decorate(cachedForm, cachedSubmissions, true);
     }
 
+    function submissionDeleted(event: Event) {
+      const custom = event as CustomEvent<{ id: string }>;
+      cachedSubmissions = cachedSubmissions.filter((submission) => submission.id !== custom.detail.id);
+      if (cachedForm) decorate(cachedForm, cachedSubmissions, true);
+    }
+
     schedule();
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('ceami-inline-payment-saved', paymentSaved);
+    window.addEventListener('ceami-form-submission-deleted', submissionDeleted);
 
     return () => {
       stopped = true;
       if (timer) window.clearTimeout(timer);
       observer.disconnect();
       window.removeEventListener('ceami-inline-payment-saved', paymentSaved);
+      window.removeEventListener('ceami-form-submission-deleted', submissionDeleted);
       clearInjected();
     };
   }, [supabase]);

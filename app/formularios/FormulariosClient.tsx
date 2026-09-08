@@ -903,7 +903,11 @@ export default function FormulariosClient() {
                           className={`ceami-inline-payment-button ${payment.status}`}
                           onClick={() => openPaymentEditor(submission)}
                         >
-                          <span>{payment.status === 'pending' ? 'R
+                          <span>{payment.status === 'pending' ? 'R$' : '✓'}</span>
+                          {payment.status === 'pending' ? 'Marcar como pago' : 'Editar pagamento'}
+                        </button>
+                      )}
+                    </div>
                   </article>
                 );
               })}

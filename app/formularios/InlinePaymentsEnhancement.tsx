@@ -143,6 +143,53 @@ export default function InlinePaymentsEnhancement() {
 
   useEffect(() => {
     let stopped = false;
+
+    async function openNativePayment(event: Event) {
+      const custom = event as CustomEvent<{ formId?: string; submissionId?: string }>;
+      const formId = custom.detail?.formId || '';
+      const submissionId = custom.detail?.submissionId || '';
+      if (!formId || !submissionId) return;
+
+      const [{ data: formData }, { data: submissionData }] = await Promise.all([
+        supabase
+          .from('forms')
+          .select('id, title, slug, price')
+          .eq('id', formId)
+          .maybeSingle(),
+        supabase
+          .from('form_submissions')
+          .select('id, respondent_name, respondent_phone, answers, created_at')
+          .eq('id', submissionId)
+          .eq('form_id', formId)
+          .maybeSingle(),
+      ]);
+
+      if (stopped || !formData || !submissionData) return;
+
+      const form = formData as FormLite;
+      const submission = submissionData as SubmissionLite;
+      const due = dueForSubmission(form, submission);
+      if (due <= 0) return;
+
+      const material = form.slug === SEMINAR_SLUG ? materialInfo(submission.answers) : null;
+      setEditor({
+        submissionId: submission.id,
+        name: submission.respondent_name || 'Inscrição',
+        price: due,
+        material: material?.label || 'Inscrição',
+        payment: paymentFromAnswers(submission.answers),
+      });
+    }
+
+    window.addEventListener('ceami-open-payment', openNativePayment as EventListener);
+    return () => {
+      stopped = true;
+      window.removeEventListener('ceami-open-payment', openNativePayment as EventListener);
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    let stopped = false;
     let timer: number | null = null;
     let cachedTitle = '';
     let cachedFormId = '';
@@ -188,7 +235,7 @@ export default function InlinePaymentsEnhancement() {
 
     function renderOverview(form: FormLite, submissions: SubmissionLite[]) {
       const metrics = document.querySelector('.forms-response-metrics');
-      if (!metrics || document.querySelector('[data-ceami-payment-overview]')) return;
+      if (!metrics || document.querySelector('[data-ceami-native-payment-overview], [data-ceami-payment-overview]')) return;
 
       const chargeable = submissions.filter((submission) => dueForSubmission(form, submission) > 0);
       if (!chargeable.length && form.slug !== SEMINAR_SLUG) return;
@@ -240,7 +287,7 @@ export default function InlinePaymentsEnhancement() {
       const used = new Set<string>();
 
       cards.forEach((card) => {
-        if (card.querySelector('[data-ceami-payment-status]')) return;
+        if (card.querySelector('[data-ceami-native-payment-status], [data-ceami-payment-status]')) return;
         const submission = matchSubmission(card, submissions, used);
         if (!submission) return;
         used.add(submission.id);

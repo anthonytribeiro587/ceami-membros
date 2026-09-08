@@ -102,6 +102,53 @@ export default function EditSubmissionEnhancement() {
 
   useEffect(() => {
     let stopped = false;
+
+    async function openNativeEditor(event: Event) {
+      const custom = event as CustomEvent<{ formId?: string; submissionId?: string }>;
+      const formId = custom.detail?.formId || '';
+      const submissionId = custom.detail?.submissionId || '';
+      if (!formId || !submissionId) return;
+
+      const [{ data: formData }, { data: fieldData }, { data: submissionData }] = await Promise.all([
+        supabase
+          .from('forms')
+          .select('id, title, slug')
+          .eq('id', formId)
+          .maybeSingle(),
+        supabase
+          .from('form_fields')
+          .select('id, key, label, field_type, required, placeholder, options, sort_order')
+          .eq('form_id', formId)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('form_submissions')
+          .select('id, form_id, respondent_name, respondent_phone, answers, created_at')
+          .eq('id', submissionId)
+          .eq('form_id', formId)
+          .maybeSingle(),
+      ]);
+
+      if (stopped || !formData || !submissionData) return;
+
+      const submission = submissionData as SubmissionLite;
+      const correction = correctionFromAnswers(submission.answers);
+      setEditor({
+        form: formData as FormLite,
+        fields: (fieldData || []) as FieldLite[],
+        submission,
+        correctionMessage: correction?.message || '',
+      });
+    }
+
+    window.addEventListener('ceami-open-edit-submission', openNativeEditor as EventListener);
+    return () => {
+      stopped = true;
+      window.removeEventListener('ceami-open-edit-submission', openNativeEditor as EventListener);
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    let stopped = false;
     let timer: number | null = null;
     let loading = false;
     let cachedTitle = '';
@@ -163,6 +210,7 @@ export default function EditSubmissionEnhancement() {
       const used = new Set<string>();
 
       for (const card of cards) {
+        if (card.querySelector('[data-ceami-native-edit-submission]')) continue;
         const submission = matchSubmission(card, submissions, used);
         if (!submission) continue;
         used.add(submission.id);
@@ -213,7 +261,7 @@ export default function EditSubmissionEnhancement() {
       if (!responses || !title) return;
 
       const allDecorated = Array.from(responses.querySelectorAll('.forms-response-card'))
-        .every((card) => Boolean(card.querySelector('[data-ceami-edit-submission]')));
+        .every((card) => Boolean(card.querySelector('[data-ceami-native-edit-submission], [data-ceami-edit-submission]')));
       if (formId === cachedFormId && title === cachedTitle && cachedForm && allDecorated) return;
 
       loading = true;

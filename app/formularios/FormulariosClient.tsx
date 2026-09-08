@@ -306,6 +306,23 @@ export default function FormulariosClient() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    function paymentSaved(event: Event) {
+      const custom = event as CustomEvent<{ id?: string; payment?: PaymentMeta }>;
+      const id = custom.detail?.id;
+      const payment = custom.detail?.payment;
+      if (!id || !payment) return;
+      setSubmissions((current) => current.map((submission) => (
+        submission.id === id
+          ? { ...submission, answers: { ...(submission.answers || {}), __payment: payment } }
+          : submission
+      )));
+    }
+
+    window.addEventListener('ceami-inline-payment-saved', paymentSaved as EventListener);
+    return () => window.removeEventListener('ceami-inline-payment-saved', paymentSaved as EventListener);
+  }, []);
+
   async function loadData() {
     setLoading(true);
     setLoadError('');

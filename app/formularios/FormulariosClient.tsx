@@ -192,6 +192,94 @@ function localDateKey(value: string) {
   return new Date(value).toLocaleDateString('en-CA');
 }
 
+type PaymentStatus = 'pending' | 'paid' | 'exempt';
+type PaymentMethod = 'pix' | 'cash' | 'card' | 'other';
+
+type PaymentMeta = {
+  status: PaymentStatus;
+  method: PaymentMethod | null;
+  amount: number | null;
+};
+
+const SEMINAR_SLUG = 'seminario-apocalipse-2026';
+
+function paymentFromAnswers(answers: Record<string, unknown> | null | undefined): PaymentMeta {
+  const raw = answers?.__payment;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { status: 'pending', method: null, amount: null };
+  }
+  const data = raw as Record<string, unknown>;
+  const status = data.status === 'paid' || data.status === 'exempt' ? data.status : 'pending';
+  const method = data.method === 'pix' || data.method === 'cash' || data.method === 'card' || data.method === 'other'
+    ? data.method
+    : null;
+  const parsedAmount = data.amount == null || data.amount === '' ? Number.NaN : Number(data.amount);
+  return {
+    status,
+    method,
+    amount: Number.isFinite(parsedAmount) ? parsedAmount : null,
+  };
+}
+
+function priceFromChoice(value: unknown) {
+  const text = String(value ?? '').trim();
+  const normalized = normalizeSearch(text);
+  if (!text || normalized.includes('sem custo') || normalized.includes('gratuit')) return 0;
+  const match = text.match(/R\$\s*([0-9.]+(?:,[0-9]{1,2})?)/i);
+  if (match?.[1]) {
+    let raw = match[1];
+    if (raw.includes(',') && raw.includes('.')) raw = raw.replace(/\./g, '').replace(',', '.');
+    else if (raw.includes(',')) raw = raw.replace(',', '.');
+    const number = Number(raw);
+    if (Number.isFinite(number)) return number;
+  }
+  if (normalized === 'sim' || normalized.includes('fisica')) return 35;
+  if (normalized.includes('pdf') || normalized.includes('digital')) return 10;
+  return 0;
+}
+
+function materialInfo(answers: Record<string, unknown> | null | undefined) {
+  const value = String(answers?.apostila ?? '').trim();
+  const price = priceFromChoice(value);
+  const normalized = normalizeSearch(value);
+  let label = value
+    .replace(/\s*\(?R\$\s*[0-9.]+(?:,[0-9]{1,2})?\)?\s*$/i, '')
+    .replace(/\s*[-–—•]?\s*sem custo\s*$/i, '')
+    .trim();
+  if (!label) label = normalized === 'nao' || normalized.includes('sem custo') ? 'Sem apostila' : value || 'Sem apostila';
+  return { label, price };
+}
+
+function dueForSubmission(form: Pick<FormRow, 'slug' | 'price'>, submission: SubmissionRow) {
+  if (form.slug === SEMINAR_SLUG) return materialInfo(submission.answers).price;
+  return Number(form.price) || 0;
+}
+
+function money(value: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+}
+
+function paymentMethodLabel(method: PaymentMethod | null) {
+  return ({ pix: 'Pix', cash: 'Dinheiro', card: 'Cartão', other: 'Outro' } as Record<string, string>)[method || ''] || '';
+}
+
+function paymentStatusLabel(payment: PaymentMeta, due: number) {
+  if (due <= 0) return 'Sem custo';
+  if (payment.status === 'paid') {
+    return `Pago${payment.method ? ` • ${paymentMethodLabel(payment.method)}` : ''}${payment.amount != null ? ` • ${money(payment.amount)}` : ''}`;
+  }
+  if (payment.status === 'exempt') return 'Isento';
+  return `Pendente • ${money(due)}`;
+}
+
+function correctionFromAnswers(answers: Record<string, unknown> | null | undefined) {
+  const raw = answers?.__correction_request;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const data = raw as Record<string, unknown>;
+  if (data.status !== 'open') return null;
+  return String(data.message ?? '').trim();
+}
+
 export default function FormulariosClient() {
   const supabase = useMemo(() => createClient(), []);
   const [forms, setForms] = useState<FormRow[]>([]);
@@ -431,6 +519,18 @@ export default function FormulariosClient() {
     }
   }
 
+  function openSubmissionEditor(submission: SubmissionRow) {
+    window.dispatchEvent(new CustomEvent('ceami-open-edit-submission', {
+      detail: { formId: submission.form_id, submissionId: submission.id },
+    }));
+  }
+
+  function openPaymentEditor(submission: SubmissionRow) {
+    window.dispatchEvent(new CustomEvent('ceami-open-payment', {
+      detail: { formId: submission.form_id, submissionId: submission.id },
+    }));
+  }
+
   async function deleteSubmission(submission: SubmissionRow) {
     if (deletingSubmissionId) return;
 
@@ -497,6 +597,34 @@ export default function FormulariosClient() {
   const apostilaNo = apostilaField
     ? responseRows.filter((submission) => normalizeSearch(submission.answers?.[apostilaField.key]) === 'nao').length
     : 0;
+
+  const chargeableRows = responseForm
+    ? responseRows.filter((submission) => dueForSubmission(responseForm, submission) > 0)
+    : [];
+  const paidRows = chargeableRows.filter((submission) => paymentFromAnswers(submission.answers).status === 'paid');
+  const exemptRows = chargeableRows.filter((submission) => paymentFromAnswers(submission.answers).status === 'exempt');
+  const pendingRows = chargeableRows.filter((submission) => paymentFromAnswers(submission.answers).status === 'pending');
+  const receivedTotal = responseForm
+    ? paidRows.reduce((total, submission) => {
+        const payment = paymentFromAnswers(submission.answers);
+        return total + (payment.amount ?? dueForSubmission(responseForm, submission));
+      }, 0)
+    : 0;
+  const collectibleTotal = responseForm
+    ? chargeableRows
+        .filter((submission) => paymentFromAnswers(submission.answers).status !== 'exempt')
+        .reduce((total, submission) => total + dueForSubmission(responseForm, submission), 0)
+    : 0;
+  const materialSummary = new Map<string, { label: string; price: number; count: number }>();
+  if (responseForm?.slug === SEMINAR_SLUG) {
+    for (const submission of responseRows) {
+      const material = materialInfo(submission.answers);
+      const key = `${material.label}|${material.price}`;
+      const existing = materialSummary.get(key);
+      if (existing) existing.count += 1;
+      else materialSummary.set(key, { ...material, count: 1 });
+    }
+  }
 
   const filteredResponseRows = useMemo(() => {
     const normalizedQuery = normalizeSearch(responseQuery.trim());
@@ -646,6 +774,43 @@ export default function FormulariosClient() {
             )}
           </div>
 
+          {responseForm && (chargeableRows.length > 0 || responseForm.slug === SEMINAR_SLUG) && (
+            <div className="ceami-inline-payment-overview" data-ceami-native-payment-overview="true">
+              {responseForm.slug === SEMINAR_SLUG && Array.from(materialSummary.values()).map((item) => (
+                <div key={`${item.label}|${item.price}`}>
+                  <span>{item.label}</span>
+                  <strong>{item.count}</strong>
+                  <small>{item.price > 0 ? `${money(item.price)} cada` : 'sem custo'}</small>
+                </div>
+              ))}
+              {responseForm.slug === SEMINAR_SLUG ? (
+                <>
+                  <div className="pending">
+                    <span>Pagamentos</span>
+                    <strong>{paidRows.length} pagos • {pendingRows.length} pendentes</strong>
+                    {exemptRows.length > 0 && <small>{exemptRows.length} isento(s)</small>}
+                  </div>
+                  <div className="money">
+                    <span>Recebido</span>
+                    <strong>{money(receivedTotal)}</strong>
+                    <small>de {money(collectibleTotal)} a receber</small>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div><span>Pagamentos</span><strong>{paidRows.length} pagos</strong></div>
+                  <div className="pending"><span>Pendentes</span><strong>{pendingRows.length}</strong></div>
+                  {exemptRows.length > 0 && <div><span>Isentos</span><strong>{exemptRows.length}</strong></div>}
+                  <div className="money">
+                    <span>Recebido</span>
+                    <strong>{money(receivedTotal)}</strong>
+                    <small>de {money(collectibleTotal)} a receber</small>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="forms-response-toolbar">
             <label className="forms-response-search">
               <Search size={18} />
@@ -681,6 +846,10 @@ export default function FormulariosClient() {
                 const whatsappDigits = phoneText.replace(/\D/g, '');
                 const whatsappNumber = whatsappDigits.length >= 10 ? (whatsappDigits.startsWith('55') ? whatsappDigits : `55${whatsappDigits}`) : '';
                 const whatsappMessage = `Olá, ${name}! Tudo bem? Estou entrando em contato sobre sua inscrição em ${responseForm.title}.`;
+                const payment = paymentFromAnswers(submission.answers);
+                const due = dueForSubmission(responseForm, submission);
+                const material = responseForm.slug === SEMINAR_SLUG ? materialInfo(submission.answers) : null;
+                const correctionMessage = correctionFromAnswers(submission.answers);
                 return (
                   <article className="forms-response-card" key={submission.id} data-submission-id={submission.id}>
                     <div className="forms-response-avatar">{initials(name)}</div>
@@ -688,6 +857,18 @@ export default function FormulariosClient() {
                       <div className="forms-response-name-row">
                         <div><h3>{name}</h3>{phoneText && <span><Phone size={14} />{phoneText}</span>}</div>
                         <time>{new Date(submission.created_at).toLocaleString('pt-BR')}</time>
+                      </div>
+                      {correctionMessage && (
+                        <div className="ceami-correction-badge" data-ceami-native-correction-badge={submission.id}>
+                          <span>!</span><strong>Correção solicitada</strong>
+                        </div>
+                      )}
+                      <div
+                        className={`ceami-inline-payment-status ${due <= 0 ? 'free' : payment.status}`}
+                        data-ceami-native-payment-status={submission.id}
+                      >
+                        <span />
+                        <strong>{paymentStatusLabel(payment, due)}</strong>
                       </div>
                       {responseChoiceFields.length > 0 && (
                         <div className="forms-response-tags">
@@ -697,10 +878,120 @@ export default function FormulariosClient() {
                           })}
                         </div>
                       )}
+                      {material && (
+                        <div className="ceami-inline-material" data-ceami-native-material-status={submission.id}>
+                          <strong>{material.label}</strong>
+                          <span>{material.price > 0 ? money(material.price) : 'Sem custo'}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="forms-response-actions">
                       {whatsappNumber && <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noreferrer"><MessageCircle size={16} />WhatsApp</a>}
                       <button type="button" onClick={() => setSelectedSubmissionId(submission.id)}><Eye size={16} />Ver respostas<ChevronRight size={15} /></button>
+                      <button
+                        type="button"
+                        data-ceami-native-edit-submission={submission.id}
+                        className={correctionMessage ? 'ceami-edit-submission attention' : 'ceami-edit-submission'}
+                        onClick={() => openSubmissionEditor(submission)}
+                      >
+                        <span>✎</span>{correctionMessage ? 'Corrigir inscrição' : 'Editar inscrição'}
+                      </button>
+                      {due > 0 && (
+                        <button
+                          type="button"
+                          data-ceami-native-payment-button={submission.id}
+                          className={`ceami-inline-payment-button ${payment.status}`}
+                          onClick={() => openPaymentEditor(submission)}
+                        >
+                          <span>{payment.status === 'pending' ? 'R
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="forms-empty"><Search /><h3>Nenhuma inscrição encontrada</h3><p>Não há respostas que correspondam aos filtros escolhidos.</p></div>
+          )}
+
+          {selectedSubmission && (
+            <div className="forms-response-modal-overlay" role="presentation" onMouseDown={(e) => { if (e.currentTarget === e.target) setSelectedSubmissionId(null); }}>
+              <section className="forms-response-modal" role="dialog" aria-modal="true" aria-label="Detalhes da inscrição">
+                <header>
+                  <div>
+                    <span>DETALHES DA INSCRIÇÃO</span>
+                    <h3>{selectedSubmission.respondent_name || answerText(selectedSubmission.answers?.nome_completo)}</h3>
+                    <p>Enviado em {new Date(selectedSubmission.created_at).toLocaleString('pt-BR')}</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedSubmissionId(null)} aria-label="Fechar"><X /></button>
+                </header>
+                <div className="forms-response-detail-list">
+                  {responseFields.map((field) => (
+                    <div key={field.id}>
+                      <span>{field.label}</span>
+                      <strong>{answerText(selectedSubmission.answers?.[field.key])}</strong>
+                    </div>
+                  ))}
+                </div>
+                <footer className="forms-response-modal-actions">
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={deletingSubmissionId === selectedSubmission.id}
+                    onClick={() => void deleteSubmission(selectedSubmission)}
+                  >
+                    {deletingSubmissionId === selectedSubmission.id
+                      ? <LoaderCircle className="forms-spin" size={17} />
+                      : <Trash2 size={17} />}
+                    {deletingSubmissionId === selectedSubmission.id ? 'Excluindo...' : 'Excluir inscrição'}
+                  </button>
+                  <button type="button" onClick={() => setSelectedSubmissionId(null)}>Fechar</button>
+                </footer>
+              </section>
+            </div>
+          )}
+        </section>
+      ) : !loadError ? (
+        <>
+          <section className="forms-summary">
+            <div><ClipboardList /><span><strong>{forms.length}</strong> formulários</span></div>
+            <div><UsersRound /><span><strong>{submissions.length}</strong> respostas recebidas</span></div>
+            <div><span className="forms-status-dot" /><span><strong>{forms.filter((form) => form.active).length}</strong> publicados</span></div>
+          </section>
+
+          <section className="forms-list">
+            {forms.length ? forms.map((form) => {
+              const count = submissions.filter((submission) => submission.form_id === form.id).length;
+              return (
+                <article className="forms-card" key={form.id}>
+                  <div className="forms-card-main">
+                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span><small>{count} resposta{count === 1 ? '' : 's'}</small></div>
+                    <h2>{form.title}</h2>
+                    <p>{form.description || 'Sem descrição.'}</p>
+                    <code>/f/{form.slug}</code>
+                  </div>
+                  <div className="forms-card-actions">
+                    <button type="button" onClick={() => void copyLink(form)}><Copy size={16} />Copiar link</button>
+                    <a href={`/f/${form.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={16} />Abrir</a>
+                    <button type="button" className="responses-primary" onClick={() => openResponses(form.id)}><UsersRound size={16} />Ver inscrições</button>
+                    <button type="button" onClick={() => editForm(form)}><Pencil size={16} />Editar</button>
+                    <button type="button" className="secondary" onClick={() => void toggleActive(form)}>{form.active ? 'Pausar' : 'Publicar'}</button>
+                  </div>
+                </article>
+              );
+            }) : (
+              <div className="forms-empty"><ClipboardList /><h3>Nenhum formulário criado</h3><p>Crie o primeiro e o sistema gera o link público automaticamente.</p><button type="button" onClick={() => setDraft(blankDraft())}><Plus size={17} />Criar formulário</button></div>
+            )}
+          </section>
+        </>
+      ) : null}
+
+      {toast && <div className="forms-toast">{toast}</div>}
+    </div>
+  );
+}
+ : '✓'}</span>
+                          {payment.status === 'pending' ? 'Marcar como pago' : 'Editar pagamento'}
+                        </button>
+                      )}
                     </div>
                   </article>
                 );

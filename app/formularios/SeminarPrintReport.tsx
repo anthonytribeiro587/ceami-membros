@@ -161,9 +161,9 @@ export default function SeminarPrintReport() {
           <tr>
             <td class="number">${index + 1}</td>
             <td class="name">${escapeHtml(nameOf(submission))}</td>
-            <td>${escapeHtml(materialLabel(submission.answers))}</td>
+            <td class="center">${escapeHtml(materialLabel(submission.answers))}</td>
             <td class="money">${escapeHtml(amount)}</td>
-            <td>${escapeHtml(paymentMethod)}</td>
+            <td class="center">${escapeHtml(paymentMethod)}</td>
             <td class="status ${paymentStatus.toLowerCase()}">${escapeHtml(paymentStatus)}</td>
             <td class="attendance"></td>
           </tr>
@@ -179,35 +179,42 @@ export default function SeminarPrintReport() {
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { size: A4 portrait; margin: 10mm; }
+    @page { size: A4 landscape; margin: 9mm; }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; background: #fff; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #171717; background: #fff; }
     .sheet { width: 100%; }
-    h1 { margin: 0 0 5mm; text-align: center; font-size: 16px; letter-spacing: .25px; color: #7b2d2d; }
-    .meta { display: flex; flex-wrap: wrap; gap: 5mm; margin: 0 0 4mm; font-size: 9px; }
-    .meta strong { font-size: 10px; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8.6px; }
-    th, td { border: 1px solid #222; padding: 2.2mm 1.5mm; vertical-align: middle; }
-    th { background: #f0f0f0; text-transform: uppercase; font-size: 7.8px; letter-spacing: .2px; }
-    td { height: 8mm; }
-    .number { width: 5%; text-align: center; }
-    .name { width: 29%; font-weight: 600; }
-    th:nth-child(3) { width: 13%; }
-    th:nth-child(4) { width: 11%; }
-    th:nth-child(5) { width: 12%; }
-    th:nth-child(6) { width: 14%; }
-    th:nth-child(7) { width: 16%; }
-    .money { text-align: right; white-space: nowrap; }
-    .status { font-weight: 700; text-align: center; }
+    h1 { margin: 0 0 3.5mm; text-align: center; font-size: 15px; letter-spacing: .2px; color: #7b2d2d; }
+    .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 3mm 7mm; margin: 0 0 3.5mm; padding: 2.2mm 3mm; border: 1px solid #d4d4d4; border-radius: 2mm; font-size: 8.5px; }
+    .meta span { white-space: nowrap; }
+    .meta strong { font-size: 9.5px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9px; line-height: 1.15; }
+    col.number { width: 4.5%; }
+    col.name { width: 30.5%; }
+    col.booklet { width: 12%; }
+    col.value { width: 10%; }
+    col.method { width: 12%; }
+    col.payment { width: 14%; }
+    col.attendance { width: 17%; }
+    th, td { border: .45mm solid #4a4a4a; vertical-align: middle; }
+    th { height: 8mm; padding: 1.5mm 1.7mm; background: #ededed; text-transform: uppercase; text-align: center; font-size: 8px; font-weight: 800; letter-spacing: .15px; white-space: nowrap; }
+    td { height: 7.4mm; padding: 1.25mm 1.8mm; overflow-wrap: break-word; }
+    tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .number { text-align: center; font-weight: 700; }
+    .name { text-align: left; font-weight: 600; padding-left: 2.2mm; }
+    .center { text-align: center; }
+    .money { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .status { font-weight: 800; text-align: center; white-space: nowrap; }
     .pago { color: #1e5d2b; }
     .pendente { color: #8b4f00; }
-    .attendance { min-height: 8mm; }
-    .footer { margin-top: 3mm; display: flex; justify-content: space-between; font-size: 7.5px; color: #555; }
-    .print-actions { margin: 0 0 5mm; display: flex; justify-content: flex-end; }
+    .attendance { background: #fff; }
+    .footer { margin-top: 2.5mm; display: flex; justify-content: space-between; font-size: 7.5px; color: #666; }
+    .print-actions { margin: 0 0 4mm; display: flex; justify-content: flex-end; }
     .print-actions button { border: 0; border-radius: 8px; background: #5d3c1e; color: #fff; font-weight: 700; padding: 9px 14px; cursor: pointer; }
+    thead { display: table-header-group; }
     @media print {
       .print-actions { display: none !important; }
       h1 { margin-top: 0; }
+      .meta { border-color: #bbb; }
     }
   </style>
 </head>
@@ -222,13 +229,22 @@ export default function SeminarPrintReport() {
       <span>Gerado em: <strong>${escapeHtml(generatedAt)}</strong></span>
     </div>
     <table>
+      <colgroup>
+        <col class="number" />
+        <col class="name" />
+        <col class="booklet" />
+        <col class="value" />
+        <col class="method" />
+        <col class="payment" />
+        <col class="attendance" />
+      </colgroup>
       <thead>
         <tr>
           <th>Nº</th>
           <th>Nome</th>
           <th>Apostila</th>
           <th>Valor</th>
-          <th>F. Pag.</th>
+          <th>Forma de pag.</th>
           <th>Pagamento</th>
           <th>Participação</th>
         </tr>

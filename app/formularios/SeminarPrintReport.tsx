@@ -102,12 +102,13 @@ export default function SeminarPrintReport() {
     let checking = false;
 
     async function printReport(formId: string) {
-      const popup = window.open('', '_blank', 'noopener,noreferrer');
+      const popup = window.open('', '_blank');
       if (!popup) {
         window.alert('O navegador bloqueou a janela de impressão. Libere pop-ups para este site e tente novamente.');
         return;
       }
 
+      try { popup.opener = null; } catch { /* navegador pode impedir, sem impacto na impressão */ }
       popup.document.write('<!doctype html><html><head><title>Gerando lista...</title></head><body style="font-family:Arial,sans-serif;padding:24px">Gerando lista...</body></html>');
       popup.document.close();
 

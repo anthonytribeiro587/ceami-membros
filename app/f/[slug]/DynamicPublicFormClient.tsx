@@ -10,6 +10,11 @@ import {
   MessageSquareWarning,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  SEMINAR_APOCALIPSE_SLUG,
+  isSeminarPdfAvailable,
+  seminarChoiceAvailability,
+} from '@/lib/seminar-apocalipse';
 
 type FieldType = 'text' | 'phone' | 'email' | 'textarea' | 'yes_no' | 'select';
 
@@ -35,7 +40,6 @@ type PublicForm = {
   form_fields: FormField[] | null;
 };
 
-const SEMINAR_SLUG = 'seminario-apocalipse-2026';
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -143,6 +147,14 @@ export default function DynamicPublicFormClient({ slug }: { slug: string }) {
     event.preventDefault();
     if (!form || sending) return;
 
+    if (form.slug === SEMINAR_APOCALIPSE_SLUG && answers.apostila) {
+      const availability = seminarChoiceAvailability(answers.apostila);
+      if (!availability.available) {
+        setError(availability.message);
+        return;
+      }
+    }
+
     setSending(true);
     setError('');
     const response = await fetch(`/api/public/forms/${encodeURIComponent(form.slug)}/submit`, {
@@ -209,7 +221,8 @@ export default function DynamicPublicFormClient({ slug }: { slug: string }) {
     );
   }
 
-  const isSeminar = form.slug === SEMINAR_SLUG;
+  const isSeminar = form.slug === SEMINAR_APOCALIPSE_SLUG;
+  const seminarPdfAvailable = isSeminarPdfAvailable();
   const chosenMaterial = answers.apostila || '';
   const chosenPrice = parsePrice(chosenMaterial);
 
@@ -313,18 +326,39 @@ export default function DynamicPublicFormClient({ slug }: { slug: string }) {
                 return (
                   <fieldset className="public-form-field public-form-choice public-form-booklet-choice" key={field.id}>
                     <legend>{field.label}{field.required && <em>*</em>}</legend>
+                    {isSeminar && field.key === 'apostila' && (
+                      <p className="public-form-booklet-notice">
+                        <strong>Apostila física: indisponível.</strong>{' '}
+                        {seminarPdfAvailable
+                          ? 'Apostila em PDF disponível para novas inscrições até quinta-feira, 10/09.'
+                          : 'As inscrições para a apostila em PDF foram encerradas em 10/09.'}
+                      </p>
+                    )}
                     <div>
                       {choices.map((option) => {
                         const presentation = optionPresentation(option);
+                        const availability = isSeminar && field.key === 'apostila'
+                          ? seminarChoiceAvailability(option)
+                          : { available: true, shortLabel: '' };
+                        const unavailable = !availability.available;
+
                         return (
                           <button
                             key={option}
                             type="button"
-                            className={value === option ? 'active' : ''}
-                            onClick={() => setAnswer(field.key, option)}
+                            className={[value === option ? 'active' : '', unavailable ? 'unavailable' : ''].filter(Boolean).join(' ')}
+                            disabled={unavailable}
+                            aria-disabled={unavailable}
+                            onClick={() => {
+                              if (!unavailable) setAnswer(field.key, option);
+                            }}
                           >
                             <FileText size={17} />
-                            <span><b>{presentation.title}</b>{presentation.detail && <small>{presentation.detail}</small>}</span>
+                            <span>
+                              <b>{presentation.title}</b>
+                              {presentation.detail && <small>{presentation.detail}</small>}
+                              {availability.shortLabel && <small className="availability">{availability.shortLabel}</small>}
+                            </span>
                           </button>
                         );
                       })}
@@ -396,7 +430,7 @@ export default function DynamicPublicFormClient({ slug }: { slug: string }) {
       </section>
 
       <style>{`
-        .public-form-booklet-choice>div{grid-template-columns:1fr!important}.public-form-booklet-choice button{justify-content:flex-start!important;text-align:left;padding:10px 13px;gap:10px;display:flex;align-items:center}.public-form-booklet-choice button>span{display:grid;gap:2px}.public-form-booklet-choice button b{font-size:14px}.public-form-booklet-choice button small{font-size:12px;font-weight:700;color:#8a7660}.public-form-booklet-choice button.active small{color:#704b1e}
+        .public-form-booklet-choice>div{grid-template-columns:1fr!important}.public-form-booklet-choice button{justify-content:flex-start!important;text-align:left;padding:10px 13px;gap:10px;display:flex;align-items:center}.public-form-booklet-choice button>span{display:grid;gap:2px}.public-form-booklet-choice button b{font-size:14px}.public-form-booklet-choice button small{font-size:12px;font-weight:700;color:#8a7660}.public-form-booklet-choice button.active small{color:#704b1e}.public-form-booklet-choice button.unavailable{opacity:.58;cursor:not-allowed;background:#f2f0ed!important;border-color:#ddd7d0!important;color:#756d66!important}.public-form-booklet-choice button.unavailable small{color:#8a6157!important}.public-form-booklet-choice .availability{font-weight:900!important}.public-form-booklet-notice{margin:0 0 9px;padding:10px 11px;border-radius:10px;background:#fff7e8;border:1px solid #efd09a;color:#755018;font-size:12px;line-height:1.45}.public-form-booklet-notice strong{font-weight:900}
       `}</style>
 
       <p className="public-form-footer">Comunidade CEAMI ⛪</p>

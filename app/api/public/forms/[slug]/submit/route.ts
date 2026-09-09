@@ -6,6 +6,10 @@ import {
   readLimitedJson,
   requestComesFromSameSite,
 } from '@/lib/server/security';
+import {
+  SEMINAR_APOCALIPSE_SLUG,
+  seminarChoiceAvailability,
+} from '@/lib/seminar-apocalipse';
 
 type FormField = {
   key: string;
@@ -112,6 +116,13 @@ export async function POST(
       }
 
       normalized[field.key] = value;
+    }
+
+    if (slug === SEMINAR_APOCALIPSE_SLUG && normalized.apostila) {
+      const availability = seminarChoiceAvailability(normalized.apostila);
+      if (!availability.available) {
+        return NextResponse.json({ error: availability.message }, { status: 409 });
+      }
     }
 
     const nameField = (fields || []).find((field: FormField) =>

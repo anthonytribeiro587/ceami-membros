@@ -13,6 +13,7 @@ const PUBLIC_API_PATHS = [
 ];
 const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/formularios'];
 const ADMIN_API_PATHS = [
+  '/api/admin',
   '/api/birthdays/test',
   '/api/birthdays/official',
   '/api/birthdays/settings',

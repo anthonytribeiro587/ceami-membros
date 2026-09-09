@@ -5,6 +5,7 @@ import InlinePaymentsEnhancement from './InlinePaymentsEnhancement';
 import EditSubmissionEnhancement from './EditSubmissionEnhancement';
 import SeminarDataSync from './SeminarDataSync';
 import ResponseSortEnhancement from './ResponseSortEnhancement';
+import SeminarPrintReport from './SeminarPrintReport';
 import './formularios.css';
 
 export default async function FormulariosPage() {
@@ -16,6 +17,7 @@ export default async function FormulariosPage() {
       <EditSubmissionEnhancement />
       <SeminarDataSync />
       <ResponseSortEnhancement />
+      <SeminarPrintReport />
     </AdminRouteShell>
   );
 }

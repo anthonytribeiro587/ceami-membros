@@ -34,11 +34,10 @@ export default function ResponseSortEnhancement() {
       const list = document.querySelector('.forms-response-list');
       if (!list) return;
 
-      const cards = Array.from(list.querySelectorAll<HTMLElement>('.forms-response-card'));
-      if (cards.length < 2) return;
+      const currentCards = Array.from(list.querySelectorAll<HTMLElement>('.forms-response-card'));
+      if (currentCards.length < 2) return;
 
-      sorting = true;
-      cards.sort((a, b) => {
+      const sortedCards = [...currentCards].sort((a, b) => {
         const nameA = normalize(a.querySelector('.forms-response-name-row h3')?.textContent || '');
         const nameB = normalize(b.querySelector('.forms-response-name-row h3')?.textContent || '');
         const dateA = parsePtBrDate(a.querySelector('time')?.textContent || '');
@@ -50,8 +49,21 @@ export default function ResponseSortEnhancement() {
         return dateB - dateA;
       });
 
-      for (const card of cards) list.appendChild(card);
-      sorting = false;
+      // Não toca no DOM se a ordem já estiver correta. Antes, cada MutationObserver
+      // reapendava TODOS os cards mesmo sem mudança, gerando novas mutações em loop.
+      // No Safari/iPhone isso fazia o scroll anchoring reposicionar a página no topo.
+      const orderChanged = sortedCards.some((card, index) => card !== currentCards[index]);
+      if (!orderChanged) return;
+
+      sorting = true;
+      const scrollY = window.scrollY;
+      for (const card of sortedCards) list.appendChild(card);
+
+      // Preserva a posição visual durante uma troca de ordenação manual.
+      requestAnimationFrame(() => {
+        if (Math.abs(window.scrollY - scrollY) > 2) window.scrollTo(0, scrollY);
+        sorting = false;
+      });
     }
 
     function enhance() {
@@ -90,13 +102,18 @@ export default function ResponseSortEnhancement() {
     style.textContent = `
       .ceami-response-sort{min-width:170px}
       .ceami-response-sort select{min-width:170px}
+      .forms-response-list{overflow-anchor:auto}
       @media(max-width:700px){.ceami-response-sort,.ceami-response-sort select{width:100%;min-width:0}}
     `;
     document.head.appendChild(style);
 
     const schedule = () => {
+      if (sorting) return;
       if (scheduled) cancelAnimationFrame(scheduled);
-      scheduled = requestAnimationFrame(enhance);
+      scheduled = requestAnimationFrame(() => {
+        scheduled = 0;
+        enhance();
+      });
     };
 
     schedule();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runAutomation } from '@/lib/server/automation-runner';
+import { getEvolutionConnectionState } from '@/lib/server/evolution-guard';
 import {
   consumeRateLimit,
   getServiceClient,
@@ -35,6 +36,21 @@ export async function POST(request: NextRequest) {
     const automationId = String(body.automationId || '').trim();
     if (!automationId) {
       return NextResponse.json({ error: 'Automação não informada.' }, { status: 400 });
+    }
+
+    const connection = await getEvolutionConnectionState();
+    if (!connection.open) {
+      return NextResponse.json(
+        {
+          error:
+            'O WhatsApp da CEAMI não está conectado. O teste foi bloqueado para evitar que a mensagem fique presa na fila e seja enviada depois.',
+          connection: {
+            state: connection.state,
+            httpStatus: connection.httpStatus,
+          },
+        },
+        { status: 409 },
+      );
     }
 
     const result = await runAutomation(service, automationId, {

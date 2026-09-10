@@ -148,7 +148,8 @@ export async function cleanupStaleAutomationMessages(service: SupabaseClient) {
   const results: Array<Record<string, unknown>> = [];
   for (const row of (data || []) as AutomationRunRow[]) {
     const metadata = row.metadata || {};
-    if (metadata.staleCleanupAttemptedAt) continue;
+    // A limpeza é pontual: não fica tentando excluir a mesma mensagem a cada minuto.
+    if (metadata.staleCleanupAttemptedAt || metadata.staleCleanupHttpStatus) continue;
     if (!row.provider_message_id || !row.destination_group_id) continue;
 
     const deletion = await deleteEvolutionMessageForEveryone({
@@ -164,11 +165,6 @@ export async function cleanupStaleAutomationMessages(service: SupabaseClient) {
       staleCleanupHttpStatus: deletion.httpStatus,
       ...(deletion.error ? { staleCleanupError: deletion.error } : {}),
     };
-
-    // Em falhas transitórias, não marca como tentado para permitir nova tentativa no próximo cron.
-    if (deletion.httpStatus >= 500) {
-      delete nextMetadata.staleCleanupAttemptedAt;
-    }
 
     await service.from('automation_runs').update({ metadata: nextMetadata }).eq('id', row.id);
 

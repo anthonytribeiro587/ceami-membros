@@ -156,10 +156,9 @@ export async function cleanupStaleAutomationMessages(service: SupabaseClient) {
       remoteJid: row.destination_group_id,
     });
 
-    const attemptedAt = new Date().toISOString();
-    const nextMetadata = {
+    const nextMetadata: Record<string, unknown> = {
       ...metadata,
-      staleCleanupAttemptedAt: attemptedAt,
+      staleCleanupAttemptedAt: new Date().toISOString(),
       staleCleanupReason: 'Mensagens antigas de 05/09 e 06/09 liberadas fora da data em 10/09/2026.',
       staleCleanupDeleted: deletion.ok,
       staleCleanupHttpStatus: deletion.httpStatus,

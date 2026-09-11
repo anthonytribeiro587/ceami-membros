@@ -10,6 +10,7 @@ const PUBLIC_API_PATHS = [
   '/api/public/forms',
   '/api/birthdays/automatic',
   '/api/automations/automatic',
+  '/api/evolution-health-probe',
 ];
 const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/formularios'];
 const ADMIN_API_PATHS = [
@@ -57,7 +58,6 @@ export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Segurança fail-closed: uma configuração quebrada nunca libera o painel.
   if (!url || !key) {
     console.error('Supabase public environment variables are missing.');
     return unavailable();

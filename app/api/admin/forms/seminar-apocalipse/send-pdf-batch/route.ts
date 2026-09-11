@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUiRole } from '@/lib/server/current-profile';
 import { getEvolutionConnectionState } from '@/lib/server/evolution-guard';
 import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
+import { waitForEvolutionMessageDelivery } from '@/lib/server/evolution-message-delivery';
 import {
   consumeRateLimit,
   getServiceClient,
@@ -258,6 +259,7 @@ async function send(number: string, media: string) {
   return {
     ok,
     id: envelope.id,
+    remoteJid: envelope.remoteJid,
     status: envelope.status,
     httpStatus: response.status,
   };
@@ -408,6 +410,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const delivery = await waitForEvolutionMessageDelivery({
+      messageId: result.id,
+      remoteJid: result.remoteJid || `${number}@s.whatsapp.net`,
+      initialStatus: result.status,
+      maxWaitMs: 15_000,
+      intervalMs: 2_000,
+    });
+
+    if (delivery.failed) {
+      console.error('Seminar PDF failed after Evolution accepted it', {
+        submissionId: String(row.id),
+        messageId: result.id,
+        finalStatus: delivery.status,
+        numberTail: number.slice(-4),
+      });
+      return NextResponse.json(
+        {
+          error: `A Evolution aceitou o PDF, mas o WhatsApp devolveu ${delivery.status}. Nada foi registrado como enviado e o processo foi interrompido.`,
+          review: { id: String(row.id), name: String(row.respondent_name || 'Sem nome') },
+        },
+        { status: 502 },
+      );
+    }
+
+    if (!delivery.confirmed) {
+      return NextResponse.json(
+        {
+          error: `A mensagem ficou em ${delivery.status} e não recebeu confirmação do WhatsApp. Nada foi registrado como enviado e o processo foi interrompido.`,
+          review: { id: String(row.id), name: String(row.respondent_name || 'Sem nome') },
+        },
+        { status: 502 },
+      );
+    }
+
     const nextAnswers = {
       ...answers,
       __seminar_pdf_delivery: {
@@ -415,7 +451,7 @@ export async function POST(request: NextRequest) {
         sent_at: new Date().toISOString(),
         phone: number,
         message_id: result.id,
-        provider_status: result.status,
+        provider_status: delivery.status,
       },
     };
 
@@ -432,7 +468,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'O PDF foi aceito pela Evolution, mas não foi possível registrar a entrega. O envio foi interrompido para evitar duplicidade.',
+            'O PDF foi confirmado pelo WhatsApp, mas não foi possível registrar a entrega. O envio foi interrompido para evitar duplicidade.',
         },
         { status: 500 },
       );
@@ -446,6 +482,7 @@ export async function POST(request: NextRequest) {
         sentIds: [String(row.id)],
         remaining,
         done: remaining === 0,
+        providerStatus: delivery.status,
       },
       { headers: { 'Cache-Control': 'no-store' } },
     );

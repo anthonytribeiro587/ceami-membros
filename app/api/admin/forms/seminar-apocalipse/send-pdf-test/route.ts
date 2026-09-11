@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUiRole } from '@/lib/server/current-profile';
 import { getEvolutionConnectionState } from '@/lib/server/evolution-guard';
 import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
+import { waitForEvolutionMessageDelivery } from '@/lib/server/evolution-message-delivery';
 import { consumeRateLimit, requestComesFromSameSite } from '@/lib/server/security';
 
 export const runtime = 'nodejs';
@@ -142,10 +143,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const delivery = await waitForEvolutionMessageDelivery({
+      messageId: envelope.id,
+      remoteJid: envelope.remoteJid || `${TEST_PHONE}@s.whatsapp.net`,
+      initialStatus: envelope.status,
+      maxWaitMs: 15_000,
+      intervalMs: 2_000,
+    });
+
+    if (delivery.failed) {
+      console.error('Seminar PDF test failed after Evolution accepted it', {
+        messageId: envelope.id,
+        finalStatus: delivery.status,
+        remoteJid: envelope.remoteJid,
+      });
+      return NextResponse.json(
+        {
+          error: `A Evolution aceitou o teste, mas o WhatsApp devolveu ${delivery.status}. Nada foi considerado enviado.`,
+          providerStatus: delivery.status,
+        },
+        { status: 502 },
+      );
+    }
+
+    if (!delivery.confirmed) {
+      return NextResponse.json(
+        {
+          error: `A Evolution deixou a mensagem em ${delivery.status}. O teste não foi confirmado como entregue e não será mostrado como sucesso.`,
+          providerStatus: delivery.status,
+        },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       destination: '(51) 99509-2781',
       messageId: envelope.id,
+      providerStatus: delivery.status,
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('Seminar PDF test send failed', error);

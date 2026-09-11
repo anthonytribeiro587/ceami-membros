@@ -21,9 +21,15 @@ type Payload = {
   summary?: { pending: number; delivered: number };
   pending?: DeliveryRow[];
   delivered?: DeliveryRow[];
+  bulkMarked?: boolean;
+  throughName?: string;
+  marked?: number;
+  markedNames?: string[];
+  alreadyDeliveredInRange?: number;
 };
 
 const WHATSAPP_TEXT = 'Olá! Segue a apostila digital do Seminário O Fim Pertence a Cristo. 🙏';
+const MANUAL_RANGE_END = 'Larissa Kely';
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '');
@@ -54,6 +60,7 @@ export default function SeminarPdfDeliveryHistory() {
   const [payload, setPayload] = useState<Payload | null>(null);
   const [tab, setTab] = useState<'pending' | 'history'>('pending');
   const [markingId, setMarkingId] = useState('');
+  const [bulkMarking, setBulkMarking] = useState(false);
   const [notice, setNotice] = useState('');
   const [noticeType, setNoticeType] = useState<'ok' | 'error'>('ok');
 
@@ -153,6 +160,37 @@ export default function SeminarPdfDeliveryHistory() {
     }
   }
 
+  async function markManualRange() {
+    if (!window.confirm(
+      `Confirmar a correção manual?\n\nSerão marcadas como enviadas manualmente todas as inscrições aptas, em ordem alfabética, do início da lista até ${MANUAL_RANGE_END}, inclusive.\n\nQuem já estiver registrado como enviado não será alterado.`,
+    )) {
+      return;
+    }
+
+    setBulkMarking(true);
+    setNotice('');
+    try {
+      const response = await fetch('/api/admin/forms/seminar-apocalipse/pdf-delivery-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ throughName: MANUAL_RANGE_END }),
+      });
+      const data = (await response.json().catch(() => ({}))) as Payload;
+      if (!response.ok) {
+        setNoticeType('error');
+        setNotice(data.error || 'Não foi possível registrar a faixa enviada manualmente.');
+        return;
+      }
+      setNoticeType('ok');
+      setNotice(
+        `${data.marked || 0} pessoa(s) foram registradas como envio manual até ${data.throughName || MANUAL_RANGE_END}. ${data.alreadyDeliveredInRange || 0} já estavam registradas e foram preservadas.`,
+      );
+      await load();
+    } finally {
+      setBulkMarking(false);
+    }
+  }
+
   if (!active) return null;
 
   const pending = payload?.pending || [];
@@ -169,9 +207,14 @@ export default function SeminarPdfDeliveryHistory() {
             Para quem ainda não recebeu: abra o WhatsApp, anexe o PDF manualmente e só depois marque como enviado.
           </span>
         </div>
-        <button className="refresh" onClick={() => void load()} disabled={loading}>
-          {loading ? 'Atualizando...' : 'Atualizar'}
-        </button>
+        <div className="ceami-pdf-head-actions">
+          <button className="bulk-manual" onClick={() => void markManualRange()} disabled={loading || bulkMarking}>
+            {bulkMarking ? 'Registrando faixa...' : `Marcar A–${MANUAL_RANGE_END} manual`}
+          </button>
+          <button className="refresh" onClick={() => void load()} disabled={loading || bulkMarking}>
+            {loading ? 'Atualizando...' : 'Atualizar'}
+          </button>
+        </div>
       </div>
 
       <div className="ceami-pdf-tabs">
@@ -217,7 +260,7 @@ export default function SeminarPdfDeliveryHistory() {
                       <button className="whatsapp" onClick={() => openWhatsapp(row)}>WhatsApp</button>
                       <button
                         className="mark"
-                        disabled={markingId === row.id}
+                        disabled={markingId === row.id || bulkMarking}
                         onClick={() => void markDelivered(row)}
                       >
                         {markingId === row.id ? 'Salvando...' : 'Marcar enviado'}
@@ -250,12 +293,14 @@ export default function SeminarPdfDeliveryHistory() {
       <style>{`
         .ceami-pdf-history{margin:14px 0 0;padding:14px 15px;border:1px solid #d8ded3;border-radius:14px;background:#fbfdf9;display:grid;gap:11px}
         .ceami-pdf-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-        .ceami-pdf-history-head>div{display:grid;gap:3px}
+        .ceami-pdf-history-head>div:first-child{display:grid;gap:3px}
         .ceami-pdf-history-head strong{font-size:13px;color:#38513d}
         .ceami-pdf-history-head span{font-size:11px;color:#657166}
+        .ceami-pdf-head-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
         .ceami-pdf-history button{border:0;border-radius:9px;padding:8px 11px;font-weight:800;cursor:pointer}
         .ceami-pdf-history button:disabled{opacity:.5;cursor:not-allowed}
         .ceami-pdf-history button.refresh{background:#fff;border:1px solid #c9d3c5;color:#47604c}
+        .ceami-pdf-history button.bulk-manual{background:#8b5a17;color:#fff}
         .ceami-pdf-tabs{display:flex;gap:7px;flex-wrap:wrap}
         .ceami-pdf-tabs button{background:#fff;border:1px solid #d7ddd4;color:#59645b}
         .ceami-pdf-tabs button.active.pending{background:#fff4e7;border-color:#d8aa6b;color:#8a5416}
@@ -277,7 +322,7 @@ export default function SeminarPdfDeliveryHistory() {
         .ceami-pdf-history p{margin:0;padding:9px 10px;border-radius:9px;font-size:12px;font-weight:800}
         .ceami-pdf-history p.ok{background:#edf8ef;color:#2f6f3d}
         .ceami-pdf-history p.error{background:#fff0ef;color:#9a3830}
-        @media(max-width:720px){.ceami-pdf-history-head{align-items:flex-start;flex-direction:column}.ceami-pdf-history-head button.refresh{width:100%}.ceami-pdf-tabs button{flex:1}.ceami-pdf-row-actions{flex-direction:column}.ceami-pdf-row-actions button{width:100%}}
+        @media(max-width:720px){.ceami-pdf-history-head{align-items:flex-start;flex-direction:column}.ceami-pdf-head-actions{display:grid;width:100%;grid-template-columns:1fr}.ceami-pdf-head-actions button{width:100%}.ceami-pdf-tabs button{flex:1}.ceami-pdf-row-actions{flex-direction:column}.ceami-pdf-row-actions button{width:100%}}
       `}</style>
     </section>
   );

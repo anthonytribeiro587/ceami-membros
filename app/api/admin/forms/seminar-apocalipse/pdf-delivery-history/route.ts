@@ -61,6 +61,34 @@ function sourceLabel(delivery: Record<string, unknown> | null) {
   return 'Registro anterior';
 }
 
+function respondentName(row: { respondent_name?: unknown; answers?: unknown }) {
+  const answers = answersOf(row.answers);
+  return String(row.respondent_name || answers.nome_completo || 'Não informado').trim();
+}
+
+function comparableName(value: unknown) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('pt-BR');
+}
+
+function manualDelivery(answers: Record<string, unknown>, phone: string, sentAt: string) {
+  return {
+    ...answers,
+    __seminar_pdf_delivery: {
+      status: 'sent',
+      source: 'manual',
+      sent_at: sentAt,
+      phone,
+      message_id: 'manual',
+      provider_status: 'MANUAL',
+    },
+  };
+}
+
 async function getSeminarFormId() {
   const service = getServiceClient();
   if (!service) return { service: null, formId: '' };
@@ -120,7 +148,7 @@ export async function GET(request: NextRequest) {
     );
     const base = {
       id: String(row.id),
-      name: String(row.respondent_name || answers.nome_completo || 'Não informado'),
+      name: respondentName(row),
       phone,
       material,
       createdAt: row.created_at || null,
@@ -141,6 +169,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  pending.sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR', { sensitivity: 'base' }),
+  );
   delivered.sort((a, b) => {
     const ta = Date.parse(String(a.sentAt || a.createdAt || '')) || 0;
     const tb = Date.parse(String(b.sentAt || b.createdAt || '')) || 0;
@@ -162,10 +193,15 @@ export async function POST(request: NextRequest) {
   const denied = await authorize(request, 'seminar_pdf_delivery_manual_mark', 40);
   if (denied) return denied;
 
-  const body = (await request.json().catch(() => ({}))) as { submissionId?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    submissionId?: string;
+    throughName?: string;
+  };
   const submissionId = String(body.submissionId || '').trim();
-  if (!submissionId) {
-    return NextResponse.json({ error: 'Inscrição não informada.' }, { status: 400 });
+  const throughName = String(body.throughName || '').trim();
+
+  if (!submissionId && !throughName) {
+    return NextResponse.json({ error: 'Inscrição ou faixa não informada.' }, { status: 400 });
   }
 
   const { service, formId } = await getSeminarFormId();
@@ -174,6 +210,85 @@ export async function POST(request: NextRequest) {
   }
   if (!formId) {
     return NextResponse.json({ error: 'Formulário do seminário não encontrado.' }, { status: 404 });
+  }
+
+  if (throughName) {
+    const { data: rows, error } = await service
+      .from('form_submissions')
+      .select('id, respondent_name, respondent_phone, answers, created_at')
+      .eq('form_id', formId);
+
+    if (error) {
+      return NextResponse.json({ error: 'Não foi possível carregar as inscrições.' }, { status: 500 });
+    }
+
+    const eligible = (rows || [])
+      .filter((row) => {
+        const answers = answersOf(row.answers);
+        return paymentStatus(answers) === 'paid' && Boolean(materialLabel(answers.apostila));
+      })
+      .sort((a, b) => respondentName(a).localeCompare(respondentName(b), 'pt-BR', { sensitivity: 'base' }));
+
+    const targetKey = comparableName(throughName);
+    let matches = eligible.filter((row) => comparableName(respondentName(row)) === targetKey);
+    if (matches.length === 0) {
+      matches = eligible.filter((row) => comparableName(respondentName(row)).startsWith(`${targetKey} `));
+    }
+    if (matches.length === 0) {
+      return NextResponse.json(
+        { error: `Não encontrei "${throughName}" entre as inscrições aptas.` },
+        { status: 404 },
+      );
+    }
+    if (matches.length > 1) {
+      return NextResponse.json(
+        {
+          error: `Encontrei mais de uma pessoa começando por "${throughName}". Marque individualmente para evitar erro.`,
+          matches: matches.map((row) => respondentName(row)),
+        },
+        { status: 409 },
+      );
+    }
+
+    const targetId = String(matches[0].id);
+    const targetIndex = eligible.findIndex((row) => String(row.id) === targetId);
+    const inRange = eligible.slice(0, targetIndex + 1);
+    const pendingInRange = inRange.filter((row) => !isDelivered(answersOf(row.answers)));
+    const sentAt = new Date().toISOString();
+    const marked: string[] = [];
+
+    for (const row of pendingInRange) {
+      const answers = answersOf(row.answers);
+      const phone = normalizePhone(
+        row.respondent_phone || answers.telefone || answers.whatsapp || answers.celular || '',
+      );
+      const { error: updateError } = await service
+        .from('form_submissions')
+        .update({ answers: manualDelivery(answers, phone, sentAt) })
+        .eq('id', row.id)
+        .eq('form_id', formId);
+
+      if (updateError) {
+        return NextResponse.json(
+          {
+            error: `Falha ao registrar ${respondentName(row)}. ${marked.length} registro(s) anterior(es) foram salvos.`,
+            marked: marked.length,
+            markedNames: marked,
+          },
+          { status: 500 },
+        );
+      }
+      marked.push(respondentName(row));
+    }
+
+    return NextResponse.json({
+      ok: true,
+      bulkMarked: true,
+      throughName: respondentName(matches[0]),
+      marked: marked.length,
+      markedNames: marked,
+      alreadyDeliveredInRange: inRange.length - pendingInRange.length,
+    });
   }
 
   const { data: row, error } = await service
@@ -201,21 +316,10 @@ export async function POST(request: NextRequest) {
     row.respondent_phone || answers.telefone || answers.whatsapp || answers.celular || '',
   );
   const now = new Date().toISOString();
-  const nextAnswers = {
-    ...answers,
-    __seminar_pdf_delivery: {
-      status: 'sent',
-      source: 'manual',
-      sent_at: now,
-      phone,
-      message_id: 'manual',
-      provider_status: 'MANUAL',
-    },
-  };
 
   const { error: updateError } = await service
     .from('form_submissions')
-    .update({ answers: nextAnswers })
+    .update({ answers: manualDelivery(answers, phone, now) })
     .eq('id', submissionId)
     .eq('form_id', formId);
 
@@ -227,7 +331,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     delivered: {
       id: submissionId,
-      name: String(row.respondent_name || answers.nome_completo || 'Não informado'),
+      name: respondentName(row),
       phone,
       material,
       sentAt: now,

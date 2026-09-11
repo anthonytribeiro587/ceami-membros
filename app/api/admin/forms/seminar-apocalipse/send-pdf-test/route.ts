@@ -17,14 +17,36 @@ function readEnvelope(payload: unknown) {
   const response = data.response && typeof data.response === 'object'
     ? (data.response as Record<string, unknown>)
     : data;
-  const key = response.key && typeof response.key === 'object'
+  const nestedMessage = response.message && typeof response.message === 'object'
+    ? (response.message as Record<string, unknown>)
+    : null;
+  const responseKey = response.key && typeof response.key === 'object'
     ? (response.key as Record<string, unknown>)
-    : {};
+    : null;
+  const messageKey = nestedMessage?.key && typeof nestedMessage.key === 'object'
+    ? (nestedMessage.key as Record<string, unknown>)
+    : null;
+  const dataNode = data.data && typeof data.data === 'object'
+    ? (data.data as Record<string, unknown>)
+    : null;
+  const dataKey = dataNode?.key && typeof dataNode.key === 'object'
+    ? (dataNode.key as Record<string, unknown>)
+    : null;
+  const key = responseKey || messageKey || dataKey || {};
+
   return {
     id: String(key.id || ''),
     remoteJid: String(key.remoteJid || ''),
-    status: String(response.status || data.status || 'UNKNOWN').toUpperCase(),
+    status: String(response.status || nestedMessage?.status || dataNode?.status || data.status || 'UNKNOWN').toUpperCase(),
   };
+}
+
+function acceptedBrazilJids(phone: string) {
+  const variants = new Set<string>([`${phone}@s.whatsapp.net`]);
+  if (phone.startsWith('55') && phone.length === 13 && phone.charAt(4) === '9') {
+    variants.add(`${phone.slice(0, 4)}${phone.slice(5)}@s.whatsapp.net`);
+  }
+  return variants;
 }
 
 export async function POST(request: NextRequest) {
@@ -67,8 +89,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'O PDF deve ter no máximo 8 MB.' }, { status: 400 });
   }
 
-  // Para o teste, o destinatário não vem do navegador: fica fixo no servidor.
-  // Isso impede que esta rota seja usada para enviar arquivos a números arbitrários.
   const config = getEvolutionConfig();
   if (!evolutionConfigured(config)) {
     return NextResponse.json({ error: 'Evolution API não configurada.' }, { status: 503 });
@@ -105,8 +125,10 @@ export async function POST(request: NextRequest) {
     try { payload = JSON.parse(text) as unknown; } catch { /* mantém resposta sanitizada */ }
 
     const envelope = readEnvelope(payload);
-    const expectedJid = `${TEST_PHONE}@s.whatsapp.net`;
-    const accepted = response.ok && Boolean(envelope.id) && (!envelope.remoteJid || envelope.remoteJid === expectedJid);
+    const allowedJids = acceptedBrazilJids(TEST_PHONE);
+    const rejectedStatus = ['ERROR', 'FAILED', 'CANCELED', 'CANCELLED'].includes(envelope.status);
+    const destinationConfirmed = !envelope.remoteJid || allowedJids.has(envelope.remoteJid);
+    const accepted = response.ok && Boolean(envelope.id) && destinationConfirmed && !rejectedStatus;
 
     if (!accepted) {
       console.error('Seminar PDF test rejected by Evolution', {

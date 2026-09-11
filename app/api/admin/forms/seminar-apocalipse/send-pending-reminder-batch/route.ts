@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUiRole } from '@/lib/server/current-profile';
-import { getEvolutionConnectionState } from '@/lib/server/evolution-guard';
-import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
-import { consumeRateLimit, getServiceClient, requestComesFromSameSite } from '@/lib/server/security';
+import { requestComesFromSameSite } from '@/lib/server/security';
 
-export const runtime='nodejs'; export const dynamic='force-dynamic'; export const maxDuration=60;
-const SLUG='seminario-apocalipse-2026'; const MAX_BATCH=5;
-function text(v:unknown){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
-function paymentStatus(a:Record<string,unknown>){const p=a.__payment;if(!p||typeof p!=='object'||Array.isArray(p))return'pending';const s=String((p as Record<string,unknown>).status||'');return s==='paid'||s==='exempt'?s:'pending'}
-function due(v:unknown){const s=text(v);if(!s||s==='nao'||s.includes('sem custo')||s.includes('gratuit'))return 0;if(s.includes('pdf')||s.includes('digital'))return 10;if(s.includes('fisic')||s==='sim')return 35;return 0}
-function phone(v:unknown){let d=String(v??'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);if(d.length===10||d.length===11)d=`55${d}`;return d}
-function valid(v:unknown){const d=phone(v);const n=d.startsWith('55')?d.slice(2):'';return n.length===11&&Number(n.slice(0,2))>=11&&Number(n.slice(0,2))<=99&&n.slice(2).startsWith('9')}
-function readEnvelope(payload:unknown){const d=(payload||{}) as Record<string,unknown>;const r=d.response&&typeof d.response==='object'?d.response as Record<string,unknown>:d;const m=r.message&&typeof r.message==='object'?r.message as Record<string,unknown>:null;const k=(r.key&&typeof r.key==='object'?r.key:m?.key&&typeof m.key==='object'?m.key:null) as Record<string,unknown>|null;return{id:String(k?.id||''),remoteJid:String(k?.remoteJid||''),status:String(r.status||m?.status||d.status||'UNKNOWN').toUpperCase()}}
-function acceptedJids(p:string){const s=new Set([`${p}@s.whatsapp.net`]);if(p.length===13&&p.startsWith('55')&&p.charAt(4)==='9')s.add(`${p.slice(0,4)}${p.slice(5)}@s.whatsapp.net`);return s}
-async function sendText(number:string,name:string){const c=getEvolutionConfig();const message=`Olá, ${name}! 😊\n\nIdentificamos que o pagamento da sua inscrição para o *Seminário de Estudo do Apocalipse* ainda está pendente.\n\nPara confirmarmos sua inscrição e o material escolhido, pedimos que regularize o pagamento.\n\nDeus abençoe! 🙏\n*CEAMI*`;const response=await fetch(`${c.apiUrl}/message/sendText/${encodeURIComponent(c.instance)}`,{method:'POST',headers:{'Content-Type':'application/json',apikey:c.apiKey},body:JSON.stringify({number,text:message,delay:1800,linkPreview:false}),cache:'no-store',signal:AbortSignal.timeout(20000)});const raw=await response.text();let payload:unknown={};try{payload=JSON.parse(raw)}catch{}const e=readEnvelope(payload);return response.ok&&!!e.id&&(!e.remoteJid||acceptedJids(number).has(e.remoteJid))&&!['ERROR','FAILED','CANCELED','CANCELLED'].includes(e.status)}
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-export async function POST(request:NextRequest){if(!requestComesFromSameSite(request))return NextResponse.json({error:'Origem não autorizada.'},{status:403});if(await getCurrentUiRole()!=='admin')return NextResponse.json({error:'Acesso restrito ao administrador.'},{status:403});if(!await consumeRateLimit(request,'seminar_pending_reminder_batch',60,12))return NextResponse.json({error:'Aguarde um pouco antes do próximo lote.'},{status:429});const connection=await getEvolutionConnectionState();if(!connection.open)return NextResponse.json({error:'O WhatsApp da CEAMI não está conectado.'},{status:409});const c=getEvolutionConfig();if(!evolutionConfigured(c))return NextResponse.json({error:'Evolution API não configurada.'},{status:503});const body=await request.json().catch(()=>({})) as {ids?:unknown};const ids=Array.isArray(body.ids)?[...new Set(body.ids.map(String))].slice(0,MAX_BATCH):[];if(!ids.length)return NextResponse.json({error:'Nenhum destinatário selecionado.'},{status:400});const service=getServiceClient();if(!service)return NextResponse.json({error:'Serviço temporariamente indisponível.'},{status:503});const{data:form}=await service.from('forms').select('id').eq('slug',SLUG).maybeSingle();if(!form)return NextResponse.json({error:'Formulário não encontrado.'},{status:404});const{data,error}=await service.from('form_submissions').select('id, respondent_name, respondent_phone, answers').eq('form_id',form.id).in('id',ids);if(error)return NextResponse.json({error:'Não foi possível carregar as inscrições.'},{status:500});const byId=new Map((data||[]).map(r=>[String(r.id),r]));const sent:string[]=[];const skipped:{id:string;reason:string}[]=[];const failed:string[]=[];for(const id of ids){const row=byId.get(id);if(!row){skipped.push({id,reason:'Inscrição não encontrada.'});continue}const a=row.answers&&typeof row.answers==='object'&&!Array.isArray(row.answers)?row.answers as Record<string,unknown>:{};if(paymentStatus(a)!=='pending'||due(a.apostila)<=0){skipped.push({id,reason:'Pagamento não está mais pendente.'});continue}const raw=row.respondent_phone||a.telefone||a.whatsapp||a.celular||'';if(!valid(raw)){skipped.push({id,reason:'Número precisa de revisão.'});continue}const name=String(row.respondent_name||a.nome_completo||'participante');try{if(await sendText(phone(raw),name))sent.push(id);else failed.push(id)}catch{failed.push(id)}}return NextResponse.json({ok:failed.length===0,sent:sent.length,sentIds:sent,requested:ids.length,skipped,failed},{status:failed.length?502:200,headers:{'Cache-Control':'no-store'}})}
+export async function POST(request: NextRequest) {
+  if (!requestComesFromSameSite(request)) {
+    return NextResponse.json({ error: 'Origem não autorizada.' }, { status: 403 });
+  }
+
+  if ((await getCurrentUiRole()) !== 'admin') {
+    return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
+  }
+
+  return NextResponse.json(
+    {
+      error:
+        'A cobrança automática dos pagamentos pendentes foi desativada. Nenhuma mensagem de cobrança será enviada pelo NextLead.',
+    },
+    { status: 410, headers: { 'Cache-Control': 'no-store' } },
+  );
+}

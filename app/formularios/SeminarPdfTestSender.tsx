@@ -38,6 +38,7 @@ export default function SeminarPdfTestSender() {
   const [sendingMirror, setSendingMirror] = useState(false);
   const [checkingRecipients, setCheckingRecipients] = useState(false);
   const [preflight, setPreflight] = useState<PreflightPayload | null>(null);
+  const [showOnlyReview, setShowOnlyReview] = useState(false);
   const [notice, setNotice] = useState('');
   const [noticeType, setNoticeType] = useState<'ok' | 'error'>('ok');
 
@@ -53,6 +54,7 @@ export default function SeminarPdfTestSender() {
       if (!formId) {
         setActiveFormId('');
         setPreflight(null);
+        setShowOnlyReview(false);
         return;
       }
       if (formId === activeFormId) return;
@@ -62,6 +64,7 @@ export default function SeminarPdfTestSender() {
         if (stopped) return;
         setActiveFormId(data?.slug === SEMINAR_APOCALIPSE_SLUG ? formId : '');
         setPreflight(null);
+        setShowOnlyReview(false);
       } finally {
         checking = false;
       }
@@ -96,6 +99,8 @@ export default function SeminarPdfTestSender() {
         return;
       }
       setPreflight(payload);
+      const pendingReview = (payload.summary?.warnings || 0) + (payload.summary?.invalid || 0);
+      setShowOnlyReview(pendingReview > 0);
     } finally {
       setCheckingRecipients(false);
     }
@@ -179,6 +184,9 @@ export default function SeminarPdfTestSender() {
   const summary = preflight?.summary;
   const recipients = preflight?.recipients || [];
   const reviewCount = (summary?.warnings || 0) + (summary?.invalid || 0);
+  const visibleRecipients = showOnlyReview
+    ? recipients.filter((item) => item.status !== 'confirmed')
+    : recipients;
 
   return (
     <section className="ceami-seminar-pdf-test" aria-label="Envio da apostila em PDF">
@@ -209,11 +217,31 @@ export default function SeminarPdfTestSender() {
             <strong>{summary.total} pagos com PDF</strong>
             <span>{summary.readyForBulk ? '✓ Todos prontos para o teste' : `⚠ ${reviewCount} número(s) para revisar`}</span>
           </div>
+
+          {reviewCount > 0 && (
+            <div className="ceami-recipient-filters" role="group" aria-label="Filtro da lista de destinatários">
+              <button
+                type="button"
+                className={!showOnlyReview ? 'active' : ''}
+                onClick={() => setShowOnlyReview(false)}
+              >
+                Todos ({summary.total})
+              </button>
+              <button
+                type="button"
+                className={showOnlyReview ? 'active review' : 'review'}
+                onClick={() => setShowOnlyReview(true)}
+              >
+                Só revisar ({reviewCount})
+              </button>
+            </div>
+          )}
+
           <div className="ceami-preflight-table-wrap">
             <table className="ceami-preflight-table">
               <thead><tr><th>Nome</th><th>WhatsApp</th><th>Status</th></tr></thead>
               <tbody>
-                {recipients.map((item) => {
+                {visibleRecipients.map((item) => {
                   const ok = item.status === 'confirmed';
                   return (
                     <tr key={item.id}>
@@ -234,7 +262,7 @@ export default function SeminarPdfTestSender() {
 
       {notice && <p className={noticeType}>{notice}</p>}
       <style>{`
-        .ceami-seminar-pdf-test{margin:14px 0 0;padding:14px 15px;border:1px solid #e4d7c3;border-radius:14px;background:#fffaf3;display:grid;gap:12px}.ceami-seminar-pdf-test-head{display:flex;justify-content:space-between;gap:14px;align-items:center}.ceami-seminar-pdf-test-head>div:first-child{display:grid;gap:3px}.ceami-seminar-pdf-test strong{color:#5b3d1e;font-size:13px}.ceami-seminar-pdf-test span{color:#7b6b5b;font-size:11px;line-height:1.4}.ceami-seminar-pdf-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.ceami-seminar-pdf-test button{border:0;border-radius:10px;background:#64431f;color:#fff;font-weight:900;padding:10px 13px;cursor:pointer}.ceami-seminar-pdf-test button.secondary{background:#fff;border:1px solid #cdb995;color:#69471f}.ceami-seminar-pdf-test button:disabled{opacity:.5;cursor:not-allowed}.ceami-seminar-pdf-test p{margin:0;padding:9px 10px;border-radius:9px;font-size:12px;font-weight:800}.ceami-seminar-pdf-test p.ok{background:#edf8ef;color:#2f6f3d}.ceami-seminar-pdf-test p.error{background:#fff0ef;color:#9a3830}.ceami-preflight{display:grid;gap:10px}.ceami-ready-line{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border-radius:10px}.ceami-ready-line.ok{background:#edf8ef}.ceami-ready-line.review{background:#fff3e8}.ceami-ready-line.ok span{color:#2f6f3d}.ceami-ready-line.review span{color:#8a4f14}.ceami-preflight-table-wrap{overflow:auto;border:1px solid #e5d9c7;border-radius:12px;background:#fff}.ceami-preflight-table{width:100%;border-collapse:collapse;min-width:520px}.ceami-preflight-table th,.ceami-preflight-table td{padding:10px 11px;border-bottom:1px solid #eee5d9;text-align:left;vertical-align:top;font-size:12px}.ceami-preflight-table th{background:#f8f2e9;color:#5f5144;font-size:11px;text-transform:uppercase}.ceami-preflight-table td strong{font-size:12px;color:#2f2924}.ceami-preflight-table td small{display:block;margin-top:4px;color:#7e7369}.ceami-simple-status{display:inline-flex!important;width:max-content;padding:4px 7px;border-radius:999px;font-weight:900!important}.ceami-simple-status.ok{background:#edf8ef;color:#2f6f3d!important}.ceami-simple-status.review{background:#fff7df;color:#8a6414!important}@media(max-width:700px){.ceami-seminar-pdf-test-head{display:grid}.ceami-seminar-pdf-actions{display:grid;justify-content:stretch}.ceami-seminar-pdf-test button{width:100%}.ceami-ready-line{align-items:flex-start;flex-direction:column}}
+        .ceami-seminar-pdf-test{margin:14px 0 0;padding:14px 15px;border:1px solid #e4d7c3;border-radius:14px;background:#fffaf3;display:grid;gap:12px}.ceami-seminar-pdf-test-head{display:flex;justify-content:space-between;gap:14px;align-items:center}.ceami-seminar-pdf-test-head>div:first-child{display:grid;gap:3px}.ceami-seminar-pdf-test strong{color:#5b3d1e;font-size:13px}.ceami-seminar-pdf-test span{color:#7b6b5b;font-size:11px;line-height:1.4}.ceami-seminar-pdf-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.ceami-seminar-pdf-test button{border:0;border-radius:10px;background:#64431f;color:#fff;font-weight:900;padding:10px 13px;cursor:pointer}.ceami-seminar-pdf-test button.secondary{background:#fff;border:1px solid #cdb995;color:#69471f}.ceami-seminar-pdf-test button:disabled{opacity:.5;cursor:not-allowed}.ceami-seminar-pdf-test p{margin:0;padding:9px 10px;border-radius:9px;font-size:12px;font-weight:800}.ceami-seminar-pdf-test p.ok{background:#edf8ef;color:#2f6f3d}.ceami-seminar-pdf-test p.error{background:#fff0ef;color:#9a3830}.ceami-preflight{display:grid;gap:10px}.ceami-ready-line{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border-radius:10px}.ceami-ready-line.ok{background:#edf8ef}.ceami-ready-line.review{background:#fff3e8}.ceami-ready-line.ok span{color:#2f6f3d}.ceami-ready-line.review span{color:#8a4f14}.ceami-recipient-filters{display:flex;gap:7px;flex-wrap:wrap}.ceami-recipient-filters button{background:#fff!important;color:#6b5a49!important;border:1px solid #dacbb6!important;padding:7px 10px!important;font-size:11px}.ceami-recipient-filters button.active{background:#64431f!important;color:#fff!important;border-color:#64431f!important}.ceami-recipient-filters button.active.review{background:#a15f14!important;border-color:#a15f14!important}.ceami-preflight-table-wrap{overflow:auto;border:1px solid #e5d9c7;border-radius:12px;background:#fff}.ceami-preflight-table{width:100%;border-collapse:collapse;min-width:520px}.ceami-preflight-table th,.ceami-preflight-table td{padding:10px 11px;border-bottom:1px solid #eee5d9;text-align:left;vertical-align:top;font-size:12px}.ceami-preflight-table th{background:#f8f2e9;color:#5f5144;font-size:11px;text-transform:uppercase}.ceami-preflight-table td strong{font-size:12px;color:#2f2924}.ceami-preflight-table td small{display:block;margin-top:4px;color:#7e7369}.ceami-simple-status{display:inline-flex!important;width:max-content;padding:4px 7px;border-radius:999px;font-weight:900!important}.ceami-simple-status.ok{background:#edf8ef;color:#2f6f3d!important}.ceami-simple-status.review{background:#fff7df;color:#8a6414!important}@media(max-width:700px){.ceami-seminar-pdf-test-head{display:grid}.ceami-seminar-pdf-actions{display:grid;justify-content:stretch}.ceami-seminar-pdf-test button{width:100%}.ceami-ready-line{align-items:flex-start;flex-direction:column}.ceami-recipient-filters{display:grid;grid-template-columns:1fr 1fr}.ceami-recipient-filters button{width:100%}}
       `}</style>
     </section>
   );

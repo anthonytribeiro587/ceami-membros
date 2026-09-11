@@ -4,6 +4,7 @@ import { getCurrentUiRole } from '@/lib/server/current-profile';
 import { getServiceClient } from '@/lib/server/security';
 import { SEMINAR_APOCALIPSE_SLUG } from '@/lib/seminar-apocalipse';
 import SeminarPdfTestSender from '../SeminarPdfTestSender';
+import SeminarPendingPaymentSender from '../SeminarPendingPaymentSender';
 import SeminarPdfDeliveryHistory from '../SeminarPdfDeliveryHistory';
 import MobileFormsCompactEnhancement from '../MobileFormsCompactEnhancement';
 
@@ -59,7 +60,7 @@ export default async function EnviosArquivosPage() {
               Acompanhar envio de arquivos
             </h1>
             <p style={{ margin: 0, color: '#75695d', fontSize: 12, lineHeight: 1.45 }}>
-              Área separada para preparar a apostila, abrir o WhatsApp dos pendentes e consultar o histórico de entregas.
+              Área separada para enviar a apostila, avisar inscrições pendentes de pagamento e consultar o histórico de entregas.
             </p>
           </div>
         </header>
@@ -73,6 +74,7 @@ export default async function EnviosArquivosPage() {
               style={{ display: 'none' }}
             />
             <SeminarPdfTestSender />
+            <SeminarPendingPaymentSender />
             <SeminarPdfDeliveryHistory />
             <MobileFormsCompactEnhancement />
           </>

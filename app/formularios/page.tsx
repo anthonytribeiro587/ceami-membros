@@ -7,6 +7,7 @@ import SeminarDataSync from './SeminarDataSync';
 import ResponseSortEnhancement from './ResponseSortEnhancement';
 import SeminarPrintReport from './SeminarPrintReport';
 import SeminarPdfTestSender from './SeminarPdfTestSender';
+import SeminarPdfDeliveryHistory from './SeminarPdfDeliveryHistory';
 import './formularios.css';
 
 export default async function FormulariosPage() {
@@ -20,6 +21,7 @@ export default async function FormulariosPage() {
       <ResponseSortEnhancement />
       <SeminarPrintReport />
       <SeminarPdfTestSender />
+      <SeminarPdfDeliveryHistory />
     </AdminRouteShell>
   );
 }

@@ -24,6 +24,12 @@ async function run(request: NextRequest) {
     // Nunca entrega mensagens para a Evolution se o WhatsApp não estiver realmente aberto.
     // Assim uma queda de conexão não cria uma fila que possa ser descarregada dias depois.
     const connection = await getEvolutionConnectionState();
+    console.info('CEAMI Evolution diagnostic', {
+      open: connection.open,
+      state: connection.state,
+      httpStatus: connection.httpStatus,
+      error: connection.error || null,
+    });
     if (!connection.open) {
       return NextResponse.json({
         ok: true,

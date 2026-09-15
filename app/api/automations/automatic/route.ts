@@ -101,6 +101,26 @@ async function runResumeDateOnce(service: NonNullable<ReturnType<typeof getServi
   return { skipped: null, date: clock.date, results };
 }
 
+async function verifyResumeState(service: NonNullable<ReturnType<typeof getServiceClient>>) {
+  const markerKeys = RESUME_AUTOMATIONS.map((id) => `resume:${RESUME_DATE}:${id}`);
+  const [{ data: automations }, { data: markers }] = await Promise.all([
+    service
+      .from('automations')
+      .select('id,enabled,send_time,last_sent_date,last_sent_at,last_status,last_error')
+      .in('id', RESUME_AUTOMATIONS)
+      .order('id', { ascending: true }),
+    service
+      .from('automation_runs')
+      .select('automation_id,idempotency_key,status,metadata,error_message,completed_at')
+      .in('idempotency_key', markerKeys)
+      .order('automation_id', { ascending: true }),
+  ]);
+
+  const verification = { automations: automations || [], markers: markers || [] };
+  console.log('CEAMI resume verification', JSON.stringify(verification));
+  return verification;
+}
+
 async function run(request: NextRequest) {
   if (!(await hasValidBearer(request, 'birthday_cron'))) {
     return NextResponse.json({ error: 'Automação não autorizada.' }, { status: 401 });
@@ -132,11 +152,12 @@ async function run(request: NextRequest) {
 
     // Em 15/09, envia uma única vez o conteúdo oficial do próprio dia, sem recuperar datas anteriores.
     const resume = await runResumeDateOnce(service);
+    const verification = await verifyResumeState(service);
 
     // Limpeza pontual das mensagens antigas mostradas no incidente de 10/09/2026.
     const cleanup = await cleanupStaleAutomationMessages(service);
     const results = await runDueAutomations(service);
-    return NextResponse.json({ ok: true, resume, cleanup, results });
+    return NextResponse.json({ ok: true, resume, verification, cleanup, results });
   } catch (error) {
     return NextResponse.json(
       {

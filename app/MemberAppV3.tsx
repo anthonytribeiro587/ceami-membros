@@ -29,6 +29,7 @@ import {
   UserRound,
   Users,
   Workflow,
+  Wrench,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -362,6 +363,12 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
             >
               <CalendarCheck2 size={19} /><span>Integra</span>
             </button>
+          )}
+
+          {isAdmin && (
+            <Link href="/servicos" prefetch onClick={() => setMenuOpen(false)}>
+              <Wrench size={19} /><span>Serviços</span>
+            </Link>
           )}
 
           {isAdmin && (

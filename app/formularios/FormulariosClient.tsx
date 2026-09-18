@@ -26,6 +26,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { SERVICE_FORM_SLUG } from '@/lib/services';
 
 type FieldType = 'text' | 'phone' | 'email' | 'textarea' | 'yes_no' | 'select';
 
@@ -343,9 +344,22 @@ export default function FormulariosClient() {
       return;
     }
 
-    setForms((formsResult.data || []) as FormRow[]);
-    setFields((fieldsResult.data || []) as FieldRow[]);
-    setSubmissions((submissionsResult.data || []) as SubmissionRow[]);
+    const loadedForms = (formsResult.data || []) as FormRow[];
+    const serviceFormIds = new Set(
+      loadedForms.filter((form) => form.slug === SERVICE_FORM_SLUG).map((form) => form.id),
+    );
+    const visibleForms = loadedForms.filter((form) => form.slug !== SERVICE_FORM_SLUG);
+    const visibleFormIds = new Set(visibleForms.map((form) => form.id));
+
+    setForms(visibleForms);
+    setFields(
+      ((fieldsResult.data || []) as FieldRow[]).filter((field) => visibleFormIds.has(field.form_id)),
+    );
+    setSubmissions(
+      ((submissionsResult.data || []) as SubmissionRow[]).filter(
+        (submission) => !serviceFormIds.has(submission.form_id),
+      ),
+    );
     setLoading(false);
   }
 

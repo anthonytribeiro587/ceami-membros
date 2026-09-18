@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Users,
   Workflow,
+  Wrench,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -78,6 +79,7 @@ export default function AdminRouteShell({
 
   const showMainLinks = role !== 'course';
   const showForms = role === 'admin' || pathname.startsWith('/formularios');
+  const showServices = role === 'admin' || pathname.startsWith('/servicos');
   const showAutomations = role === 'admin' || pathname.startsWith('/automacoes');
   const showCourses =
     role === 'admin' || role === 'course' || pathname.startsWith('/cursos');
@@ -115,6 +117,19 @@ export default function AdminRouteShell({
             >
               <ClipboardList size={19} />
               <span>Formulários</span>
+            </Link>
+          )}
+
+          {showServices && (
+            <Link
+              href="/servicos"
+              prefetch
+              className={pathname === '/servicos' ? 'active' : ''}
+              aria-current={pathname === '/servicos' ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
+              <Wrench size={19} />
+              <span>Serviços</span>
             </Link>
           )}
 

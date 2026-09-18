@@ -54,7 +54,7 @@ function requestSummary(
   return fields
     .map((field) => {
       const value = cleanText(answers[field.key], field.field_type === 'textarea' ? 1200 : 350);
-      return value ? `*\${field.label}:* \${value}` : '';
+      return value ? `*${field.label}:* ${value}` : '';
     })
     .filter(Boolean)
     .join('\n');
@@ -168,7 +168,7 @@ export async function POST(
 
     if (insertError || !inserted?.id) {
       console.error('Public form submission failed:', insertError?.message || 'missing id');
-      return NextResponse.json({ error: 'Não foi possível salvar sua inscrição.' }, { status: 500 });
+      return NextResponse.json({ error: isServiceRequest ? 'Não foi possível salvar sua solicitação.' : 'Não foi possível salvar sua inscrição.' }, { status: 500 });
     }
 
     if (isServiceRequest) {

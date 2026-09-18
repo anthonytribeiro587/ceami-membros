@@ -117,7 +117,7 @@ export default function ServiceRequestClient() {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, website: '' }),
+        body: JSON.stringify({ answers, website: '', serviceConsent: accepted }),
       },
     );
 

@@ -27,6 +27,7 @@ type FormField = {
 type SubmissionBody = {
   answers?: Record<string, unknown>;
   website?: string;
+  serviceConsent?: boolean;
 };
 
 function cleanText(value: unknown, maxLength = 500) {
@@ -145,8 +146,17 @@ export async function POST(
 
     const isServiceRequest = slug === SERVICE_FORM_SLUG;
     if (isServiceRequest) {
+      if (body.serviceConsent !== true) {
+        return NextResponse.json(
+          { error: 'Confirme que leu e concorda com as condições antes de enviar.' },
+          { status: 400 },
+        );
+      }
+      const acceptedAt = new Date().toISOString();
       normalized.__service_status = 'aberto';
-      normalized.__service_created_at = new Date().toISOString();
+      normalized.__service_created_at = acceptedAt;
+      normalized.__service_terms_accepted_at = acceptedAt;
+      normalized.__service_terms_version = '1';
     }
 
     const typedFields = (fields || []) as FormField[];

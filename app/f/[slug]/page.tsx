@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import DynamicPublicFormClient from './DynamicPublicFormClient';
 import SeminarPublicCopyCleanup from './SeminarPublicCopyCleanup';
+import { SERVICE_FORM_SLUG } from '@/lib/services';
 import './form-public.css';
 
 export const metadata: Metadata = {
@@ -15,6 +17,8 @@ export default async function PublicFormPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  if (slug === SERVICE_FORM_SLUG) redirect('/servicos/solicitar');
+
   return (
     <>
       <DynamicPublicFormClient slug={slug} />

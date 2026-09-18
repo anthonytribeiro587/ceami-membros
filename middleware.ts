@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/login-cursos', '/integra', '/consultar', '/f'];
+const PUBLIC_PAGES = ['/login', '/login-cursos', '/integra', '/consultar', '/f', '/servicos/solicitar'];
 const PUBLIC_API_PATHS = [
   '/api/integra',
   '/api/public/check-member',
@@ -11,7 +11,7 @@ const PUBLIC_API_PATHS = [
   '/api/birthdays/automatic',
   '/api/automations/automatic',
 ];
-const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/formularios'];
+const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/formularios', '/servicos'];
 const ADMIN_API_PATHS = [
   '/api/admin',
   '/api/birthdays/test',

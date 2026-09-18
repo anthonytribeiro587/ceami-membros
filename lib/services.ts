@@ -19,7 +19,7 @@ export function defaultServiceSettings(): ServiceSettings {
   return {
     version: 1,
     kind: 'ceami-services',
-    notifyPhone: '',
+    notifyPhone: '51995092781',
     disclaimer: DEFAULT_SERVICE_DISCLAIMER,
   };
 }
@@ -34,7 +34,7 @@ export function parseServiceSettings(value: unknown): ServiceSettings {
     return {
       version: 1,
       kind: 'ceami-services',
-      notifyPhone: String(parsed.notifyPhone || '').trim(),
+      notifyPhone: String(parsed.notifyPhone || '51995092781').trim(),
       disclaimer:
         String(parsed.disclaimer || '').trim() || DEFAULT_SERVICE_DISCLAIMER,
     };

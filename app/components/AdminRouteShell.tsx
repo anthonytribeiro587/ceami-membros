@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   ClipboardList,
   GraduationCap,
+  HeartHandshake,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -169,6 +170,13 @@ export default function AdminRouteShell({
             >
               <GraduationCap size={19} />
               <span>Cursos</span>
+            </Link>
+          )}
+
+          {role === 'admin' && (
+            <Link href="/social" prefetch onClick={() => setMenuOpen(false)}>
+              <HeartHandshake size={19} />
+              <span>CEAMI Social</span>
             </Link>
           )}
         </nav>

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Church,
   GraduationCap,
+  HeartHandshake,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -392,6 +393,12 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
           {isAdmin && (
             <Link href="/cursos" prefetch onClick={() => setMenuOpen(false)}>
               <GraduationCap size={19} /><span>Cursos</span>
+            </Link>
+          )}
+
+          {isAdmin && (
+            <Link href="/social" prefetch onClick={() => setMenuOpen(false)}>
+              <HeartHandshake size={19} /><span>CEAMI Social</span>
             </Link>
           )}
         </nav>

@@ -1,0 +1,1056 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  AlertTriangle,
+  Archive,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Coffee,
+  Gift,
+  HeartHandshake,
+  History,
+  Home,
+  LogOut,
+  Minus,
+  MoreHorizontal,
+  Package,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Settings2,
+  ShoppingBasket,
+  SlidersHorizontal,
+  Sparkles,
+  Users,
+  Wheat,
+  X,
+} from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { formatPhoneBR } from '@/lib/formatters';
+
+type Screen = 'home' | 'stock' | 'donation' | 'baskets' | 'families' | 'more' | 'history' | 'products';
+type StockFilter = 'all' | 'low' | 'expiring';
+type Category = 'alimentos' | 'higiene' | 'limpeza' | 'roupas' | 'outros';
+
+type Product = {
+  id: string;
+  name: string;
+  package_label: string;
+  unit_label: string;
+  category: Category;
+  min_stock: number;
+  tracks_expiry: boolean;
+  is_active: boolean;
+  created_at?: string;
+};
+
+type Batch = {
+  id: string;
+  product_id: string;
+  quantity_available: number;
+  expires_on: string | null;
+  created_at: string;
+};
+
+type BasketTemplate = {
+  id: string;
+  name: string;
+  is_default: boolean;
+  is_active: boolean;
+};
+
+type BasketTemplateItem = {
+  id: string;
+  template_id: string;
+  product_id: string;
+  quantity: number;
+};
+
+type Assembly = {
+  id: string;
+  quantity_prepared: number;
+  quantity_available: number;
+  created_at: string;
+  created_by: string;
+};
+
+type Family = {
+  id: string;
+  responsible_name: string;
+  phone: string | null;
+  neighborhood: string | null;
+  household_size: number;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  created_by: string;
+};
+
+type Donation = {
+  id: string;
+  donor_name: string | null;
+  note: string | null;
+  received_on: string;
+  created_by: string;
+  created_at: string;
+};
+
+type DonationItem = {
+  id: string;
+  donation_id: string;
+  product_id: string;
+  quantity: number;
+  expires_on: string | null;
+};
+
+type Movement = {
+  id: string;
+  product_id: string;
+  movement_type: 'donation' | 'basket_prepare' | 'adjustment' | 'expired';
+  quantity_delta: number;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+type Delivery = {
+  id: string;
+  family_id: string;
+  quantity_baskets: number;
+  note: string | null;
+  delivered_on: string;
+  created_by: string;
+  created_at: string;
+};
+
+type Profile = { id: string; full_name: string; role?: string };
+type DonationDraftItem = { productId: string; quantity: number; expiresOn: string };
+
+type ProductDraft = {
+  id?: string;
+  name: string;
+  packageLabel: string;
+  unitLabel: string;
+  category: Category;
+  minStock: string;
+  tracksExpiry: boolean;
+};
+
+type FamilyDraft = {
+  id?: string;
+  responsibleName: string;
+  phone: string;
+  neighborhood: string;
+  householdSize: string;
+  notes: string;
+};
+
+type Activity = {
+  id: string;
+  type: 'donation' | 'movement' | 'delivery' | 'assembly';
+  title: string;
+  detail: string;
+  createdAt: string;
+  actorId: string;
+  tone: 'positive' | 'negative' | 'neutral';
+};
+
+const CATEGORY_LABEL: Record<Category, string> = {
+  alimentos: 'Alimentos',
+  higiene: 'Higiene',
+  limpeza: 'Limpeza',
+  roupas: 'Roupas',
+  outros: 'Outros',
+};
+
+const DEMO_PRODUCTS: Product[] = [
+  { id: 'demo-arroz', name: 'Arroz', package_label: '5 kg', unit_label: 'pacotes', category: 'alimentos', min_stock: 10, tracks_expiry: true, is_active: true },
+  { id: 'demo-feijao', name: 'Feijão', package_label: '1 kg', unit_label: 'pacotes', category: 'alimentos', min_stock: 15, tracks_expiry: true, is_active: true },
+  { id: 'demo-oleo', name: 'Óleo', package_label: '900 ml', unit_label: 'unidades', category: 'alimentos', min_stock: 10, tracks_expiry: true, is_active: true },
+  { id: 'demo-macarrao', name: 'Macarrão', package_label: '500 g', unit_label: 'pacotes', category: 'alimentos', min_stock: 12, tracks_expiry: true, is_active: true },
+  { id: 'demo-acucar', name: 'Açúcar', package_label: '1 kg', unit_label: 'pacotes', category: 'alimentos', min_stock: 8, tracks_expiry: true, is_active: true },
+  { id: 'demo-cafe', name: 'Café', package_label: '500 g', unit_label: 'pacotes', category: 'alimentos', min_stock: 8, tracks_expiry: true, is_active: true },
+  { id: 'demo-leite', name: 'Leite', package_label: '1 L', unit_label: 'caixas', category: 'alimentos', min_stock: 10, tracks_expiry: true, is_active: true },
+];
+
+const DEMO_BATCHES: Batch[] = [
+  { id: 'b1', product_id: 'demo-arroz', quantity_available: 38, expires_on: '2027-03-01', created_at: '2026-09-20T12:00:00Z' },
+  { id: 'b2', product_id: 'demo-feijao', quantity_available: 12, expires_on: '2026-12-01', created_at: '2026-09-19T12:00:00Z' },
+  { id: 'b3', product_id: 'demo-oleo', quantity_available: 6, expires_on: null, created_at: '2026-09-18T12:00:00Z' },
+  { id: 'b4', product_id: 'demo-macarrao', quantity_available: 31, expires_on: '2027-04-01', created_at: '2026-09-18T12:00:00Z' },
+  { id: 'b5', product_id: 'demo-acucar', quantity_available: 18, expires_on: '2027-02-01', created_at: '2026-09-17T12:00:00Z' },
+  { id: 'b6', product_id: 'demo-cafe', quantity_available: 16, expires_on: '2027-01-01', created_at: '2026-09-16T12:00:00Z' },
+  { id: 'b7', product_id: 'demo-leite', quantity_available: 9, expires_on: '2026-10-20', created_at: '2026-09-15T12:00:00Z' },
+];
+
+const DEMO_TEMPLATE: BasketTemplate = { id: 'demo-template', name: 'Cesta básica padrão', is_default: true, is_active: true };
+const DEMO_TEMPLATE_ITEMS: BasketTemplateItem[] = [
+  { id: 'ti1', template_id: 'demo-template', product_id: 'demo-arroz', quantity: 1 },
+  { id: 'ti2', template_id: 'demo-template', product_id: 'demo-feijao', quantity: 2 },
+  { id: 'ti3', template_id: 'demo-template', product_id: 'demo-oleo', quantity: 1 },
+  { id: 'ti4', template_id: 'demo-template', product_id: 'demo-macarrao', quantity: 2 },
+  { id: 'ti5', template_id: 'demo-template', product_id: 'demo-acucar', quantity: 1 },
+];
+
+const DEMO_FAMILIES: Family[] = [
+  { id: 'family-1', responsible_name: 'Maria Oliveira', phone: '51999990001', neighborhood: 'Centro — Sapucaia do Sul', household_size: 4, notes: null, is_active: true, created_at: '2026-08-10T12:00:00Z', created_by: 'demo-user' },
+  { id: 'family-2', responsible_name: 'José da Silva', phone: '51999990002', neighborhood: 'Primor', household_size: 3, notes: null, is_active: true, created_at: '2026-08-12T12:00:00Z', created_by: 'demo-user' },
+  { id: 'family-3', responsible_name: 'Ana Souza', phone: '51999990003', neighborhood: 'Pasqualini', household_size: 5, notes: null, is_active: true, created_at: '2026-08-15T12:00:00Z', created_by: 'demo-user' },
+];
+
+const DEMO_ASSEMBLIES: Assembly[] = [
+  { id: 'a1', quantity_prepared: 15, quantity_available: 7, created_at: '2026-09-18T12:00:00Z', created_by: 'demo-user' },
+];
+
+const DEMO_DELIVERIES: Delivery[] = [
+  { id: 'd1', family_id: 'family-1', quantity_baskets: 1, note: null, delivered_on: '2026-08-18', created_at: '2026-08-18T14:00:00Z', created_by: 'demo-user' },
+  { id: 'd2', family_id: 'family-2', quantity_baskets: 2, note: null, delivered_on: '2026-09-10', created_at: '2026-09-10T14:00:00Z', created_by: 'demo-user' },
+];
+
+const DEMO_DONATIONS: Donation[] = [
+  { id: 'don1', donor_name: 'Comunidade CEAMI', note: 'Doações do culto', received_on: '2026-09-20', created_at: '2026-09-20T16:00:00Z', created_by: 'demo-user' },
+];
+
+const DEMO_DONATION_ITEMS: DonationItem[] = [
+  { id: 'di1', donation_id: 'don1', product_id: 'demo-arroz', quantity: 10, expires_on: '2027-03-01' },
+  { id: 'di2', donation_id: 'don1', product_id: 'demo-feijao', quantity: 8, expires_on: '2026-12-01' },
+];
+
+const DEMO_MOVEMENTS: Movement[] = [
+  { id: 'm1', product_id: 'demo-arroz', movement_type: 'donation', quantity_delta: 10, note: 'Doações do culto', created_at: '2026-09-20T16:00:00Z', created_by: 'demo-user' },
+  { id: 'm2', product_id: 'demo-feijao', movement_type: 'donation', quantity_delta: 8, note: 'Doações do culto', created_at: '2026-09-20T16:00:00Z', created_by: 'demo-user' },
+];
+
+function productTitle(product: Product) {
+  return `${product.name}${product.package_label ? ` ${product.package_label}` : ''}`;
+}
+
+function quantityFor(productId: string, batches: Batch[]) {
+  return batches.filter((batch) => batch.product_id === productId).reduce((sum, batch) => sum + Number(batch.quantity_available || 0), 0);
+}
+
+function nextExpiry(productId: string, batches: Batch[]) {
+  return batches
+    .filter((batch) => batch.product_id === productId && batch.quantity_available > 0 && batch.expires_on)
+    .map((batch) => batch.expires_on as string)
+    .sort()[0] || null;
+}
+
+function formatMonthYear(value: string | null) {
+  if (!value) return '—';
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric' }).format(date).replace('.', '');
+}
+
+function formatDate(value: string) {
+  const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(date);
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+}
+
+function daysUntil(value: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const target = new Date(`${value.slice(0, 10)}T12:00:00`).getTime();
+  return Math.ceil((target - Date.now()) / 86_400_000);
+}
+
+function initials(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'CE';
+}
+
+function firstName(value: string) {
+  return value.trim().split(/\s+/)[0] || 'Equipe';
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Bom dia';
+  if (hour < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+function categoryIcon(product: Product) {
+  const name = product.name.toLocaleLowerCase('pt-BR');
+  if (name.includes('arroz') || name.includes('feijão') || name.includes('açúcar') || name.includes('macarrão')) return <Wheat />;
+  if (name.includes('café')) return <Coffee />;
+  return <Package />;
+}
+
+function stockState(product: Product, batches: Batch[]) {
+  const quantity = quantityFor(product.id, batches);
+  if (quantity <= 0) return { label: 'Precisamos receber', tone: 'danger' as const };
+  if (quantity <= product.min_stock) return { label: 'Estoque baixo', tone: 'warning' as const };
+  return { label: 'Estoque adequado', tone: 'success' as const };
+}
+
+function basketCapacity(products: Product[], batches: Batch[], items: BasketTemplateItem[]) {
+  if (!items.length) return 0;
+  const capacities = items.map((item) => {
+    const product = products.find((candidate) => candidate.id === item.product_id);
+    if (!product || item.quantity <= 0) return 0;
+    return Math.floor(quantityFor(product.id, batches) / item.quantity);
+  });
+  return Math.max(0, Math.min(...capacities));
+}
+
+function friendlyError(value: unknown) {
+  const message = value instanceof Error ? value.message : String(value || '');
+  if (/relation .* does not exist|PGRST205|social_products/i.test(message)) {
+    return 'O banco do CEAMI Social ainda precisa receber a migration do módulo.';
+  }
+  return message || 'Não foi possível concluir esta operação.';
+}
+
+function SummaryCard({ icon, value, label, tone = 'blue' }: { icon: ReactNode; value: number; label: string; tone?: 'blue' | 'orange' | 'green' | 'red' }) {
+  return <article className={`social-summary-card ${tone}`}><div>{icon}</div><strong>{value}</strong><span>{label}</span></article>;
+}
+
+function QuantityStepper({ value, onChange, min = 1, max = 999 }: { value: number; onChange: (value: number) => void; min?: number; max?: number }) {
+  return (
+    <div className="social-stepper">
+      <button type="button" onClick={() => onChange(Math.max(min, value - 1))} aria-label="Diminuir"><Minus /></button>
+      <strong>{value}</strong>
+      <button type="button" onClick={() => onChange(Math.min(max, value + 1))} aria-label="Aumentar"><Plus /></button>
+    </div>
+  );
+}
+
+function Modal({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="social-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="social-modal" role="dialog" aria-modal="true" aria-label={title}>
+        <header><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button type="button" onClick={onClose} aria-label="Fechar"><X /></button></header>
+        <div className="social-modal-body">{children}</div>
+      </section>
+    </div>
+  );
+}
+
+export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [screen, setScreen] = useState<Screen>('home');
+  const [greetingLabel, setGreetingLabel] = useState('Olá');
+  const [loading, setLoading] = useState(!demoMode);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+  const [profile, setProfile] = useState<Profile | null>(demoMode ? { id: 'demo-user', full_name: 'Maria', role: 'social' } : null);
+  const [profiles, setProfiles] = useState<Profile[]>(demoMode ? [{ id: 'demo-user', full_name: 'Maria' }] : []);
+  const [products, setProducts] = useState<Product[]>(demoMode ? DEMO_PRODUCTS : []);
+  const [batches, setBatches] = useState<Batch[]>(demoMode ? DEMO_BATCHES : []);
+  const [basketTemplate, setBasketTemplate] = useState<BasketTemplate | null>(demoMode ? DEMO_TEMPLATE : null);
+  const [templateItems, setTemplateItems] = useState<BasketTemplateItem[]>(demoMode ? DEMO_TEMPLATE_ITEMS : []);
+  const [families, setFamilies] = useState<Family[]>(demoMode ? DEMO_FAMILIES : []);
+  const [assemblies, setAssemblies] = useState<Assembly[]>(demoMode ? DEMO_ASSEMBLIES : []);
+  const [donations, setDonations] = useState<Donation[]>(demoMode ? DEMO_DONATIONS : []);
+  const [donationItems, setDonationItems] = useState<DonationItem[]>(demoMode ? DEMO_DONATION_ITEMS : []);
+  const [movements, setMovements] = useState<Movement[]>(demoMode ? DEMO_MOVEMENTS : []);
+  const [deliveries, setDeliveries] = useState<Delivery[]>(demoMode ? DEMO_DELIVERIES : []);
+
+  const [stockQuery, setStockQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [stockVisible, setStockVisible] = useState(12);
+  const [familyQuery, setFamilyQuery] = useState('');
+  const [familyVisible, setFamilyVisible] = useState(10);
+  const [historyVisible, setHistoryVisible] = useState(15);
+  const [productVisible, setProductVisible] = useState(12);
+
+  const [donationSearch, setDonationSearch] = useState('');
+  const [donationDraft, setDonationDraft] = useState<DonationDraftItem[]>([]);
+  const [donorName, setDonorName] = useState('');
+  const [donationNote, setDonationNote] = useState('');
+  const [selectedDonationProductId, setSelectedDonationProductId] = useState('');
+  const [donationQty, setDonationQty] = useState(1);
+  const [donationExpiry, setDonationExpiry] = useState('');
+
+  const [prepareQty, setPrepareQty] = useState(1);
+  const [deliveryQty, setDeliveryQty] = useState(1);
+  const [deliveryFamilyId, setDeliveryFamilyId] = useState('');
+  const [deliveryNote, setDeliveryNote] = useState('');
+
+  const [productModal, setProductModal] = useState<ProductDraft | null>(null);
+  const [familyModal, setFamilyModal] = useState<FamilyDraft | null>(null);
+  const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
+  const [adjustDelta, setAdjustDelta] = useState(1);
+  const [adjustDirection, setAdjustDirection] = useState<'add' | 'remove'>('add');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustExpiry, setAdjustExpiry] = useState('');
+  const [basketConfigOpen, setBasketConfigOpen] = useState(false);
+  const [basketConfig, setBasketConfig] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    setGreetingLabel(greeting());
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(''), 2600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    setStockVisible(12);
+    setFamilyVisible(10);
+    setHistoryVisible(15);
+    setProductVisible(12);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [screen]);
+
+  const load = useCallback(async () => {
+    if (demoMode) return;
+    setLoading(true);
+    setError('');
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('Sessão expirada. Entre novamente.');
+
+      const [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, actorsResult] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, role').eq('id', auth.user.id).maybeSingle(),
+        supabase.from('social_products').select('*').order('name'),
+        supabase.from('social_stock_batches').select('id, product_id, quantity_available, expires_on, created_at').gt('quantity_available', 0).order('created_at', { ascending: false }),
+        supabase.from('social_basket_templates').select('*').eq('is_default', true).eq('is_active', true).maybeSingle(),
+        supabase.from('social_families').select('*').order('responsible_name'),
+        supabase.from('social_basket_assemblies').select('*').order('created_at', { ascending: false }),
+        supabase.from('social_donations').select('*').order('created_at', { ascending: false }).limit(60),
+        supabase.from('social_donation_items').select('*').order('created_at', { ascending: false }).limit(200),
+        supabase.from('social_inventory_movements').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('social_deliveries').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.rpc('social_actor_profiles'),
+      ]);
+
+      const firstError = [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, actorsResult].find((result) => result.error)?.error;
+      if (firstError) throw new Error(firstError.message);
+
+      const loadedProfile = profileResult.data as Profile | null;
+      const loadedTemplate = templateResult.data as BasketTemplate | null;
+      setProfile(loadedProfile);
+      setProducts((productsResult.data || []) as Product[]);
+      setBatches((batchesResult.data || []) as Batch[]);
+      setBasketTemplate(loadedTemplate);
+      setFamilies((familiesResult.data || []) as Family[]);
+      setAssemblies((assembliesResult.data || []) as Assembly[]);
+      setDonations((donationsResult.data || []) as Donation[]);
+      setDonationItems((donationItemsResult.data || []) as DonationItem[]);
+      setMovements((movementsResult.data || []) as Movement[]);
+      setDeliveries((deliveriesResult.data || []) as Delivery[]);
+      setProfiles((actorsResult.data || []) as Profile[]);
+
+      if (loadedTemplate) {
+        const { data: items, error: itemsError } = await supabase
+          .from('social_basket_template_items')
+          .select('*')
+          .eq('template_id', loadedTemplate.id)
+          .order('created_at');
+        if (itemsError) throw new Error(itemsError.message);
+        setTemplateItems((items || []) as BasketTemplateItem[]);
+      } else {
+        setTemplateItems([]);
+      }
+    } catch (caught) {
+      setError(friendlyError(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [demoMode, supabase]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const activeProducts = useMemo(() => products.filter((product) => product.is_active), [products]);
+  const readyBaskets = useMemo(() => assemblies.reduce((sum, assembly) => sum + Number(assembly.quantity_available || 0), 0), [assemblies]);
+  const capacity = useMemo(() => basketCapacity(activeProducts, batches, templateItems), [activeProducts, batches, templateItems]);
+  const lowStockCount = useMemo(() => activeProducts.filter((product) => quantityFor(product.id, batches) <= product.min_stock).length, [activeProducts, batches]);
+  const expiringCount = useMemo(() => activeProducts.filter((product) => { const days = daysUntil(nextExpiry(product.id, batches)); return days >= 0 && days <= 60; }).length, [activeProducts, batches]);
+
+  const deliveriesThisMonth = useMemo(() => {
+    const now = new Date();
+    return deliveries.filter((delivery) => {
+      const date = new Date(`${delivery.delivered_on}T12:00:00`);
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).reduce((sum, delivery) => sum + Number(delivery.quantity_baskets || 0), 0);
+  }, [deliveries]);
+
+  const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const familyMap = useMemo(() => new Map(families.map((family) => [family.id, family])), [families]);
+  const profileMap = useMemo(() => new Map(profiles.map((item) => [item.id, item.full_name])), [profiles]);
+
+  const filteredStock = useMemo(() => {
+    const query = stockQuery.trim().toLocaleLowerCase('pt-BR');
+    return activeProducts.filter((product) => {
+      const quantity = quantityFor(product.id, batches);
+      const expiryDays = daysUntil(nextExpiry(product.id, batches));
+      if (stockFilter === 'low' && quantity > product.min_stock) return false;
+      if (stockFilter === 'expiring' && !(expiryDays >= 0 && expiryDays <= 60)) return false;
+      if (query && !productTitle(product).toLocaleLowerCase('pt-BR').includes(query)) return false;
+      return true;
+    });
+  }, [activeProducts, batches, stockFilter, stockQuery]);
+
+  const filteredFamilies = useMemo(() => {
+    const query = familyQuery.trim().toLocaleLowerCase('pt-BR');
+    return families.filter((family) => family.is_active && (!query || `${family.responsible_name} ${family.neighborhood || ''} ${family.phone || ''}`.toLocaleLowerCase('pt-BR').includes(query)));
+  }, [families, familyQuery]);
+
+  const donationProducts = useMemo(() => {
+    const query = donationSearch.trim().toLocaleLowerCase('pt-BR');
+    return activeProducts.filter((product) => !query || productTitle(product).toLocaleLowerCase('pt-BR').includes(query)).slice(0, 12);
+  }, [activeProducts, donationSearch]);
+
+  const activities = useMemo<Activity[]>(() => {
+    const movementActivities = movements
+      .filter((movement) => movement.movement_type === 'adjustment' || movement.movement_type === 'expired')
+      .map((movement) => {
+        const product = productMap.get(movement.product_id);
+        const isPositive = movement.quantity_delta > 0;
+        const title = movement.movement_type === 'basket_prepare'
+          ? 'Itens separados para cestas'
+          : movement.movement_type === 'expired'
+            ? 'Baixa por validade'
+            : 'Ajuste de estoque';
+        return {
+          id: `movement-${movement.id}`,
+          type: 'movement' as const,
+          title,
+          detail: `${isPositive ? '+' : ''}${movement.quantity_delta} ${product ? productTitle(product) : 'item'}${movement.note ? ` · ${movement.note}` : ''}`,
+          createdAt: movement.created_at,
+          actorId: movement.created_by,
+          tone: isPositive ? 'positive' as const : 'negative' as const,
+        };
+      });
+
+    const donationActivities = donations.map((donation) => {
+      const items = donationItems.filter((item) => item.donation_id === donation.id);
+      const total = items.reduce((sum, item) => sum + item.quantity, 0);
+      return {
+        id: `donation-${donation.id}`,
+        type: 'donation' as const,
+        title: 'Doação recebida',
+        detail: `${total} item(ns)${donation.donor_name ? ` · ${donation.donor_name}` : ''}`,
+        createdAt: donation.created_at,
+        actorId: donation.created_by,
+        tone: 'positive' as const,
+      };
+    });
+
+    const deliveryActivities = deliveries.map((delivery) => ({
+      id: `delivery-${delivery.id}`,
+      type: 'delivery' as const,
+      title: 'Cesta entregue',
+      detail: `${delivery.quantity_baskets} cesta(s) · ${familyMap.get(delivery.family_id)?.responsible_name || 'Família'}`,
+      createdAt: delivery.created_at,
+      actorId: delivery.created_by,
+      tone: 'neutral' as const,
+    }));
+
+    const assemblyActivities = assemblies.map((assembly) => ({
+      id: `assembly-${assembly.id}`,
+      type: 'assembly' as const,
+      title: 'Cestas montadas',
+      detail: `${assembly.quantity_prepared} cesta(s) preparadas`,
+      createdAt: assembly.created_at,
+      actorId: assembly.created_by,
+      tone: 'neutral' as const,
+    }));
+
+    return [...donationActivities, ...movementActivities, ...deliveryActivities, ...assemblyActivities]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [assemblies, deliveries, donationItems, donations, familyMap, movements, productMap]);
+
+  const lastDeliveryByFamily = useMemo(() => {
+    const map = new Map<string, Delivery>();
+    for (const delivery of [...deliveries].sort((a, b) => b.delivered_on.localeCompare(a.delivered_on))) {
+      if (!map.has(delivery.family_id)) map.set(delivery.family_id, delivery);
+    }
+    return map;
+  }, [deliveries]);
+
+  async function signOut() {
+    if (demoMode) { setToast('No sistema real, este botão encerra a sessão.'); return; }
+    await supabase.auth.signOut();
+    router.replace('/social/login');
+    router.refresh();
+  }
+
+  async function refreshData() {
+    if (demoMode) { setToast('Dados de demonstração atualizados.'); return; }
+    await load();
+    setToast('Dados atualizados.');
+  }
+
+  function selectDonationProduct(productId: string) {
+    setSelectedDonationProductId(productId);
+    setDonationQty(1);
+    setDonationExpiry('');
+  }
+
+  function addDonationItem() {
+    if (!selectedDonationProductId) return;
+    setDonationDraft((current) => {
+      const existingIndex = current.findIndex((item) => item.productId === selectedDonationProductId && item.expiresOn === donationExpiry);
+      if (existingIndex >= 0) {
+        return current.map((item, index) => index === existingIndex ? { ...item, quantity: item.quantity + donationQty } : item);
+      }
+      return [...current, { productId: selectedDonationProductId, quantity: donationQty, expiresOn: donationExpiry }];
+    });
+    setSelectedDonationProductId('');
+    setDonationQty(1);
+    setDonationExpiry('');
+  }
+
+  async function confirmDonation() {
+    if (!donationDraft.length || saving) return;
+    if (demoMode) {
+      setToast('Doação registrada com sucesso.');
+      setDonationDraft([]); setDonorName(''); setDonationNote(''); setScreen('home');
+      return;
+    }
+    setSaving(true);
+    const { error: rpcError } = await supabase.rpc('social_register_donation', {
+      p_items: donationDraft.map((item) => ({ product_id: item.productId, quantity: item.quantity, expires_on: item.expiresOn || null })),
+      p_donor_name: donorName.trim() || null,
+      p_note: donationNote.trim() || null,
+      p_received_on: new Date().toLocaleDateString('en-CA'),
+    });
+    setSaving(false);
+    if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
+    setDonationDraft([]); setDonorName(''); setDonationNote('');
+    await load();
+    setScreen('home');
+    setToast('Doação registrada com sucesso.');
+  }
+
+  async function prepareBaskets() {
+    if (saving || prepareQty < 1 || prepareQty > capacity) return;
+    if (demoMode) { setToast(`${prepareQty} cesta(s) montada(s).`); setPrepareQty(1); return; }
+    setSaving(true);
+    const { error: rpcError } = await supabase.rpc('social_prepare_baskets', { p_quantity: prepareQty });
+    setSaving(false);
+    if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
+    setPrepareQty(1);
+    await load();
+    setToast('Cestas montadas e estoque atualizado.');
+  }
+
+  async function deliverBaskets() {
+    if (saving || !deliveryFamilyId || deliveryQty < 1 || deliveryQty > readyBaskets) return;
+    if (demoMode) { setToast('Entrega registrada com sucesso.'); setDeliveryQty(1); setDeliveryNote(''); return; }
+    setSaving(true);
+    const { error: rpcError } = await supabase.rpc('social_deliver_baskets', {
+      p_family_id: deliveryFamilyId,
+      p_quantity: deliveryQty,
+      p_note: deliveryNote.trim() || null,
+    });
+    setSaving(false);
+    if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
+    setDeliveryQty(1); setDeliveryNote('');
+    await load();
+    setToast('Entrega registrada com sucesso.');
+  }
+
+  async function saveProduct() {
+    if (!productModal || saving || !productModal.name.trim()) return;
+    const payload = {
+      name: productModal.name.trim(),
+      package_label: productModal.packageLabel.trim(),
+      unit_label: productModal.unitLabel.trim() || 'unidades',
+      category: productModal.category,
+      min_stock: Math.max(0, Number(productModal.minStock) || 0),
+      tracks_expiry: productModal.tracksExpiry,
+    };
+    if (demoMode) { setToast(productModal.id ? 'Produto atualizado.' : 'Produto cadastrado.'); setProductModal(null); return; }
+    setSaving(true);
+    const result = productModal.id
+      ? await supabase.from('social_products').update(payload).eq('id', productModal.id)
+      : await supabase.from('social_products').insert(payload);
+    setSaving(false);
+    if (result.error) { setToast(friendlyError(result.error.message)); return; }
+    const wasEditing = Boolean(productModal.id);
+    setProductModal(null);
+    await load();
+    setToast(wasEditing ? 'Produto atualizado.' : 'Produto cadastrado.');
+  }
+
+  async function archiveProduct(product: Product) {
+    if (demoMode) { setToast('Produto arquivado.'); return; }
+    const { error: updateError } = await supabase.from('social_products').update({ is_active: false }).eq('id', product.id);
+    if (updateError) { setToast(friendlyError(updateError.message)); return; }
+    await load();
+    setToast('Produto arquivado. O histórico foi preservado.');
+  }
+
+  async function saveFamily() {
+    if (!familyModal || saving || !familyModal.responsibleName.trim()) return;
+    const payload = {
+      responsible_name: familyModal.responsibleName.trim(),
+      phone: familyModal.phone.trim() || null,
+      neighborhood: familyModal.neighborhood.trim() || null,
+      household_size: Math.max(1, Number(familyModal.householdSize) || 1),
+      notes: familyModal.notes.trim() || null,
+    };
+    if (demoMode) { setToast(familyModal.id ? 'Família atualizada.' : 'Família cadastrada.'); setFamilyModal(null); return; }
+    setSaving(true);
+    const result = familyModal.id
+      ? await supabase.from('social_families').update(payload).eq('id', familyModal.id)
+      : await supabase.from('social_families').insert(payload);
+    setSaving(false);
+    if (result.error) { setToast(friendlyError(result.error.message)); return; }
+    const wasEditing = Boolean(familyModal.id);
+    setFamilyModal(null);
+    await load();
+    setToast(wasEditing ? 'Família atualizada.' : 'Família cadastrada.');
+  }
+
+  async function archiveFamily(family: Family) {
+    if (demoMode) { setToast('Família arquivada.'); return; }
+    const { error: updateError } = await supabase.from('social_families').update({ is_active: false }).eq('id', family.id);
+    if (updateError) { setToast(friendlyError(updateError.message)); return; }
+    await load();
+    setToast('Família arquivada. O histórico foi preservado.');
+  }
+
+  async function confirmAdjustment() {
+    if (!adjustProduct || !adjustReason.trim() || saving) return;
+    const delta = adjustDirection === 'add' ? adjustDelta : -adjustDelta;
+    if (demoMode) { setToast('Ajuste registrado no histórico.'); setAdjustProduct(null); return; }
+    setSaving(true);
+    const { error: rpcError } = await supabase.rpc('social_adjust_stock', {
+      p_product_id: adjustProduct.id,
+      p_quantity_delta: delta,
+      p_note: adjustReason.trim(),
+      p_expires_on: adjustDirection === 'add' && adjustExpiry ? adjustExpiry : null,
+    });
+    setSaving(false);
+    if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
+    setAdjustProduct(null); setAdjustDelta(1); setAdjustReason(''); setAdjustExpiry('');
+    await load();
+    setToast('Ajuste registrado no histórico.');
+  }
+
+  function openBasketConfig() {
+    const current: Record<string, number> = {};
+    for (const item of templateItems) current[item.product_id] = item.quantity;
+    setBasketConfig(current);
+    setBasketConfigOpen(true);
+  }
+
+  async function saveBasketConfig() {
+    if (!basketTemplate || saving) return;
+    const rows = Object.entries(basketConfig)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([productId, quantity]) => ({ template_id: basketTemplate.id, product_id: productId, quantity }));
+    if (!rows.length) { setToast('A cesta precisa ter pelo menos um item.'); return; }
+    if (demoMode) { setBasketConfigOpen(false); setToast('Composição da cesta atualizada.'); return; }
+    setSaving(true);
+    const { error: configError } = await supabase.rpc('social_set_default_basket_items', {
+      p_items: rows.map((row) => ({ product_id: row.product_id, quantity: row.quantity })),
+    });
+    setSaving(false);
+    if (configError) { setToast(friendlyError(configError.message)); return; }
+    setBasketConfigOpen(false);
+    await load();
+    setToast('Composição da cesta atualizada.');
+  }
+
+  const title = screen === 'home' ? 'CEAMI Social'
+    : screen === 'stock' ? 'Estoque'
+      : screen === 'donation' ? 'Receber doação'
+        : screen === 'baskets' ? 'Cestas'
+          : screen === 'families' ? 'Famílias'
+            : screen === 'history' ? 'Histórico'
+              : screen === 'products' ? 'Produtos' : 'Mais opções';
+
+  if (loading) {
+    return <main className="social-app social-loading"><div className="social-loading-mark"><HeartHandshake /></div><strong>Carregando CEAMI Social...</strong><span>Organizando estoque, cestas e famílias.</span></main>;
+  }
+
+  return (
+    <main className="social-app">
+      <header className="social-topbar">
+        {screen === 'home' ? (
+          <div className="social-brand"><img src="/brand/ceami-icon.svg?v=official-2" alt="CEAMI" /><strong>CEAMI <span>Social</span></strong></div>
+        ) : (
+          <button type="button" className="social-back" onClick={() => setScreen('home')} aria-label="Voltar"><ArrowLeft /></button>
+        )}
+        <h1>{screen === 'home' ? '' : title}</h1>
+        <button type="button" className="social-refresh" onClick={() => void refreshData()} aria-label="Atualizar"><RefreshCw /></button>
+      </header>
+
+      <div className="social-content">
+        {error && (
+          <section className="social-setup-alert"><AlertTriangle /><div><strong>CEAMI Social ainda não está ativo no banco</strong><p>{error}</p><small>A interface já está pronta; falta aplicar a migration no Supabase do CEAMI Membros.</small></div></section>
+        )}
+
+        {screen === 'home' && (
+          <div className="social-home">
+            <section className="social-welcome">
+              <span>CEAMI SOCIAL</span>
+              <h2>{greetingLabel}, {firstName(profile?.full_name || 'Equipe')} <span aria-hidden="true">👋</span></h2>
+              <p>O que você deseja fazer hoje?</p>
+            </section>
+
+            <section className="social-main-actions" aria-label="Ações principais">
+              <button type="button" className="orange" onClick={() => setScreen('donation')}><Gift /><strong>Receber<br />doação</strong></button>
+              <button type="button" className="blue" onClick={() => setScreen('baskets')}><ShoppingBasket /><strong>Montar /<br />entregar cesta</strong></button>
+              <button type="button" className="blue soft" onClick={() => setScreen('stock')}><Package /><strong>Ver estoque</strong></button>
+              <button type="button" className="orange soft" onClick={() => setScreen('families')}><Users /><strong>Famílias<br />atendidas</strong></button>
+            </section>
+
+            <section className="social-home-summary">
+              <div className="social-section-title"><div><span>RESUMO DE HOJE</span><h2>Visão rápida</h2></div></div>
+              <div className="social-summary-grid">
+                <SummaryCard icon={<ShoppingBasket />} value={capacity} label="cestas possíveis" tone="green" />
+                <SummaryCard icon={<AlertTriangle />} value={lowStockCount} label="itens com estoque baixo" tone="orange" />
+                <SummaryCard icon={<Clock3 />} value={expiringCount} label="produtos vencendo em até 60 dias" tone="red" />
+                <SummaryCard icon={<CheckCircle2 />} value={deliveriesThisMonth} label="cestas entregues neste mês" tone="blue" />
+              </div>
+            </section>
+
+            <button type="button" className="social-ready-strip" onClick={() => setScreen('baskets')}>
+              <div><ShoppingBasket /><span><small>Cestas prontas agora</small><strong>{readyBaskets}</strong></span></div><ChevronRight />
+            </button>
+          </div>
+        )}
+
+        {screen === 'stock' && (
+          <section className="social-screen">
+            <div className="social-search"><Search /><input value={stockQuery} onChange={(event) => setStockQuery(event.target.value)} placeholder="Buscar item no estoque" /></div>
+            <div className="social-filter-pills">
+              <button type="button" className={stockFilter === 'all' ? 'active' : ''} onClick={() => setStockFilter('all')}>Todos</button>
+              <button type="button" className={stockFilter === 'low' ? 'active' : ''} onClick={() => setStockFilter('low')}>Baixo</button>
+              <button type="button" className={stockFilter === 'expiring' ? 'active' : ''} onClick={() => setStockFilter('expiring')}>Vencendo</button>
+            </div>
+
+            <div className="social-stock-list">
+              {filteredStock.slice(0, stockVisible).map((product) => {
+                const quantity = quantityFor(product.id, batches);
+                const state = stockState(product, batches);
+                const expiry = nextExpiry(product.id, batches);
+                return (
+                  <article className="social-stock-card" key={product.id}>
+                    <div className="social-product-art">{categoryIcon(product)}</div>
+                    <div className="social-stock-copy"><h3>{productTitle(product)}</h3><strong>{quantity} {product.unit_label}</strong><span className={`social-stock-status ${state.tone}`}><i />{state.label}</span><small>Próx. validade: {formatMonthYear(expiry)}</small></div>
+                    <button type="button" className="social-stock-adjust" onClick={() => { setAdjustProduct(product); setAdjustDirection('add'); setAdjustDelta(1); setAdjustReason(''); setAdjustExpiry(''); }} aria-label={`Ajustar ${productTitle(product)}`}><SlidersHorizontal /></button>
+                  </article>
+                );
+              })}
+            </div>
+            {!filteredStock.length && <div className="social-empty"><Package /><strong>Nenhum item encontrado</strong><span>Tente outro filtro ou cadastre um produto.</span></div>}
+            {filteredStock.length > stockVisible && <button type="button" className="social-more-results" onClick={() => setStockVisible((value) => value + 12)}>Mostrar mais itens</button>}
+          </section>
+        )}
+
+        {screen === 'donation' && (
+          <section className="social-screen social-donation-screen">
+            <div className="social-help-banner"><Gift /><div><strong>O que chegou?</strong><span>Toque no produto e informe a quantidade. Você pode adicionar vários itens antes de confirmar.</span></div></div>
+            <div className="social-search"><Search /><input value={donationSearch} onChange={(event) => setDonationSearch(event.target.value)} placeholder="Buscar item" /></div>
+            <div className="social-product-grid">
+              {donationProducts.map((product) => (
+                <button type="button" key={product.id} className={selectedDonationProductId === product.id ? 'selected' : ''} onClick={() => selectDonationProduct(product.id)}>
+                  <span>{categoryIcon(product)}</span><strong>{product.name}</strong><small>{product.package_label}</small>
+                </button>
+              ))}
+              <button type="button" onClick={() => setProductModal({ name: '', packageLabel: '', unitLabel: 'unidades', category: 'outros', minStock: '0', tracksExpiry: false })}>
+                <span><Plus /></span><strong>Outro item</strong><small>Cadastrar</small>
+              </button>
+            </div>
+
+            {selectedDonationProductId && (() => {
+              const product = productMap.get(selectedDonationProductId);
+              if (!product) return null;
+              return (
+                <section className="social-entry-card">
+                  <div className="social-entry-title"><div className="social-product-art small">{categoryIcon(product)}</div><div><span>ITEM SELECIONADO</span><h2>{productTitle(product)}</h2></div></div>
+                  <label className="social-field"><span>Quantidade</span><div className="social-quantity-row"><QuantityStepper value={donationQty} onChange={setDonationQty} /><div className="social-quick-qty"><button type="button" onClick={() => setDonationQty((value) => value + 1)}>+1</button><button type="button" onClick={() => setDonationQty((value) => value + 5)}>+5</button><button type="button" onClick={() => setDonationQty((value) => value + 10)}>+10</button></div></div></label>
+                  {product.tracks_expiry && <label className="social-field"><span>Validade <small>(opcional)</small></span><input type="month" value={donationExpiry.slice(0, 7)} onChange={(event) => setDonationExpiry(event.target.value ? `${event.target.value}-01` : '')} /></label>}
+                  <button type="button" className="social-secondary-action" onClick={addDonationItem}><Plus />Adicionar à doação</button>
+                </section>
+              );
+            })()}
+
+            {donationDraft.length > 0 && (
+              <section className="social-review-card">
+                <div className="social-section-title"><div><span>CONFIRA A DOAÇÃO</span><h2>{donationDraft.length} item(ns) adicionados</h2></div></div>
+                <div className="social-review-list">
+                  {donationDraft.map((item, index) => {
+                    const product = productMap.get(item.productId);
+                    return <div key={`${item.productId}-${item.expiresOn}-${index}`}><span><strong>{product ? productTitle(product) : 'Produto'}</strong><small>{item.quantity} {product?.unit_label || 'unidades'}{item.expiresOn ? ` · val. ${formatMonthYear(item.expiresOn)}` : ''}</small></span><button type="button" onClick={() => setDonationDraft((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remover item"><X /></button></div>;
+                  })}
+                </div>
+                <div className="social-form-grid">
+                  <label className="social-field"><span>Doador <small>(opcional)</small></span><input value={donorName} onChange={(event) => setDonorName(event.target.value)} placeholder="Nome da pessoa ou grupo" /></label>
+                  <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={donationNote} onChange={(event) => setDonationNote(event.target.value)} placeholder="Ex.: doações do culto" /></label>
+                </div>
+                <button type="button" className="social-primary-action" disabled={saving} onClick={() => void confirmDonation()}><Check />{saving ? 'Registrando...' : 'Confirmar entrada'}</button>
+              </section>
+            )}
+          </section>
+        )}
+
+        {screen === 'baskets' && (
+          <section className="social-screen social-baskets-screen">
+            <article className="social-basket-template">
+              <div className="social-basket-illustration"><ShoppingBasket /></div>
+              <div><span>CESTA ATUAL</span><h2>{basketTemplate?.name || 'Cesta básica padrão'}</h2><div className="social-template-items">{templateItems.map((item) => { const product = productMap.get(item.product_id); return product ? <small key={item.id}>{item.quantity} × {productTitle(product)}</small> : null; })}</div></div>
+              <button type="button" onClick={openBasketConfig} aria-label="Configurar cesta"><Settings2 /></button>
+            </article>
+
+            <div className="social-basket-metrics"><div><small>Podemos montar</small><strong>{capacity}</strong><span>com o estoque atual</span></div><div><small>Cestas prontas</small><strong>{readyBaskets}</strong><span>disponíveis para entrega</span></div></div>
+
+            <section className="social-operation-card">
+              <div className="social-section-title"><div><span>MONTAR CESTAS</span><h2>Quantas serão preparadas?</h2></div></div>
+              <QuantityStepper value={prepareQty} onChange={setPrepareQty} min={1} max={Math.max(1, capacity)} />
+              {capacity > 0 ? <div className="social-success-note"><ShoppingBasket />Com o estoque atual, você consegue montar <strong>{capacity} cesta(s)</strong>.</div> : <div className="social-warning-note"><AlertTriangle />Não há itens suficientes para montar uma cesta completa.</div>}
+              <button type="button" className="social-primary-action" disabled={saving || capacity < 1 || prepareQty > capacity} onClick={() => void prepareBaskets()}><Check />Confirmar montagem</button>
+            </section>
+
+            <section className="social-operation-card">
+              <div className="social-section-title"><div><span>ENTREGAR CESTA</span><h2>Para qual família?</h2></div></div>
+              <label className="social-field"><span>Família</span><select value={deliveryFamilyId} onChange={(event) => setDeliveryFamilyId(event.target.value)}><option value="">Selecione uma família</option>{families.filter((family) => family.is_active).map((family) => <option key={family.id} value={family.id}>{family.responsible_name} · {family.household_size} pessoa(s)</option>)}</select></label>
+              <label className="social-field"><span>Quantidade de cestas</span><QuantityStepper value={deliveryQty} onChange={setDeliveryQty} min={1} max={Math.max(1, readyBaskets)} /></label>
+              {deliveryFamilyId && (() => { const family = familyMap.get(deliveryFamilyId); const last = lastDeliveryByFamily.get(deliveryFamilyId); return family ? <div className="social-family-preview"><span className="social-avatar">{initials(family.responsible_name)}</span><div><strong>{family.responsible_name}</strong><small>{family.household_size} pessoas · {family.neighborhood || 'Bairro não informado'}</small><small>Última cesta: {last ? formatDate(last.delivered_on) : 'nenhuma registrada'}</small></div></div> : null; })()}
+              <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} placeholder="Ex.: retirada na igreja" /></label>
+              <button type="button" className="social-primary-action" disabled={saving || !deliveryFamilyId || readyBaskets < 1 || deliveryQty > readyBaskets} onClick={() => void deliverBaskets()}><Check />Confirmar entrega</button>
+            </section>
+          </section>
+        )}
+
+        {screen === 'families' && (
+          <section className="social-screen">
+            <div className="social-toolbar"><div className="social-search"><Search /><input value={familyQuery} onChange={(event) => setFamilyQuery(event.target.value)} placeholder="Buscar família" /></div><button type="button" className="social-icon-action" onClick={() => setFamilyModal({ responsibleName: '', phone: '', neighborhood: '', householdSize: '1', notes: '' })}><Plus /><span>Nova</span></button></div>
+            <div className="social-family-list">
+              {filteredFamilies.slice(0, familyVisible).map((family) => {
+                const last = lastDeliveryByFamily.get(family.id);
+                const deliveryCount = deliveries.filter((delivery) => delivery.family_id === family.id).reduce((sum, delivery) => sum + delivery.quantity_baskets, 0);
+                return (
+                  <article className="social-family-card" key={family.id}>
+                    <span className="social-avatar">{initials(family.responsible_name)}</span>
+                    <div><h3>{family.responsible_name}</h3><p>{family.household_size} pessoa(s) · {family.neighborhood || 'Bairro não informado'}</p><small>{formatPhoneBR(family.phone, 'Sem telefone')} · Última cesta: {last ? formatDate(last.delivered_on) : 'nenhuma'} · Total: {deliveryCount}</small></div>
+                    <button type="button" onClick={() => setFamilyModal({ id: family.id, responsibleName: family.responsible_name, phone: family.phone || '', neighborhood: family.neighborhood || '', householdSize: String(family.household_size), notes: family.notes || '' })} aria-label="Editar família"><Pencil /></button>
+                    <button type="button" className="social-family-deliver" onClick={() => { setDeliveryFamilyId(family.id); setScreen('baskets'); }}>Entregar cesta</button>
+                  </article>
+                );
+              })}
+            </div>
+            {!filteredFamilies.length && <div className="social-empty"><Users /><strong>Nenhuma família cadastrada</strong><span>Cadastre a primeira família para registrar entregas.</span><button type="button" onClick={() => setFamilyModal({ responsibleName: '', phone: '', neighborhood: '', householdSize: '1', notes: '' })}><Plus />Cadastrar família</button></div>}
+            {filteredFamilies.length > familyVisible && <button type="button" className="social-more-results" onClick={() => setFamilyVisible((value) => value + 10)}>Mostrar mais famílias</button>}
+          </section>
+        )}
+
+        {screen === 'history' && (
+          <section className="social-screen">
+            <div className="social-help-banner compact"><History /><div><strong>Histórico protegido</strong><span>Entradas, saídas e correções não são apagadas. Assim sempre sabemos o que mudou e quem registrou.</span></div></div>
+            <div className="social-history-list">
+              {activities.slice(0, historyVisible).map((activity) => (
+                <article key={activity.id} className={`social-history-card ${activity.tone}`}>
+                  <div className="social-history-icon">{activity.type === 'donation' ? <Gift /> : activity.type === 'delivery' ? <HeartHandshake /> : activity.type === 'assembly' ? <ShoppingBasket /> : <SlidersHorizontal />}</div>
+                  <div><h3>{activity.title}</h3><p>{activity.detail}</p><small>{formatDateTime(activity.createdAt)} · {profileMap.get(activity.actorId) || 'Equipe CEAMI'}</small></div>
+                </article>
+              ))}
+            </div>
+            {!activities.length && <div className="social-empty"><History /><strong>Nenhuma movimentação ainda</strong><span>As próximas doações, cestas e ajustes aparecerão aqui.</span></div>}
+            {activities.length > historyVisible && <button type="button" className="social-more-results" onClick={() => setHistoryVisible((value) => value + 15)}>Mostrar histórico anterior</button>}
+          </section>
+        )}
+
+        {screen === 'products' && (
+          <section className="social-screen">
+            <div className="social-toolbar"><div><span className="social-eyebrow">CADASTRO</span><h2 className="social-inline-title">Produtos do estoque</h2></div><button type="button" className="social-icon-action" onClick={() => setProductModal({ name: '', packageLabel: '', unitLabel: 'unidades', category: 'alimentos', minStock: '0', tracksExpiry: true })}><Plus /><span>Novo</span></button></div>
+            <div className="social-product-admin-list">
+              {products.filter((product) => product.is_active).slice(0, productVisible).map((product) => (
+                <article key={product.id}><div className="social-product-art small">{categoryIcon(product)}</div><div><h3>{productTitle(product)}</h3><p>{CATEGORY_LABEL[product.category]} · mínimo {product.min_stock} {product.unit_label}</p><small>{product.tracks_expiry ? 'Controla validade' : 'Sem controle de validade'}</small></div><button type="button" onClick={() => setProductModal({ id: product.id, name: product.name, packageLabel: product.package_label, unitLabel: product.unit_label, category: product.category, minStock: String(product.min_stock), tracksExpiry: product.tracks_expiry })} aria-label="Editar produto"><Pencil /></button></article>
+              ))}
+            </div>
+            {products.filter((product) => product.is_active).length > productVisible && <button type="button" className="social-more-results" onClick={() => setProductVisible((value) => value + 12)}>Mostrar mais produtos</button>}
+          </section>
+        )}
+
+        {screen === 'more' && (
+          <section className="social-screen social-more-screen">
+            <div className="social-more-profile"><div className="social-avatar large">{initials(profile?.full_name || 'CEAMI')}</div><div><span>VOCÊ ESTÁ CONECTADO COMO</span><h2>{profile?.full_name || 'Equipe CEAMI Social'}</h2><p>CEAMI Social · acesso autorizado</p></div></div>
+            <div className="social-menu-list">
+              <button type="button" onClick={() => setScreen('history')}><History /><span><strong>Histórico</strong><small>Veja tudo que entrou, saiu ou foi corrigido.</small></span><ChevronRight /></button>
+              <button type="button" onClick={() => setScreen('products')}><Package /><span><strong>Produtos</strong><small>Cadastre itens e defina estoque mínimo.</small></span><ChevronRight /></button>
+              <button type="button" onClick={openBasketConfig}><Settings2 /><span><strong>Configurar cesta</strong><small>Defina a composição da cesta básica padrão.</small></span><ChevronRight /></button>
+              <button type="button" onClick={() => void refreshData()}><RefreshCw /><span><strong>Atualizar dados</strong><small>Busca as informações mais recentes do estoque.</small></span><ChevronRight /></button>
+            </div>
+            <div className="social-install-tip"><Sparkles /><div><strong>Use como aplicativo no celular</strong><p>No menu do navegador, escolha “Adicionar à tela inicial”. O CEAMI Social ficará com um ícone no aparelho.</p></div></div>
+            <button type="button" className="social-signout" onClick={() => void signOut()}><LogOut />Sair do CEAMI Social</button>
+          </section>
+        )}
+      </div>
+
+      <nav className="social-bottom-nav" aria-label="Navegação do CEAMI Social">
+        <button type="button" className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home /><span>Início</span></button>
+        <button type="button" className={screen === 'stock' ? 'active' : ''} onClick={() => setScreen('stock')}><Package /><span>Estoque</span></button>
+        <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><ShoppingBasket /><span>Cestas</span></button>
+        <button type="button" className={screen === 'families' ? 'active' : ''} onClick={() => setScreen('families')}><Users /><span>Famílias</span></button>
+        <button type="button" className={['more', 'history', 'products'].includes(screen) ? 'active' : ''} onClick={() => setScreen('more')}><MoreHorizontal /><span>Mais</span></button>
+      </nav>
+
+      {productModal && (
+        <Modal title={productModal.id ? 'Editar produto' : 'Novo produto'} subtitle="Cadastre uma vez. Depois a equipe só precisa tocar no item para movimentar o estoque." onClose={() => setProductModal(null)}>
+          <div className="social-form-grid">
+            <label className="social-field"><span>Produto</span><input autoFocus value={productModal.name} onChange={(event) => setProductModal({ ...productModal, name: event.target.value })} placeholder="Ex.: Arroz" /></label>
+            <label className="social-field"><span>Embalagem</span><input value={productModal.packageLabel} onChange={(event) => setProductModal({ ...productModal, packageLabel: event.target.value })} placeholder="Ex.: 5 kg" /></label>
+            <label className="social-field"><span>Unidade exibida</span><input value={productModal.unitLabel} onChange={(event) => setProductModal({ ...productModal, unitLabel: event.target.value })} placeholder="Ex.: pacotes" /></label>
+            <label className="social-field"><span>Categoria</span><select value={productModal.category} onChange={(event) => setProductModal({ ...productModal, category: event.target.value as Category })}>{Object.entries(CATEGORY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label className="social-field"><span>Estoque mínimo</span><input inputMode="numeric" value={productModal.minStock} onChange={(event) => setProductModal({ ...productModal, minStock: event.target.value.replace(/\D/g, '') })} /></label>
+            <label className="social-check-row"><input type="checkbox" checked={productModal.tracksExpiry} onChange={(event) => setProductModal({ ...productModal, tracksExpiry: event.target.checked })} /><span><strong>Controlar validade</strong><small>Use para alimentos e itens que vencem.</small></span></label>
+          </div>
+          <div className="social-modal-actions">{productModal.id && <button type="button" className="danger-soft" onClick={() => { const product = products.find((item) => item.id === productModal.id); if (product) void archiveProduct(product); setProductModal(null); }}><Archive />Arquivar</button>}<button type="button" className="primary" disabled={saving || !productModal.name.trim()} onClick={() => void saveProduct()}><Save />{saving ? 'Salvando...' : 'Salvar produto'}</button></div>
+        </Modal>
+      )}
+
+      {familyModal && (
+        <Modal title={familyModal.id ? 'Editar família' : 'Nova família'} subtitle="Guarde somente os dados necessários para organizar as entregas." onClose={() => setFamilyModal(null)}>
+          <div className="social-form-grid">
+            <label className="social-field"><span>Responsável</span><input autoFocus value={familyModal.responsibleName} onChange={(event) => setFamilyModal({ ...familyModal, responsibleName: event.target.value })} placeholder="Nome completo" /></label>
+            <label className="social-field"><span>Telefone</span><input inputMode="tel" value={familyModal.phone} onChange={(event) => setFamilyModal({ ...familyModal, phone: event.target.value })} placeholder="(51) 99999-9999" /></label>
+            <label className="social-field"><span>Bairro / cidade</span><input value={familyModal.neighborhood} onChange={(event) => setFamilyModal({ ...familyModal, neighborhood: event.target.value })} placeholder="Ex.: Centro — Sapucaia do Sul" /></label>
+            <label className="social-field"><span>Pessoas na residência</span><input inputMode="numeric" value={familyModal.householdSize} onChange={(event) => setFamilyModal({ ...familyModal, householdSize: event.target.value.replace(/\D/g, '') })} /></label>
+            <label className="social-field"><span>Observação <small>(opcional)</small></span><textarea value={familyModal.notes} onChange={(event) => setFamilyModal({ ...familyModal, notes: event.target.value })} placeholder="Informações úteis para a equipe" /></label>
+          </div>
+          <div className="social-modal-actions">{familyModal.id && <button type="button" className="danger-soft" onClick={() => { const family = families.find((item) => item.id === familyModal.id); if (family) void archiveFamily(family); setFamilyModal(null); }}><Archive />Arquivar</button>}<button type="button" className="primary" disabled={saving || !familyModal.responsibleName.trim()} onClick={() => void saveFamily()}><Save />{saving ? 'Salvando...' : 'Salvar família'}</button></div>
+        </Modal>
+      )}
+
+      {adjustProduct && (
+        <Modal title={`Ajustar ${productTitle(adjustProduct)}`} subtitle="O ajuste não apaga o histórico. O motivo fica registrado para conferência." onClose={() => setAdjustProduct(null)}>
+          <div className="social-segmented"><button type="button" className={adjustDirection === 'add' ? 'active' : ''} onClick={() => setAdjustDirection('add')}><Plus />Adicionar</button><button type="button" className={adjustDirection === 'remove' ? 'active' : ''} onClick={() => setAdjustDirection('remove')}><Minus />Retirar</button></div>
+          <div className="social-adjust-current"><span>Estoque atual</span><strong>{quantityFor(adjustProduct.id, batches)} {adjustProduct.unit_label}</strong></div>
+          <label className="social-field"><span>Quantidade</span><QuantityStepper value={adjustDelta} onChange={setAdjustDelta} min={1} max={9999} /></label>
+          {adjustDirection === 'add' && adjustProduct.tracks_expiry && <label className="social-field"><span>Validade <small>(opcional)</small></span><input type="month" value={adjustExpiry.slice(0, 7)} onChange={(event) => setAdjustExpiry(event.target.value ? `${event.target.value}-01` : '')} /></label>}
+          <label className="social-field"><span>Motivo do ajuste</span><input value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} placeholder="Ex.: erro de contagem, item danificado..." /></label>
+          <button type="button" className="social-primary-action" disabled={saving || !adjustReason.trim()} onClick={() => void confirmAdjustment()}><Check />Confirmar ajuste</button>
+        </Modal>
+      )}
+
+      {basketConfigOpen && (
+        <Modal title="Configurar cesta básica" subtitle="Defina quantas unidades de cada produto entram em uma cesta padrão." onClose={() => setBasketConfigOpen(false)}>
+          <div className="social-basket-config-list">
+            {activeProducts.map((product) => <div key={product.id}><div className="social-product-art mini">{categoryIcon(product)}</div><span><strong>{productTitle(product)}</strong><small>{product.unit_label}</small></span><QuantityStepper value={basketConfig[product.id] || 0} onChange={(value) => setBasketConfig((current) => ({ ...current, [product.id]: value }))} min={0} max={20} /></div>)}
+          </div>
+          <button type="button" className="social-primary-action" disabled={saving} onClick={() => void saveBasketConfig()}><Save />{saving ? 'Salvando...' : 'Salvar composição'}</button>
+        </Modal>
+      )}
+
+      {toast && <div className="social-toast" role="status"><CheckCircle2 />{toast}</div>}
+    </main>
+  );
+}

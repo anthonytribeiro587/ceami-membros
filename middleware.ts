@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/login-cursos', '/integra', '/consultar', '/f', '/servicos/solicitar'];
+const PUBLIC_PAGES = ['/login', '/login-cursos', '/social/login', '/social/design-preview', '/integra', '/consultar', '/f', '/servicos/solicitar'];
 const PUBLIC_API_PATHS = [
   '/api/integra',
   '/api/public/check-member',
@@ -97,7 +97,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, course_only, is_active')
+    .select('role, course_only, social_only, is_active')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -115,7 +115,32 @@ export async function middleware(request: NextRequest) {
 
   const isAdmin = profile.role === 'admin';
   const isCourseOnly = Boolean(profile.course_only);
+  const isSocialOnly = Boolean(profile.social_only);
   const isCoursesPath = pathname === '/cursos' || pathname.startsWith('/cursos/');
+  const isSocialPath = pathname === '/social' || pathname.startsWith('/social/');
+
+  if (isSocialPath && !isAdmin && !isSocialOnly) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Conta sem acesso ao CEAMI Social.' }, { status: 403 });
+    }
+
+    const socialLoginUrl = request.nextUrl.clone();
+    socialLoginUrl.pathname = '/social/login';
+    socialLoginUrl.search = '';
+    socialLoginUrl.searchParams.set('acesso', 'negado');
+    return NextResponse.redirect(socialLoginUrl);
+  }
+
+  if (isSocialOnly && !isAdmin && !isSocialPath) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Conta restrita ao CEAMI Social.' }, { status: 403 });
+    }
+
+    const socialUrl = request.nextUrl.clone();
+    socialUrl.pathname = '/social';
+    socialUrl.search = '';
+    return NextResponse.redirect(socialUrl);
+  }
 
   if (isCoursesPath && !isAdmin && !isCourseOnly) {
     const coursesLoginUrl = request.nextUrl.clone();

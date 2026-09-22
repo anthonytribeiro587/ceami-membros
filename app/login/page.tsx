@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LockKeyhole, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -37,7 +38,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_active, course_only')
+      .select('is_active, course_only, social_only')
       .eq('id', data.user.id)
       .maybeSingle();
 
@@ -48,7 +49,9 @@ export default function LoginPage() {
       return;
     }
 
-    if (profile.course_only) {
+    if (profile.social_only) {
+      router.replace('/social');
+    } else if (profile.course_only) {
       router.replace('/cursos');
     } else {
       router.replace('/');
@@ -68,6 +71,7 @@ export default function LoginPage() {
           <button disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
         </form>
         <small className="login-note">As páginas do Integra e de consulta continuam públicas.</small>
+        <Link className="login-note" href="/social/login">Acesso exclusivo do CEAMI Social</Link>
       </section>
     </main>
   );

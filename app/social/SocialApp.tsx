@@ -27,7 +27,6 @@ import {
   Settings2,
   ShoppingBasket,
   SlidersHorizontal,
-  Sparkles,
   Users,
   Wheat,
   X,
@@ -989,7 +988,6 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
               <button type="button" onClick={openBasketConfig}><Settings2 /><span><strong>Configurar cesta</strong><small>Defina a composição da cesta básica padrão.</small></span><ChevronRight /></button>
               <button type="button" onClick={() => void refreshData()}><RefreshCw /><span><strong>Atualizar dados</strong><small>Busca as informações mais recentes do estoque.</small></span><ChevronRight /></button>
             </div>
-            <div className="social-install-tip"><Sparkles /><div><strong>Use como aplicativo no celular</strong><p>No menu do navegador, escolha “Adicionar à tela inicial”. O CEAMI Social ficará com um ícone no aparelho.</p></div></div>
             <button type="button" className="social-signout" onClick={() => void signOut()}><LogOut />Sair do CEAMI Social</button>
           </section>
         )}

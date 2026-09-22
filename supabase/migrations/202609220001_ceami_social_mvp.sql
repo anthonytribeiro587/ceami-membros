@@ -130,7 +130,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
   if not public.is_ceami_admin() then
     raise exception 'Acesso restrito ao administrador.';
@@ -146,7 +146,7 @@ begin
     raise exception 'Perfil não encontrado.';
   end if;
 end;
-$;
+$$;
 
 revoke all on function public.set_course_portal_access(uuid, boolean) from public, anon;
 grant execute on function public.set_course_portal_access(uuid, boolean) to authenticated;
@@ -161,7 +161,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_database_admin boolean := session_user in ('postgres', 'supabase_admin');
 begin
@@ -190,7 +190,7 @@ begin
     raise exception 'Perfil não encontrado.';
   end if;
 end;
-$;
+$$;
 
 revoke all on function public.set_profile_access(uuid, boolean, public.user_role, boolean) from public;
 grant execute on function public.set_profile_access(uuid, boolean, public.user_role, boolean) to authenticated;
@@ -474,7 +474,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_template_id uuid;
   v_item jsonb;
@@ -527,7 +527,7 @@ begin
     values (v_template_id, v_product_id, v_quantity);
   end loop;
 end;
-$;
+$$;
 
 revoke all on function public.social_set_default_basket_items(jsonb) from public, anon;
 grant execute on function public.social_set_default_basket_items(jsonb) to authenticated;
@@ -574,6 +574,10 @@ begin
 
     if v_quantity is null or v_quantity <= 0 then
       raise exception 'Quantidade inválida na doação.';
+    end if;
+
+    if v_expires_on is not null and v_expires_on < current_date then
+      raise exception 'A validade informada já passou. Não adicione o item ao estoque.';
     end if;
 
     if not exists (

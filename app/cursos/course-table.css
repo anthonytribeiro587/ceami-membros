@@ -237,3 +237,57 @@
 @container admin-content (max-width:980px){.course-class-table-head,.course-class-table-row{grid-template-columns:minmax(250px,1.45fr) 68px 76px minmax(145px,.8fr) 24px;gap:12px;padding-left:14px;padding-right:14px}}
 @container admin-content (max-width:700px){.course-class-table{border:0;border-radius:0;background:transparent;overflow:visible}.course-class-table-head{display:none}.course-class-table-body{gap:10px}.course-class-table-row{grid-template-columns:repeat(3,minmax(0,1fr)) 22px;gap:12px;min-height:0;border:1px solid #dfe7e3;border-radius:15px;padding:14px;background:#fff}.course-class-main{grid-column:1/-1}.course-class-stat,.course-class-next{padding-top:9px;border-top:1px solid #edf1ef}.course-class-stat small,.course-class-next small{display:block}.course-class-next strong{font-size:.78rem;white-space:normal}.course-class-arrow{align-self:end;margin-bottom:3px}.course-class-copy strong{font-size:.95rem}.course-class-copy small{white-space:normal}}
 @container admin-content (max-width:430px){.course-class-table-row{grid-template-columns:repeat(2,minmax(0,1fr)) 22px}.course-class-next{grid-column:1/3}.course-class-arrow{grid-column:3;grid-row:2/4;align-self:center}}
+
+/* === CEAMI ADMIN VISUAL REFRESH 2026-09 === */
+.course-class-table{
+  border-color:var(--v3-line);
+  border-radius:18px;
+  box-shadow:var(--v3-shadow-soft);
+}
+.course-class-table-head{
+  border-color:var(--v3-line);
+  background:var(--v3-surface-soft);
+  color:var(--v3-muted);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.055em;
+}
+.course-class-table-row{
+  min-height:76px;
+  border-color:#edf2f4;
+  color:var(--v3-navy);
+}
+.course-class-table-row:hover{background:#fbfcfc}
+.course-class-table-row:focus-visible{outline-color:rgba(239,90,37,.24)}
+.course-class-icon{background:#fff0ea;color:var(--v3-orange)}
+.course-class-copy strong{color:var(--v3-navy);font-size:14px}
+.course-class-copy small{color:var(--v3-muted);font-size:11px}
+.course-class-status{
+  justify-self:start;
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  border-radius:999px;
+  padding:0 9px;
+  background:var(--v3-surface-muted);
+  color:#536b76;
+  font-size:10px;
+  font-weight:900;
+}
+.course-class-status.open{background:#e5f3e9;color:#2d7047}
+.course-class-status.completed{background:#e8f0f7;color:#315f89}
+.course-class-status.planned{background:#fff4db;color:#7d6219}
+.course-class-status.cancelled{background:#fae9e7;color:#963e38}
+.course-class-stat small,.course-class-next small{color:var(--v3-muted)}
+.course-class-stat strong,.course-class-next strong{color:var(--v3-navy)}
+.course-class-arrow{color:var(--v3-muted)}
+.course-class-table-error{border-color:#efc9c2;background:#fff4f2}
+@container admin-content (max-width:700px){
+  .course-class-table{box-shadow:none}
+  .course-class-table-row{
+    border-color:var(--v3-line);
+    border-radius:15px;
+    box-shadow:var(--v3-shadow-soft);
+  }
+  .course-class-stat,.course-class-next{border-color:#edf2f4}
+}

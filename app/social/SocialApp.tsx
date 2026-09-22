@@ -816,13 +816,36 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
   return (
     <main className="social-app">
-      <header className="social-topbar">
+      <aside className="social-desktop-sidebar">
+        <div className="social-desktop-brand">
+          <img src="/brand/ceami-icon.svg?v=official-2" alt="" />
+          <div><strong>CEAMI</strong><span>Social</span></div>
+        </div>
+
+        <nav className="social-desktop-nav" aria-label="Navegação do CEAMI Social">
+          <button type="button" className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home /><span>Visão geral</span></button>
+          <button type="button" className={screen === 'donation' ? 'active' : ''} onClick={() => setScreen('donation')}><Gift /><span>Receber doação</span></button>
+          <button type="button" className={screen === 'stock' ? 'active' : ''} onClick={() => setScreen('stock')}><Package /><span>Estoque</span></button>
+          <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><ShoppingBasket /><span>Cestas</span></button>
+          <button type="button" className={screen === 'families' ? 'active' : ''} onClick={() => setScreen('families')}><Users /><span>Famílias</span></button>
+          <button type="button" className={screen === 'history' ? 'active' : ''} onClick={() => setScreen('history')}><History /><span>Histórico</span></button>
+          <button type="button" className={screen === 'products' ? 'active' : ''} onClick={() => setScreen('products')}><Settings2 /><span>Produtos</span></button>
+        </nav>
+
+        <div className="social-desktop-profile">
+          <span className="social-avatar">{initials(profile?.full_name || 'CEAMI')}</span>
+          <div><strong>{profile?.full_name || 'Equipe CEAMI'}</strong><small>Equipe Social</small></div>
+          <button type="button" onClick={() => void signOut()} aria-label="Sair"><LogOut /></button>
+        </div>
+      </aside>
+
+      <header className={`social-topbar ${screen === 'home' ? 'home' : ''}`}>
         {screen === 'home' ? (
           <div className="social-brand"><img src="/brand/ceami-icon.svg?v=official-2" alt="CEAMI" /><strong>CEAMI <span>Social</span></strong></div>
         ) : (
           <button type="button" className="social-back" onClick={() => setScreen('home')} aria-label="Voltar"><ArrowLeft /></button>
         )}
-        <h1>{screen === 'home' ? '' : title}</h1>
+        <h1>{screen === 'home' ? 'Visão geral' : title}</h1>
         <button type="button" className="social-refresh" onClick={() => void refreshData()} aria-label="Atualizar"><RefreshCw /></button>
       </header>
 
@@ -840,10 +863,10 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
             </section>
 
             <section className="social-main-actions" aria-label="Ações principais">
-              <button type="button" className="orange" onClick={() => setScreen('donation')}><Gift /><strong>Receber<br />doação</strong></button>
-              <button type="button" className="blue" onClick={() => setScreen('baskets')}><ShoppingBasket /><strong>Montar /<br />entregar cesta</strong></button>
-              <button type="button" className="blue soft" onClick={() => setScreen('stock')}><Package /><strong>Ver estoque</strong></button>
-              <button type="button" className="orange soft" onClick={() => setScreen('families')}><Users /><strong>Famílias<br />atendidas</strong></button>
+              <button type="button" className="orange" onClick={() => setScreen('donation')}><Gift /><strong>Receber doação</strong><ChevronRight /></button>
+              <button type="button" className="blue" onClick={() => setScreen('baskets')}><ShoppingBasket /><strong>Montar / entregar cesta</strong><ChevronRight /></button>
+              <button type="button" className="blue soft" onClick={() => setScreen('stock')}><Package /><strong>Ver estoque</strong><ChevronRight /></button>
+              <button type="button" className="orange soft" onClick={() => setScreen('families')}><Users /><strong>Famílias atendidas</strong><ChevronRight /></button>
             </section>
 
             <section className="social-home-summary">
@@ -856,9 +879,30 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
               </div>
             </section>
 
-            <button type="button" className="social-ready-strip" onClick={() => setScreen('baskets')}>
-              <div><ShoppingBasket /><span><small>Cestas prontas agora</small><strong>{readyBaskets}</strong></span></div><ChevronRight />
-            </button>
+            <section className="social-home-lower">
+              <button type="button" className="social-ready-strip" onClick={() => setScreen('baskets')}>
+                <div><ShoppingBasket /><span><small>Cestas prontas agora</small><strong>{readyBaskets}</strong></span></div><ChevronRight />
+              </button>
+
+              <section className="social-desktop-activity">
+                <div className="social-desktop-section-head">
+                  <div><span>ATIVIDADE</span><h2>Movimentações recentes</h2></div>
+                  <button type="button" onClick={() => setScreen('history')}>Ver histórico <ChevronRight /></button>
+                </div>
+                <div className="social-desktop-activity-list">
+                  {activities.slice(0, 5).map((activity) => (
+                    <article key={activity.id}>
+                      <div className={`social-desktop-activity-icon ${activity.tone}`}>
+                        {activity.type === 'donation' ? <Gift /> : activity.type === 'delivery' ? <HeartHandshake /> : activity.type === 'assembly' ? <ShoppingBasket /> : <SlidersHorizontal />}
+                      </div>
+                      <div><strong>{activity.title}</strong><span>{activity.detail}</span></div>
+                      <time>{formatDate(activity.createdAt)}</time>
+                    </article>
+                  ))}
+                  {!activities.length && <div className="social-desktop-activity-empty">As próximas movimentações aparecerão aqui.</div>}
+                </div>
+              </section>
+            </section>
           </div>
         )}
 

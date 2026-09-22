@@ -1,0 +1,13 @@
+{
+  "name": "CEAMI Social",
+  "short_name": "CEAMI Social",
+  "description": "Gestão de doações, estoque, cestas e famílias do CEAMI Social.",
+  "start_url": "/social",
+  "scope": "/social",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0a3b75",
+  "icons": [
+    { "src": "/brand/ceami-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

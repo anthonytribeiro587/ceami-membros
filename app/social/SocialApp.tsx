@@ -26,13 +26,14 @@ import {
   Search,
   Settings2,
   ShoppingBasket,
+  Trash2,
   SlidersHorizontal,
   Users,
   Wheat,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { formatPhoneBR } from '@/lib/formatters';
+import { formatPhoneBR, phoneDigits } from '@/lib/formatters';
 
 type Screen = 'home' | 'stock' | 'donation' | 'baskets' | 'families' | 'more' | 'history' | 'products';
 type StockFilter = 'all' | 'low' | 'expiring';
@@ -306,6 +307,15 @@ function basketCapacity(products: Product[], batches: Batch[], items: BasketTemp
   return Math.max(0, Math.min(...capacities));
 }
 
+function formatPhoneInput(value: string) {
+  const digits = phoneDigits(value).slice(0, 11);
+  if (!digits) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 function friendlyError(value: unknown) {
   const message = value instanceof Error ? value.message : String(value || '');
   if (/relation .* does not exist|PGRST205|social_products/i.test(message)) {
@@ -376,6 +386,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [selectedDonationProductId, setSelectedDonationProductId] = useState('');
   const [donationQty, setDonationQty] = useState(1);
   const [donationExpiry, setDonationExpiry] = useState('');
+  const [donationReviewOpen, setDonationReviewOpen] = useState(false);
 
   const [prepareQty, setPrepareQty] = useState(1);
   const [deliveryQty, setDeliveryQty] = useState(1);
@@ -384,6 +395,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
   const [productModal, setProductModal] = useState<ProductDraft | null>(null);
   const [familyModal, setFamilyModal] = useState<FamilyDraft | null>(null);
+  const [familyDeleteTarget, setFamilyDeleteTarget] = useState<Family | null>(null);
   const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
   const [adjustDelta, setAdjustDelta] = useState(1);
   const [adjustDirection, setAdjustDirection] = useState<'add' | 'remove'>('add');
@@ -616,7 +628,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     if (!donationDraft.length || saving) return;
     if (demoMode) {
       setToast('Doação registrada com sucesso.');
-      setDonationDraft([]); setDonorName(''); setDonationNote(''); setScreen('home');
+      setDonationDraft([]); setDonorName(''); setDonationNote(''); setDonationReviewOpen(false); setScreen('home');
       return;
     }
     setSaving(true);
@@ -628,7 +640,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     });
     setSaving(false);
     if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
-    setDonationDraft([]); setDonorName(''); setDonationNote('');
+    setDonationDraft([]); setDonorName(''); setDonationNote(''); setDonationReviewOpen(false);
     await load();
     setScreen('home');
     setToast('Doação registrada com sucesso.');
@@ -695,9 +707,16 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
   async function saveFamily() {
     if (!familyModal || saving || !familyModal.responsibleName.trim()) return;
+
+    const normalizedPhone = phoneDigits(familyModal.phone);
+    if (normalizedPhone && normalizedPhone.length !== 10 && normalizedPhone.length !== 11) {
+      setToast('Informe um telefone válido com DDD, ou deixe o campo vazio.');
+      return;
+    }
+
     const payload = {
       responsible_name: familyModal.responsibleName.trim(),
-      phone: familyModal.phone.trim() || null,
+      phone: normalizedPhone || null,
       neighborhood: familyModal.neighborhood.trim() || null,
       household_size: Math.max(1, Number(familyModal.householdSize) || 1),
       notes: familyModal.notes.trim() || null,
@@ -715,12 +734,29 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     setToast(wasEditing ? 'Família atualizada.' : 'Família cadastrada.');
   }
 
-  async function archiveFamily(family: Family) {
-    if (demoMode) { setToast('Família arquivada.'); return; }
-    const { error: updateError } = await supabase.from('social_families').update({ is_active: false }).eq('id', family.id);
-    if (updateError) { setToast(friendlyError(updateError.message)); return; }
+  async function deleteFamily(family: Family) {
+    if (saving) return;
+    if (demoMode) {
+      setFamilies((current) => current.filter((item) => item.id !== family.id));
+      setFamilyDeleteTarget(null);
+      setFamilyModal(null);
+      setToast('Família excluída.');
+      return;
+    }
+
+    setSaving(true);
+    const { error: deleteError } = await supabase.rpc('social_delete_family', { p_family_id: family.id });
+    setSaving(false);
+    if (deleteError) {
+      setFamilyDeleteTarget(null);
+      setToast(friendlyError(deleteError.message));
+      return;
+    }
+
+    setFamilyDeleteTarget(null);
+    setFamilyModal(null);
     await load();
-    setToast('Família arquivada. O histórico foi preservado.');
+    setToast('Família excluída.');
   }
 
   async function confirmAdjustment() {
@@ -856,11 +892,11 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
         {screen === 'donation' && (
           <section className="social-screen social-donation-screen">
-            <div className="social-help-banner"><Gift /><div><strong>O que chegou?</strong><span>Toque no produto e informe a quantidade. Você pode adicionar vários itens antes de confirmar.</span></div></div>
+            <div className="social-help-banner"><Gift /><div><strong>O que chegou?</strong><span>Toque no produto. A quantidade e a validade abrem em uma janela rápida, sem precisar descer a tela.</span></div></div>
             <div className="social-search"><Search /><input value={donationSearch} onChange={(event) => setDonationSearch(event.target.value)} placeholder="Buscar item" /></div>
             <div className="social-product-grid">
               {donationProducts.map((product) => (
-                <button type="button" key={product.id} className={selectedDonationProductId === product.id ? 'selected' : ''} onClick={() => selectDonationProduct(product.id)}>
+                <button type="button" key={product.id} onClick={() => selectDonationProduct(product.id)}>
                   <span>{categoryIcon(product)}</span><strong>{product.name}</strong><small>{product.package_label}</small>
                 </button>
               ))}
@@ -869,34 +905,12 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
               </button>
             </div>
 
-            {selectedDonationProductId && (() => {
-              const product = productMap.get(selectedDonationProductId);
-              if (!product) return null;
-              return (
-                <section className="social-entry-card">
-                  <div className="social-entry-title"><div className="social-product-art small">{categoryIcon(product)}</div><div><span>ITEM SELECIONADO</span><h2>{productTitle(product)}</h2></div></div>
-                  <label className="social-field"><span>Quantidade</span><div className="social-quantity-row"><QuantityStepper value={donationQty} onChange={setDonationQty} /><div className="social-quick-qty"><button type="button" onClick={() => setDonationQty((value) => value + 1)}>+1</button><button type="button" onClick={() => setDonationQty((value) => value + 5)}>+5</button><button type="button" onClick={() => setDonationQty((value) => value + 10)}>+10</button></div></div></label>
-                  {product.tracks_expiry && <label className="social-field"><span>Validade <small>(opcional)</small></span><input type="month" value={donationExpiry.slice(0, 7)} onChange={(event) => setDonationExpiry(event.target.value ? `${event.target.value}-01` : '')} /></label>}
-                  <button type="button" className="social-secondary-action" onClick={addDonationItem}><Plus />Adicionar à doação</button>
-                </section>
-              );
-            })()}
-
             {donationDraft.length > 0 && (
-              <section className="social-review-card">
-                <div className="social-section-title"><div><span>CONFIRA A DOAÇÃO</span><h2>{donationDraft.length} item(ns) adicionados</h2></div></div>
-                <div className="social-review-list">
-                  {donationDraft.map((item, index) => {
-                    const product = productMap.get(item.productId);
-                    return <div key={`${item.productId}-${item.expiresOn}-${index}`}><span><strong>{product ? productTitle(product) : 'Produto'}</strong><small>{item.quantity} {product?.unit_label || 'unidades'}{item.expiresOn ? ` · val. ${formatMonthYear(item.expiresOn)}` : ''}</small></span><button type="button" onClick={() => setDonationDraft((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remover item"><X /></button></div>;
-                  })}
-                </div>
-                <div className="social-form-grid">
-                  <label className="social-field"><span>Doador <small>(opcional)</small></span><input value={donorName} onChange={(event) => setDonorName(event.target.value)} placeholder="Nome da pessoa ou grupo" /></label>
-                  <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={donationNote} onChange={(event) => setDonationNote(event.target.value)} placeholder="Ex.: doações do culto" /></label>
-                </div>
-                <button type="button" className="social-primary-action" disabled={saving} onClick={() => void confirmDonation()}><Check />{saving ? 'Registrando...' : 'Confirmar entrada'}</button>
-              </section>
+              <button type="button" className="social-donation-review-bar" onClick={() => setDonationReviewOpen(true)}>
+                <span><Gift /><strong>Revisar doação</strong><small>{donationDraft.length} item(ns) adicionados</small></span>
+                <span className="social-donation-review-count">{donationDraft.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                <ChevronRight />
+              </button>
             )}
           </section>
         )}
@@ -940,7 +954,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
                   <article className="social-family-card" key={family.id}>
                     <span className="social-avatar">{initials(family.responsible_name)}</span>
                     <div><h3>{family.responsible_name}</h3><p>{family.household_size} pessoa(s) · {family.neighborhood || 'Bairro não informado'}</p><small>{formatPhoneBR(family.phone, 'Sem telefone')} · Última cesta: {last ? formatDate(last.delivered_on) : 'nenhuma'} · Total: {deliveryCount}</small></div>
-                    <button type="button" onClick={() => setFamilyModal({ id: family.id, responsibleName: family.responsible_name, phone: family.phone || '', neighborhood: family.neighborhood || '', householdSize: String(family.household_size), notes: family.notes || '' })} aria-label="Editar família"><Pencil /></button>
+                    <button type="button" onClick={() => setFamilyModal({ id: family.id, responsibleName: family.responsible_name, phone: formatPhoneBR(family.phone, ''), neighborhood: family.neighborhood || '', householdSize: String(family.household_size), notes: family.notes || '' })} aria-label="Editar família"><Pencil /></button>
                     <button type="button" className="social-family-deliver" onClick={() => { setDeliveryFamilyId(family.id); setScreen('baskets'); }}>Entregar cesta</button>
                   </article>
                 );
@@ -1001,6 +1015,51 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         <button type="button" className={['more', 'history', 'products'].includes(screen) ? 'active' : ''} onClick={() => setScreen('more')}><MoreHorizontal /><span>Mais</span></button>
       </nav>
 
+      {selectedDonationProductId && (() => {
+        const product = productMap.get(selectedDonationProductId);
+        if (!product) return null;
+        return (
+          <Modal title={productTitle(product)} subtitle="Informe a quantidade recebida e, se souber, a validade." onClose={() => setSelectedDonationProductId('')}>
+            <div className="social-donation-modal-product">
+              <div className="social-product-art">{categoryIcon(product)}</div>
+              <div><span>ITEM SELECIONADO</span><strong>{productTitle(product)}</strong><small>{product.unit_label}</small></div>
+            </div>
+            <label className="social-field"><span>Quantidade</span><div className="social-quantity-row"><QuantityStepper value={donationQty} onChange={setDonationQty} /><div className="social-quick-qty"><button type="button" onClick={() => setDonationQty((value) => value + 1)}>+1</button><button type="button" onClick={() => setDonationQty((value) => value + 5)}>+5</button><button type="button" onClick={() => setDonationQty((value) => value + 10)}>+10</button></div></div></label>
+            {product.tracks_expiry && <label className="social-field"><span>Validade <small>(opcional)</small></span><input type="month" value={donationExpiry.slice(0, 7)} onChange={(event) => setDonationExpiry(event.target.value ? `${event.target.value}-01` : '')} /></label>}
+            <button type="button" className="social-primary-action" onClick={addDonationItem}><Plus />Adicionar à doação</button>
+          </Modal>
+        );
+      })()}
+
+      {donationReviewOpen && donationDraft.length > 0 && (
+        <Modal title="Revisar doação" subtitle="Confira os itens antes de confirmar a entrada no estoque." onClose={() => setDonationReviewOpen(false)}>
+          <div className="social-review-list">
+            {donationDraft.map((item, index) => {
+              const product = productMap.get(item.productId);
+              return <div key={`${item.productId}-${item.expiresOn}-${index}`}><span><strong>{product ? productTitle(product) : 'Produto'}</strong><small>{item.quantity} {product?.unit_label || 'unidades'}{item.expiresOn ? ` · val. ${formatMonthYear(item.expiresOn)}` : ''}</small></span><button type="button" onClick={() => setDonationDraft((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remover item"><X /></button></div>;
+            })}
+          </div>
+          <div className="social-form-grid">
+            <label className="social-field"><span>Doador <small>(opcional)</small></span><input value={donorName} onChange={(event) => setDonorName(event.target.value)} placeholder="Nome da pessoa ou grupo" /></label>
+            <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={donationNote} onChange={(event) => setDonationNote(event.target.value)} placeholder="Ex.: doações do culto" /></label>
+          </div>
+          <button type="button" className="social-primary-action" disabled={saving} onClick={() => void confirmDonation()}><Check />{saving ? 'Registrando...' : 'Confirmar entrada'}</button>
+        </Modal>
+      )}
+
+      {familyDeleteTarget && (
+        <Modal title="Excluir família?" subtitle="Essa ação é permanente para cadastros sem histórico de entrega." onClose={() => setFamilyDeleteTarget(null)}>
+          <div className="social-delete-warning">
+            <Trash2 />
+            <div><strong>{familyDeleteTarget.responsible_name}</strong><p>Se essa família já tiver recebido cesta, o sistema não permitirá a exclusão para preservar o histórico.</p></div>
+          </div>
+          <div className="social-modal-actions">
+            <button type="button" onClick={() => setFamilyDeleteTarget(null)}>Cancelar</button>
+            <button type="button" className="danger" disabled={saving} onClick={() => void deleteFamily(familyDeleteTarget)}><Trash2 />{saving ? 'Excluindo...' : 'Excluir definitivamente'}</button>
+          </div>
+        </Modal>
+      )}
+
       {productModal && (
         <Modal title={productModal.id ? 'Editar produto' : 'Novo produto'} subtitle="Cadastre uma vez. Depois a equipe só precisa tocar no item para movimentar o estoque." onClose={() => setProductModal(null)}>
           <div className="social-form-grid">
@@ -1019,12 +1078,12 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         <Modal title={familyModal.id ? 'Editar família' : 'Nova família'} subtitle="Guarde somente os dados necessários para organizar as entregas." onClose={() => setFamilyModal(null)}>
           <div className="social-form-grid">
             <label className="social-field"><span>Responsável</span><input autoFocus value={familyModal.responsibleName} onChange={(event) => setFamilyModal({ ...familyModal, responsibleName: event.target.value })} placeholder="Nome completo" /></label>
-            <label className="social-field"><span>Telefone</span><input inputMode="tel" value={familyModal.phone} onChange={(event) => setFamilyModal({ ...familyModal, phone: event.target.value })} placeholder="(51) 99999-9999" /></label>
+            <label className="social-field"><span>Telefone <small>(opcional)</small></span><input inputMode="tel" autoComplete="tel" maxLength={15} value={familyModal.phone} onChange={(event) => setFamilyModal({ ...familyModal, phone: formatPhoneInput(event.target.value) })} placeholder="(51) 99999-9999" /><small className="social-field-help">Somente números com DDD.</small></label>
             <label className="social-field"><span>Bairro / cidade</span><input value={familyModal.neighborhood} onChange={(event) => setFamilyModal({ ...familyModal, neighborhood: event.target.value })} placeholder="Ex.: Centro — Sapucaia do Sul" /></label>
             <label className="social-field"><span>Pessoas na residência</span><input inputMode="numeric" value={familyModal.householdSize} onChange={(event) => setFamilyModal({ ...familyModal, householdSize: event.target.value.replace(/\D/g, '') })} /></label>
             <label className="social-field"><span>Observação <small>(opcional)</small></span><textarea value={familyModal.notes} onChange={(event) => setFamilyModal({ ...familyModal, notes: event.target.value })} placeholder="Informações úteis para a equipe" /></label>
           </div>
-          <div className="social-modal-actions">{familyModal.id && <button type="button" className="danger-soft" onClick={() => { const family = families.find((item) => item.id === familyModal.id); if (family) void archiveFamily(family); setFamilyModal(null); }}><Archive />Arquivar</button>}<button type="button" className="primary" disabled={saving || !familyModal.responsibleName.trim()} onClick={() => void saveFamily()}><Save />{saving ? 'Salvando...' : 'Salvar família'}</button></div>
+          <div className="social-modal-actions">{familyModal.id && <button type="button" className="danger-soft" onClick={() => { const family = families.find((item) => item.id === familyModal.id); if (family) setFamilyDeleteTarget(family); }}><Trash2 />Excluir</button>}<button type="button" className="primary" disabled={saving || !familyModal.responsibleName.trim()} onClick={() => void saveFamily()}><Save />{saving ? 'Salvando...' : 'Salvar família'}</button></div>
         </Modal>
       )}
 

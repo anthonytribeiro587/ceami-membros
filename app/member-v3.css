@@ -125,3 +125,78 @@ body:has(.member-v3-shell) .site-footer{display:none}
   .member-v3-detail-row>span,.member-v3-status-row span{font-size:11px}
   .member-v3-detail-row strong,.member-v3-contact-row strong{font-size:12px}
 }
+
+/* === CEAMI ADMIN VISUAL REFRESH 2026-09 === */
+:root{
+  --v3-surface-soft:#f8fafb;
+  --v3-surface-muted:#eef3f5;
+  --v3-line-strong:#d4e0e4;
+  --v3-shadow-soft:0 10px 28px rgba(7,63,87,.06);
+  --v3-shadow-card:0 8px 24px rgba(7,63,87,.055);
+  --v3-focus:0 0 0 3px rgba(239,90,37,.16);
+  --v3-radius-card:18px;
+  --v3-radius-control:12px;
+}
+.member-v3-shell{
+  font-family:Inter,"Segoe UI Variable","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  font-variant-numeric:tabular-nums;
+  line-height:1.45;
+}
+.member-v3-shell :where(button,input,select,textarea){font:inherit}
+.member-v3-shell :where(input,select,textarea){caret-color:var(--v3-orange)}
+.admin-route-content :where(button,a,input,select,textarea):focus-visible,
+.member-v3-content :where(button,a,input,select,textarea):focus-visible{
+  outline:3px solid rgba(239,90,37,.2);
+  outline-offset:2px;
+}
+.admin-route-content :where(input,select,textarea):focus,
+.member-v3-content :where(input,select,textarea):focus{
+  border-color:#f0a183;
+}
+.member-v3-shell table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  overflow:hidden;
+  border:1px solid var(--v3-line);
+  border-radius:var(--v3-radius-card);
+  background:#fff;
+  color:var(--v3-navy);
+  font-size:13px;
+}
+.member-v3-shell th{
+  padding:11px 14px;
+  border-bottom:1px solid var(--v3-line);
+  background:var(--v3-surface-soft);
+  color:var(--v3-muted);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.055em;
+  text-align:left;
+  text-transform:uppercase;
+}
+.member-v3-shell td{
+  padding:13px 14px;
+  border-bottom:1px solid #edf2f4;
+  vertical-align:middle;
+}
+.member-v3-shell tbody tr:last-child td{border-bottom:0}
+.member-v3-shell tbody tr{transition:background-color .15s ease}
+.member-v3-shell tbody tr:hover{background:#fbfcfc}
+.member-v3-shell :where(button,a){-webkit-tap-highlight-color:transparent}
+.admin-route-content :where(button,a),
+.member-v3-content :where(button,a){transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .16s ease}
+@media(max-width:760px){
+  .member-v3-shell table{font-size:12px}
+  .member-v3-shell th,.member-v3-shell td{padding:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .member-v3-shell *, .member-v3-shell *::before, .member-v3-shell *::after{
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+  }
+}

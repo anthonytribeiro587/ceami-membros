@@ -895,3 +895,72 @@
   .courses-page{padding-left:7px;padding-right:7px}
   .courses-panel{padding:10px}
 }
+
+/* === CEAMI ADMIN VISUAL REFRESH 2026-09 === */
+.courses-page{
+  background:var(--v3-bg);
+  color:var(--v3-navy);
+  font-family:inherit;
+}
+.courses-topbar>div:first-child>span{color:var(--v3-orange);font-size:10px;letter-spacing:.15em}
+.courses-topbar h1{color:var(--v3-navy);font-size:26px;letter-spacing:-.025em}
+.courses-topbar p{color:var(--v3-muted)}
+.courses-back{color:var(--v3-navy)}
+.courses-actions button,.courses-actions select,.class-card>button,.lesson-row>button,.course-modal-actions button,.qr-actions button,.attendance-toolbar>button,.lesson-footer-actions button{
+  border-color:var(--v3-line);
+  border-radius:var(--v3-radius-control);
+  color:var(--v3-navy);
+}
+.courses-actions button:hover,.lesson-row>button:hover,.attendance-toolbar>button:hover{border-color:var(--v3-line-strong);background:var(--v3-surface-soft)}
+.courses-actions .primary,.course-modal-actions .primary,.lesson-footer-actions .primary{
+  border-color:var(--v3-orange);
+  background:var(--v3-orange);
+  color:#fff;
+}
+.courses-actions .primary:hover,.course-modal-actions .primary:hover,.lesson-footer-actions .primary:hover{border-color:var(--v3-orange-dark);background:var(--v3-orange-dark)}
+.class-card>button{border-color:var(--v3-navy);background:var(--v3-navy);color:#fff}
+.courses-metrics article,.courses-panel,.class-card{
+  border-color:var(--v3-line);
+  background:#fff;
+  box-shadow:var(--v3-shadow-soft);
+}
+.courses-metrics article>svg{background:#fff0ea;color:var(--v3-orange)}
+.courses-metrics small,.courses-panel-head p,.class-meta{color:var(--v3-muted)}
+.courses-metrics strong,.courses-panel-head h2,.class-card h3{color:var(--v3-navy)}
+.courses-panel{border-radius:var(--v3-radius-card)}
+.class-card{border-radius:16px;background:#fff}
+.class-card>small{color:var(--v3-orange-dark)}
+.course-tabs button{color:var(--v3-muted)}
+.course-tabs button:hover{background:var(--v3-surface-muted);color:var(--v3-navy)}
+.course-tabs button.active{background:var(--v3-navy);color:#fff}
+.lesson-row{border-color:var(--v3-line);background:#fff}
+.lesson-number,.student-avatar{background:#fff0ea;color:var(--v3-orange-dark)}
+.lesson-main p,.lesson-count small,.student-list article span,.attendance-person span{color:var(--v3-muted)}
+.student-list article,.attendance-list article{border-color:#edf2f4}
+.modal-search,.course-field input,.course-field select,.course-field textarea{border-color:var(--v3-line-strong)}
+.modal-search:focus-within,.course-field input:focus,.course-field select:focus,.course-field textarea:focus{
+  border-color:var(--v3-orange);
+  box-shadow:var(--v3-focus);
+  outline:0;
+}
+.course-modal-overlay{background:rgba(4,31,43,.62)}
+.course-modal,.course-modal>header{background:#fff}
+.course-modal{border-radius:20px;box-shadow:0 30px 80px rgba(4,31,43,.26)}
+.course-modal>header{border-color:var(--v3-line)}
+.course-modal>header h2{color:var(--v3-navy)}
+.course-modal>header p{color:var(--v3-muted)}
+.course-modal>header>button{color:var(--v3-navy);background:var(--v3-surface-muted)}
+.member-picker label{border-color:var(--v3-line)}
+.member-picker label.selected{border-color:#8fc3a5;background:#edf8f1}
+.qr-preview img{border-color:var(--v3-line)}
+.qr-preview p{background:var(--v3-surface-muted);color:#536b76}
+.courses-toast{background:var(--v3-navy);border-radius:999px;box-shadow:0 14px 38px rgba(4,31,43,.22)}
+@container admin-content (max-width:820px){
+  .courses-page{padding-top:66px}
+  .courses-topbar h1{font-size:20px}
+  .courses-topbar p{font-size:11px}
+  .courses-panel{box-shadow:none}
+}
+@container admin-content (max-width:560px){
+  .courses-page{padding-left:7px;padding-right:7px}
+}

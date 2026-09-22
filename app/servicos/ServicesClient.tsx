@@ -180,10 +180,6 @@ function statusLabel(status: ServiceRequestStatus) {
   return 'Aberto';
 }
 
-function digits(value: string | null | undefined) {
-  return String(value || '').replace(/\D/g, '');
-}
-
 export default function ServicesClient() {
   const supabase = useMemo(() => createClient(), []);
   const [tab, setTab] = useState<'form' | 'requests'>('form');

@@ -63,7 +63,7 @@ as $$
   );
 $$;
 
-revoke all on function public.is_active_ceami_user() from public;
+revoke all on function public.is_active_ceami_user() from public, anon;
 grant execute on function public.is_active_ceami_user() to authenticated;
 
 create or replace function public.set_social_portal_access(
@@ -192,7 +192,7 @@ begin
 end;
 $$;
 
-revoke all on function public.set_profile_access(uuid, boolean, public.user_role, boolean) from public;
+revoke all on function public.set_profile_access(uuid, boolean, public.user_role, boolean) from public, anon;
 grant execute on function public.set_profile_access(uuid, boolean, public.user_role, boolean) to authenticated;
 
 -- 2. Estrutura do estoque e da assistência social

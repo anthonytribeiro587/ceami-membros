@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Cake,
+  CalendarCheck2,
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
@@ -78,6 +79,7 @@ export default function AdminRouteShell({
   }
 
   const showMainLinks = role !== 'course';
+  const showIntegra = role === 'admin';
   const showForms = role === 'admin' || pathname.startsWith('/formularios');
   const showServices = role === 'admin' || pathname.startsWith('/servicos');
   const showAutomations = role === 'admin' || pathname.startsWith('/automacoes');
@@ -107,16 +109,14 @@ export default function AdminRouteShell({
               </Link>
             ))}
 
-          {showForms && (
+          {showIntegra && (
             <Link
-              href="/formularios"
+              href="/?screen=integra"
               prefetch
-              className={pathname.startsWith('/formularios') ? 'active' : ''}
-              aria-current={pathname.startsWith('/formularios') ? 'page' : undefined}
               onClick={() => setMenuOpen(false)}
             >
-              <ClipboardList size={19} />
-              <span>Formulários</span>
+              <CalendarCheck2 size={19} />
+              <span>Integra</span>
             </Link>
           )}
 
@@ -130,6 +130,19 @@ export default function AdminRouteShell({
             >
               <Wrench size={19} />
               <span>Serviços</span>
+            </Link>
+          )}
+
+          {showForms && (
+            <Link
+              href="/formularios"
+              prefetch
+              className={pathname.startsWith('/formularios') ? 'active' : ''}
+              aria-current={pathname.startsWith('/formularios') ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
+              <ClipboardList size={19} />
+              <span>Formulários</span>
             </Link>
           )}
 

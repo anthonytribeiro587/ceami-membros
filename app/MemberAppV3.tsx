@@ -9,6 +9,7 @@ import {
   BookOpenCheck,
   Cake,
   CalendarCheck2,
+  ClipboardList,
   Check,
   ChevronRight,
   Church,
@@ -35,6 +36,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import BirthdayHistory from './components/BirthdayHistory';
 import BirthdayCalendar from './components/BirthdayCalendar';
+import AdminPagination from './components/AdminPagination';
+import { formatPhoneBR, phoneDigits } from '@/lib/formatters';
 
 type Screen = 'dashboard' | 'members' | 'birthdays' | 'messages' | 'integra';
 type Filter = 'all' | 'birthday' | 'baptized' | 'fundamentos' | 'missingPhone' | 'missingBirthDate';
@@ -169,7 +172,7 @@ function normalizeMember(row: MemberRowDb, roles: string[] = []): Member {
   return {
     id: row.id,
     name,
-    phone: row.phone || 'Não informado',
+    phone: row.phone ? formatPhoneBR(row.phone) : 'Não informado',
     email: row.email || '',
     birthDate: row.birth_date || '',
     integraDate: row.integra_date || '',
@@ -309,10 +312,13 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
   const filtered = useMemo(
     () =>
       members.filter((member) => {
-        const matches = `${member.name} ${member.phone} ${member.ministry} ${member.roles.join(' ')}`
-          .toLowerCase()
-          .includes(query.toLowerCase());
-        if (!matches) return false;
+        const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
+        const queryPhone = phoneDigits(query);
+        const textMatches = `${member.name} ${member.phone} ${member.ministry} ${member.roles.join(' ')}`
+          .toLocaleLowerCase('pt-BR')
+          .includes(normalizedQuery);
+        const phoneMatches = Boolean(queryPhone) && phoneDigits(member.phone).includes(queryPhone);
+        if (normalizedQuery && !textMatches && !phoneMatches) return false;
         if (filter === 'birthday') return member.birthdayLabel === 'Hoje';
         if (filter === 'baptized') return member.waterBaptized;
         if (filter === 'fundamentos') return !member.fundamentosFe;
@@ -368,6 +374,12 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
           {isAdmin && (
             <Link href="/servicos" prefetch onClick={() => setMenuOpen(false)}>
               <Wrench size={19} /><span>Serviços</span>
+            </Link>
+          )}
+
+          {isAdmin && (
+            <Link href="/formularios" prefetch onClick={() => setMenuOpen(false)}>
+              <ClipboardList size={19} /><span>Formulários</span>
             </Link>
           )}
 
@@ -794,6 +806,20 @@ function MembersPage({ members, query, setQuery, filter, setFilter, onOpen, onNe
   onOpen: (id: string) => void;
   onNew: () => void;
 }) {
+  const PAGE_SIZE = 12;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleMembers = members.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, filter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   return (
     <section className="member-v3-panel member-v3-members-page">
       <div className="member-v3-panel-head">
@@ -809,7 +835,8 @@ function MembersPage({ members, query, setQuery, filter, setFilter, onOpen, onNe
         <Chip active={filter === 'missingPhone'} onClick={() => setFilter('missingPhone')}>Sem telefone</Chip>
         <Chip active={filter === 'missingBirthDate'} onClick={() => setFilter('missingBirthDate')}>Sem nascimento</Chip>
       </div>
-      <div className="member-v3-list">{members.map((member) => <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div>
+      <div className="member-v3-list">{visibleMembers.map((member) => <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />)}</div>
+      <AdminPagination page={currentPage} pageSize={PAGE_SIZE} totalItems={members.length} onPageChange={setPage} itemLabel="membros" />
     </section>
   );
 }
@@ -822,7 +849,7 @@ function MemberRow({ member, onOpen }: { member: Member; onOpen: () => void }) {
   return (
     <button type="button" className="member-v3-row" onClick={onOpen}>
       <div className="member-v3-avatar">{member.initials}</div>
-      <div><strong>{member.name}</strong><span>{member.phone} · {member.ministry}</span></div>
+      <div className="member-v3-row-copy"><strong>{member.name}</strong><span><b className="member-v3-phone">{member.phone}</b><i aria-hidden="true">•</i><em>{member.ministry}</em></span></div>
       <ChevronRight />
     </button>
   );

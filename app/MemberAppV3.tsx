@@ -600,6 +600,8 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
   const [selectedDate, setSelectedDate] = useState(today);
   const [copied, setCopied] = useState<'form' | 'consult' | 'message' | ''>('');
   const [activeTab, setActiveTab] = useState<'integra' | 'consulta'>('integra');
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 7;
 
   const sessions = useMemo(() => {
     const grouped = new Map<string, Member[]>();
@@ -617,10 +619,20 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [members]);
 
+  const historyPages = Math.max(1, Math.ceil(sessions.length / HISTORY_PAGE_SIZE));
+  const currentHistoryPage = Math.min(historyPage, historyPages);
+  const visibleSessions = sessions.slice(
+    (currentHistoryPage - 1) * HISTORY_PAGE_SIZE,
+    currentHistoryPage * HISTORY_PAGE_SIZE,
+  );
   const selectedSession = sessions.find((session) => session.date === selectedDate);
   const selectedMembers = selectedSession?.people || [];
   const todayCount = sessions.find((session) => session.date === today)?.people.length || 0;
   const totalWithIntegra = sessions.reduce((total, session) => total + session.people.length, 0);
+  useEffect(() => {
+    if (historyPage > historyPages) setHistoryPage(historyPages);
+  }, [historyPage, historyPages]);
+
   const consultationMessage = `Olá! 👋\n\nA CEAMI está conferindo e atualizando o cadastro dos membros.\n\nAcesse o link abaixo e verifique se o seu cadastro já existe e se as informações estão corretas:\n${CONSULT_FORM_URL}\n\nInforme seu nome — pode ser apenas o primeiro — e confirme sua identidade com a data de nascimento, WhatsApp ou e-mail.\n\nSe o sistema não localizar seu cadastro, confira os dados informados antes de preencher uma nova ficha do Integra. 🧡`;
 
   async function copyText(value: string, kind: 'form' | 'consult' | 'message') {
@@ -671,9 +683,9 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
               <button type="button" className="member-v3-primary" onClick={onRefresh}><RefreshCw size={18} />Atualizar</button>
             </div>
 
-            <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
-              <div style={{ display: 'grid', placeItems: 'center', gap: 14, padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
-                <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(290px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
+            <div className="member-v3-dashboard-grid" style={{ marginTop: 14 }}>
+              <div style={{ display: 'grid', placeItems: 'center', gap: 11, padding: 15, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
+                <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" style={{ width: 'min(210px, 100%)', aspectRatio: '1', borderRadius: 18, background: '#fff', padding: 10 }} />
                 <div style={{ width: '100%', textAlign: 'center' }}>
                   <strong style={{ display: 'block', fontSize: 17 }}>Formulário dos novos membros</strong>
                   <span style={{ display: 'block', marginTop: 6, color: '#6d7f88', fontSize: 12, wordBreak: 'break-all' }}>{INTEGRA_FORM_URL}</span>
@@ -685,12 +697,12 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
               </div>
 
               <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
-                <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+                <div style={{ padding: 15, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
                   <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.14em', color: '#ef5a25' }}>CONFERÊNCIA DE HOJE</span>
-                  <h3 style={{ margin: '8px 0 7px', fontSize: 24 }}>{todayCount} {todayCount === 1 ? 'cadastro' : 'cadastros'}</h3>
+                  <h3 style={{ margin: '8px 0 7px', fontSize: 20 }}>{todayCount} {todayCount === 1 ? 'cadastro' : 'cadastros'}</h3>
                   <p style={{ margin: 0, color: '#6d7f88', lineHeight: 1.55 }}>Durante o encontro, conte quantas pessoas estão presentes e compare com esta quantidade. Clique em Atualizar conforme os formulários forem sendo enviados.</p>
                 </div>
-                <div style={{ padding: 20, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
+                <div style={{ padding: 15, border: '1px solid #e3eaed', borderRadius: 20, background: '#fff' }}>
                   <strong style={{ display: 'block' }}>Como o controle funciona</strong>
                   <p style={{ margin: '8px 0 0', color: '#6d7f88', lineHeight: 1.55 }}>Cada ficha fica vinculada à Data do Integra informada no formulário. Assim, o painel separa automaticamente os participantes por encontro e mantém o histórico das turmas anteriores.</p>
                 </div>
@@ -710,7 +722,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
                 <div><h2>Histórico de Integras</h2><p>Selecione uma data para conferir quem participou.</p></div>
               </div>
               <div className="member-v3-list">
-                {sessions.length ? sessions.map((session) => (
+                {sessions.length ? visibleSessions.map((session) => (
                   <button
                     type="button"
                     className="member-v3-row"
@@ -729,6 +741,13 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
                   <div style={{ padding: '24px 4px', color: '#6d7f88' }}>Ainda não há nenhum Integra registrado nos cadastros.</div>
                 )}
               </div>
+              <AdminPagination
+                page={currentHistoryPage}
+                pageSize={HISTORY_PAGE_SIZE}
+                totalItems={sessions.length}
+                onPageChange={setHistoryPage}
+                itemLabel="encontros"
+              />
             </section>
 
             <section className="member-v3-panel">
@@ -762,7 +781,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
             <ShieldCheck size={24} />
           </div>
 
-          <div className="member-v3-dashboard-grid" style={{ marginTop: 20 }}>
+          <div className="member-v3-dashboard-grid" style={{ marginTop: 14 }}>
             <div style={{ display: 'grid', placeItems: 'center', gap: 12, padding: 18, border: '1px solid #e3eaed', borderRadius: 20, background: '#fafcfc' }}>
               <img src={CONSULT_QR_DATA_URI} alt="QR Code da consulta de cadastro CEAMI" style={{ width: 'min(250px, 100%)', aspectRatio: '1', borderRadius: 16, background: '#fff', padding: 10 }} />
               <strong>Verificar meu cadastro</strong>

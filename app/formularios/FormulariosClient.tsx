@@ -26,6 +26,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import AdminPagination from '@/app/components/AdminPagination';
+import { formatPhoneBR, whatsappNumberBR } from '@/lib/formatters';
 import { SERVICE_FORM_SLUG } from '@/lib/services';
 
 type FieldType = 'text' | 'phone' | 'email' | 'textarea' | 'yes_no' | 'select';
@@ -294,7 +296,9 @@ export default function FormulariosClient() {
   const [responsesFormId, setResponsesFormId] = useState<string | null>(null);
   const [responseQuery, setResponseQuery] = useState('');
   const [responseFilters, setResponseFilters] = useState<Record<string, string>>({});
+  const [responsePage, setResponsePage] = useState(1);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+  const RESPONSE_PAGE_SIZE = 10;
   const [deletingSubmissionId, setDeletingSubmissionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -306,6 +310,10 @@ export default function FormulariosClient() {
     const timer = window.setTimeout(() => setToast(''), 2400);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    setResponsePage(1);
+  }, [responseQuery, responseFilters, responsesFormId]);
 
   useEffect(() => {
     function paymentSaved(event: Event) {
@@ -677,6 +685,17 @@ export default function FormulariosClient() {
     });
   }, [responseFilters, responseQuery, responseRows]);
 
+  const responsePages = Math.max(1, Math.ceil(filteredResponseRows.length / RESPONSE_PAGE_SIZE));
+  const currentResponsePage = Math.min(responsePage, responsePages);
+  const visibleResponseRows = filteredResponseRows.slice(
+    (currentResponsePage - 1) * RESPONSE_PAGE_SIZE,
+    currentResponsePage * RESPONSE_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (responsePage > responsePages) setResponsePage(responsePages);
+  }, [responsePage, responsePages]);
+
   const selectedSubmission = responseRows.find((submission) => submission.id === selectedSubmissionId) || null;
 
   return (
@@ -870,12 +889,12 @@ export default function FormulariosClient() {
 
           {filteredResponseRows.length ? (
             <div className="forms-response-list">
-              {filteredResponseRows.map((submission) => {
+              {visibleResponseRows.map((submission) => {
                 const name = submission.respondent_name || answerText(submission.answers?.nome_completo);
                 const phone = submission.respondent_phone || responseFields.find((field) => field.field_type === 'phone')?.key && answerText(submission.answers?.[responseFields.find((field) => field.field_type === 'phone')!.key]);
-                const phoneText = typeof phone === 'string' && phone !== 'Não informado' ? phone : '';
-                const whatsappDigits = phoneText.replace(/\D/g, '');
-                const whatsappNumber = whatsappDigits.length >= 10 ? (whatsappDigits.startsWith('55') ? whatsappDigits : `55${whatsappDigits}`) : '';
+                const rawPhone = typeof phone === 'string' && phone !== 'Não informado' ? phone : '';
+                const phoneText = formatPhoneBR(rawPhone);
+                const whatsappNumber = whatsappNumberBR(rawPhone);
                 const whatsappMessage = `Olá, ${name}! Tudo bem? Estou entrando em contato sobre sua inscrição em ${responseForm.title}.`;
                 const payment = paymentFromAnswers(submission.answers);
                 const due = dueForSubmission(responseForm, submission);
@@ -947,6 +966,16 @@ export default function FormulariosClient() {
             <div className="forms-empty"><Search /><h3>Nenhuma inscrição encontrada</h3><p>Não há respostas que correspondam aos filtros escolhidos.</p></div>
           )}
 
+          {filteredResponseRows.length > 0 && (
+            <AdminPagination
+              page={currentResponsePage}
+              pageSize={RESPONSE_PAGE_SIZE}
+              totalItems={filteredResponseRows.length}
+              onPageChange={setResponsePage}
+              itemLabel="inscrições"
+            />
+          )}
+
           {selectedSubmission && (
             <div className="forms-response-modal-overlay" role="presentation" onMouseDown={(e) => { if (e.currentTarget === e.target) setSelectedSubmissionId(null); }}>
               <section className="forms-response-modal" role="dialog" aria-modal="true" aria-label="Detalhes da inscrição">
@@ -962,7 +991,7 @@ export default function FormulariosClient() {
                   {responseFields.map((field) => (
                     <div key={field.id}>
                       <span>{field.label}</span>
-                      <strong>{answerText(selectedSubmission.answers?.[field.key])}</strong>
+                      <strong>{field.field_type === 'phone' ? formatPhoneBR(selectedSubmission.answers?.[field.key], 'Não informado') : answerText(selectedSubmission.answers?.[field.key])}</strong>
                     </div>
                   ))}
                 </div>

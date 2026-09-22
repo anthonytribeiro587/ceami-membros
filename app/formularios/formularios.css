@@ -152,3 +152,14 @@
 @media(max-width:420px){
   .forms-admin-page{padding-left:7px;padding-right:7px}
 }
+
+
+/* CEAMI usability: respostas com menos rolagem e leitura mais rápida */
+.forms-admin-page{max-width:1320px}
+.forms-response-card{min-height:76px}
+.forms-response-name-row h3{font-size:14px}
+.forms-response-name-row>div>span{font-variant-numeric:tabular-nums}
+.forms-responses>.admin-pagination{margin-top:12px}
+@media(max-width:600px){
+  .forms-response-card{min-height:0}
+}

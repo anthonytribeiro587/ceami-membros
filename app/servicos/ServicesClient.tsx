@@ -21,6 +21,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import AdminPagination from '@/app/components/AdminPagination';
+import { formatPhoneBR, phoneDigits, whatsappNumberBR } from '@/lib/formatters';
 import {
   DEFAULT_SERVICE_DESCRIPTION,
   defaultServiceSettings,
@@ -178,10 +180,6 @@ function statusLabel(status: ServiceRequestStatus) {
   return 'Aberto';
 }
 
-function digits(value: string | null | undefined) {
-  return String(value || '').replace(/\D/g, '');
-}
-
 export default function ServicesClient() {
   const supabase = useMemo(() => createClient(), []);
   const [tab, setTab] = useState<'form' | 'requests'>('form');
@@ -195,7 +193,9 @@ export default function ServicesClient() {
   const [toast, setToast] = useState('');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | ServiceRequestStatus>('todos');
+  const [requestPage, setRequestPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const REQUEST_PAGE_SIZE = 10;
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -207,6 +207,10 @@ export default function ServicesClient() {
     const timer = window.setTimeout(() => setToast(''), 2600);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    setRequestPage(1);
+  }, [query, statusFilter]);
 
   async function ensureServiceForm() {
     const { data: existing, error: existingError } = await supabase
@@ -461,8 +465,24 @@ export default function ServicesClient() {
           .map(([, value]) => value),
       ].join(' '),
     );
-    return haystack.includes(normalize(query));
+    const normalizedQuery = normalize(query);
+    const queryPhone = phoneDigits(query);
+    const phoneHaystack = phoneDigits(
+      [submission.respondent_phone, ...Object.values(submission.answers || {})].join(' '),
+    );
+    return haystack.includes(normalizedQuery) || Boolean(queryPhone && phoneHaystack.includes(queryPhone));
   });
+
+  const requestPages = Math.max(1, Math.ceil(filteredSubmissions.length / REQUEST_PAGE_SIZE));
+  const currentRequestPage = Math.min(requestPage, requestPages);
+  const visibleSubmissions = filteredSubmissions.slice(
+    (currentRequestPage - 1) * REQUEST_PAGE_SIZE,
+    currentRequestPage * REQUEST_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    if (requestPage > requestPages) setRequestPage(requestPages);
+  }, [requestPage, requestPages]);
 
   const selected = submissions.find((submission) => submission.id === selectedId) || null;
   const selectedStatus = selected ? serviceStatusFromAnswers(selected.answers) : 'aberto';
@@ -799,10 +819,11 @@ export default function ServicesClient() {
 
           {filteredSubmissions.length ? (
             <div className="services-request-list">
-              {filteredSubmissions.map((submission) => {
+              {visibleSubmissions.map((submission) => {
                 const status = serviceStatusFromAnswers(submission.answers);
                 const phone = submission.respondent_phone || '';
-                const phoneDigits = digits(phone);
+                const displayPhone = formatPhoneBR(phone);
+                const phoneNumber = whatsappNumberBR(phone);
                 const serviceName =
                   String(submission.answers?.tipo_servico || '').trim() ||
                   Object.entries(submission.answers || {})
@@ -822,16 +843,16 @@ export default function ServicesClient() {
                     <div className="services-request-main">
                       <div>
                         <h3>{submission.respondent_name || 'Solicitante'}</h3>
-                        <span>{phone || 'Telefone não informado'}</span>
+                        <span className="member-v3-phone">{displayPhone || 'Telefone não informado'}</span>
                       </div>
                       <strong>{serviceName}</strong>
                       <p>{new Date(submission.created_at).toLocaleString('pt-BR')}</p>
                     </div>
 
                     <div className="services-request-actions">
-                      {phoneDigits && (
+                      {phoneNumber && (
                         <a
-                          href={`https://wa.me/${phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`}`}
+                          href={`https://wa.me/${phoneNumber}`}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -874,6 +895,16 @@ export default function ServicesClient() {
               <p>Quando alguém preencher o formulário, o pedido aparecerá aqui.</p>
             </div>
           )}
+
+          {filteredSubmissions.length > 0 && (
+            <AdminPagination
+              page={currentRequestPage}
+              pageSize={REQUEST_PAGE_SIZE}
+              totalItems={filteredSubmissions.length}
+              onPageChange={setRequestPage}
+              itemLabel="solicitações"
+            />
+          )}
         </section>
       )}
 
@@ -903,7 +934,7 @@ export default function ServicesClient() {
               {fields.map((field) => (
                 <div key={field.localId}>
                   <span>{field.label}</span>
-                  <strong>{answerText(selected.answers?.[field.key])}</strong>
+                  <strong>{field.field_type === 'phone' ? formatPhoneBR(selected.answers?.[field.key], 'Não informado') : answerText(selected.answers?.[field.key])}</strong>
                 </div>
               ))}
             </div>

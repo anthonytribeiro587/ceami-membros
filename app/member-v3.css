@@ -200,3 +200,35 @@ body:has(.member-v3-shell) .site-footer{display:none}
     animation-iteration-count:1!important;
   }
 }
+
+
+/* === CEAMI USABILITY PASS: densidade, tipografia e paginação === */
+.member-v3-content{max-width:1380px;margin:0 auto}
+.member-v3-members-page{overflow:hidden}
+.member-v3-row{min-height:64px;padding:10px 5px}
+.member-v3-avatar{width:42px;height:42px;border-radius:13px;font-size:12px}
+.member-v3-row-copy{min-width:0}
+.member-v3-row-copy>strong{font-size:14px;letter-spacing:-.008em}
+.member-v3-row-copy>span{display:flex;align-items:center;gap:6px;min-width:0;margin-top:3px!important;font-size:11px!important;color:var(--v3-muted)}
+.member-v3-row-copy>span b{font-weight:650;color:#536b76;font-variant-numeric:tabular-nums;white-space:nowrap}
+.member-v3-row-copy>span i{font-style:normal;color:#a7b3b8}
+.member-v3-row-copy>span em{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:normal}
+.member-v3-phone{font-variant-numeric:tabular-nums;letter-spacing:.005em}
+.admin-pagination{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 2px 2px;margin-top:6px;border-top:1px solid #edf2f4}
+.admin-pagination>span{color:var(--v3-muted);font-size:11px;font-weight:750}
+.admin-pagination-controls{display:flex;align-items:center;gap:5px}
+.admin-pagination button{min-width:34px;height:34px;border:1px solid var(--v3-line);border-radius:10px;background:#fff;color:var(--v3-navy);display:grid;place-items:center;padding:0 9px;font-size:11px;font-weight:850}
+.admin-pagination button:hover:not(:disabled){border-color:var(--v3-line-strong);background:var(--v3-surface-soft)}
+.admin-pagination button.active{border-color:var(--v3-navy);background:var(--v3-navy);color:#fff}
+.admin-pagination button:disabled{opacity:.38;cursor:not-allowed}
+.admin-pagination-ellipsis{min-width:20px;text-align:center;color:var(--v3-muted);font-size:11px}
+@media(max-width:760px){
+  .member-v3-content{max-width:none}
+  .member-v3-row{min-height:58px;padding:9px 1px}
+  .member-v3-avatar{width:38px;height:38px;border-radius:12px}
+  .member-v3-row-copy>strong{font-size:12.5px}
+  .member-v3-row-copy>span{gap:4px;font-size:9.5px!important}
+  .admin-pagination{align-items:flex-start;flex-direction:column;padding-top:11px}
+  .admin-pagination-controls{width:100%;justify-content:space-between}
+  .admin-pagination button{min-width:32px;height:32px;padding:0 8px}
+}

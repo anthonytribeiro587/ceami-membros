@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import AdminPagination from './AdminPagination';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -82,6 +83,8 @@ export default function BirthdayHistory() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<HistoryFilter>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     void loadHistory();
@@ -111,6 +114,19 @@ export default function BirthdayHistory() {
     if (filter === 'failed') return items.filter((item) => item.status === 'failed');
     return items;
   }, [filter, items]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+    setExpanded(null);
+  }, [filter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const sentCount = items.filter((item) => isSuccess(item.status)).length;
   const automaticCount = items.filter(
@@ -206,7 +222,7 @@ export default function BirthdayHistory() {
 
       {!loading && !error && filtered.length > 0 && (
         <div className="message-history-list">
-          {filtered.map((item) => {
+          {visibleItems.map((item) => {
             const success = isSuccess(item.status);
             const skipped = item.status === 'skipped';
             const open = expanded === item.id;
@@ -274,6 +290,16 @@ export default function BirthdayHistory() {
             );
           })}
         </div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <AdminPagination
+          page={currentPage}
+          pageSize={PAGE_SIZE}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+          itemLabel="mensagens"
+        />
       )}
 
       <style jsx>{`

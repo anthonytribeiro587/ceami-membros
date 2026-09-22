@@ -1090,3 +1090,13 @@
   .services-summary{grid-template-columns:1fr 1fr}
   .services-summary>div:last-child{grid-column:1/-1}
 }
+
+
+/* CEAMI usability: listas mais compactas e previsíveis */
+.services-admin-page{max-width:1320px}
+.services-request-card{min-height:72px}
+.services-request-main>div span{font-variant-numeric:tabular-nums}
+.services-requests-section>.admin-pagination{margin-top:12px}
+@media(max-width:760px){
+  .services-request-card{min-height:0}
+}

@@ -155,3 +155,232 @@ body:has(.social-app) .site-footer{display:none}
 }
 @media(max-width:360px){.social-main-actions button{min-height:118px;padding:14px 8px}.social-main-actions strong{font-size:14px}.social-summary-grid{grid-template-columns:1fr}.social-product-grid{grid-template-columns:1fr 1fr}.social-filter-pills{gap:5px}.social-filter-pills button{font-size:11px}.social-bottom-nav{width:calc(100% - 10px)}}
 @media(prefers-reduced-motion:reduce){.social-app *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+
+/* === CEAMI Social · desktop workspace === */
+@media (min-width: 900px) {
+  .social-app{
+    display:flex;
+    flex-direction:column;
+    min-height:100dvh;
+    padding-bottom:36px;
+  }
+
+  .social-topbar{
+    order:0;
+    padding-left:max(24px,calc((100vw - 1160px)/2));
+    padding-right:max(24px,calc((100vw - 1160px)/2));
+  }
+
+  .social-bottom-nav{
+    order:1;
+    position:sticky;
+    top:84px;
+    left:auto;
+    bottom:auto;
+    transform:none;
+    width:min(1160px,calc(100% - 48px));
+    height:62px;
+    margin:16px auto 0;
+    padding:5px;
+    border-radius:18px;
+    box-shadow:0 10px 28px rgba(8,47,89,.08);
+    background:rgba(255,255,255,.98);
+  }
+
+  .social-bottom-nav button{
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    border-radius:13px;
+    font-size:11px;
+    letter-spacing:-.01em;
+  }
+
+  .social-bottom-nav button svg{
+    width:19px;
+    height:19px;
+  }
+
+  .social-content{
+    order:2;
+    width:min(1160px,calc(100% - 48px));
+    margin:0 auto;
+    padding:24px 0 48px;
+  }
+
+  .social-welcome{
+    padding:8px 2px 18px;
+  }
+
+  .social-welcome h2{
+    font-size:31px;
+  }
+
+  .social-welcome p{
+    font-size:15px;
+  }
+
+  .social-main-actions{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:14px;
+  }
+
+  .social-main-actions button{
+    min-height:122px;
+    padding:17px 14px;
+    border-radius:20px;
+  }
+
+  .social-main-actions svg{
+    width:32px;
+    height:32px;
+  }
+
+  .social-main-actions strong{
+    font-size:15px;
+    line-height:1.2;
+  }
+
+  .social-home-summary{
+    margin-top:26px;
+  }
+
+  .social-summary-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:12px;
+  }
+
+  .social-summary-card{
+    min-height:102px;
+    padding:14px;
+  }
+
+  .social-ready-strip{
+    min-height:68px;
+    margin-top:14px;
+  }
+
+  .social-screen{
+    gap:16px;
+  }
+
+  .social-stock-list,
+  .social-family-list,
+  .social-history-list,
+  .social-product-admin-list{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+  }
+
+  .social-stock-card{
+    min-height:106px;
+  }
+
+  .social-family-card{
+    grid-template-columns:48px minmax(0,1fr) 38px;
+  }
+
+  .social-family-deliver{
+    grid-column:2/4!important;
+  }
+
+  .social-product-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:10px;
+  }
+
+  .social-product-grid button{
+    min-height:112px;
+  }
+
+  .social-entry-card,
+  .social-review-card,
+  .social-operation-card,
+  .social-basket-template{
+    padding:18px;
+  }
+
+  .social-baskets-screen{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:16px;
+  }
+
+  .social-baskets-screen>.social-basket-template,
+  .social-baskets-screen>.social-basket-metrics{
+    grid-column:1/-1;
+  }
+
+  .social-more-screen{
+    width:min(760px,100%);
+    margin:0 auto;
+  }
+
+  .social-toolbar{
+    min-height:54px;
+  }
+
+  .social-modal{
+    width:min(620px,calc(100% - 48px));
+  }
+}
+
+@media (min-width: 1180px) {
+  .social-home{
+    display:grid;
+    grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr);
+    grid-template-areas:
+      "welcome welcome"
+      "actions summary"
+      "ready summary";
+    column-gap:22px;
+    align-items:start;
+  }
+
+  .social-welcome{grid-area:welcome}
+  .social-main-actions{
+    grid-area:actions;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .social-home-summary{
+    grid-area:summary;
+    margin-top:0;
+  }
+
+  .social-summary-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .social-ready-strip{
+    grid-area:ready;
+  }
+
+  .social-donation-screen{
+    grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr);
+    align-items:start;
+  }
+
+  .social-donation-screen>.social-help-banner,
+  .social-donation-screen>.social-search,
+  .social-donation-screen>.social-product-grid{
+    grid-column:1;
+  }
+
+  .social-donation-screen>.social-entry-card,
+  .social-donation-screen>.social-review-card{
+    grid-column:2;
+  }
+
+  .social-donation-screen>.social-entry-card{
+    grid-row:1/4;
+    position:sticky;
+    top:170px;
+  }
+
+  .social-donation-screen>.social-review-card{
+    margin-top:0;
+  }
+}

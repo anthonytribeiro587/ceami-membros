@@ -1730,3 +1730,99 @@ body:has(.social-app){
     font-size:10px;
   }
 }
+
+
+/* === CEAMI Social · interaction consistency === */
+.social-app button{
+  transition:
+    background-color .16s ease,
+    border-color .16s ease,
+    color .16s ease,
+    box-shadow .16s ease,
+    opacity .16s ease,
+    transform .12s ease;
+}
+
+.social-app button:not(:disabled):active{
+  transform:translateY(1px) scale(.99);
+}
+
+.social-app button:disabled{
+  cursor:not-allowed;
+}
+
+.social-modal-overlay{
+  animation:social-overlay-in .14s ease-out both;
+}
+
+.social-modal{
+  animation:social-modal-in .18s cubic-bezier(.2,.8,.2,1) both;
+  transform-origin:center;
+}
+
+@keyframes social-overlay-in{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+@keyframes social-modal-in{
+  from{opacity:0;transform:translateY(8px) scale(.988)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+@media (min-width:960px){
+  .social-home-lower{
+    grid-template-columns:minmax(280px,.72fr) minmax(520px,1.55fr);
+    align-items:stretch;
+  }
+
+  .social-home-lower>.social-ready-strip{
+    grid-area:auto!important;
+    align-self:stretch;
+    min-height:100%;
+  }
+
+  .social-home-lower>.social-desktop-activity{
+    grid-area:auto!important;
+    min-width:0;
+  }
+
+  .social-main-actions button:not(:disabled):hover,
+  .social-stock-adjust:not(:disabled):hover,
+  .social-icon-action:not(:disabled):hover,
+  .social-more-results:not(:disabled):hover,
+  .social-family-deliver:not(:disabled):hover{
+    transform:translateY(-1px);
+  }
+
+  .social-modal-actions button:not(:disabled):hover,
+  .social-primary-action:not(:disabled):hover,
+  .social-secondary-action:not(:disabled):hover{
+    box-shadow:0 8px 20px rgba(8,47,89,.10);
+  }
+}
+
+@media (max-width:959px){
+  .social-modal{
+    transform-origin:bottom center;
+  }
+
+  @keyframes social-modal-in{
+    from{opacity:0;transform:translateY(12px) scale(.992)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .social-app button,
+  .social-modal-overlay,
+  .social-modal{
+    transition:none!important;
+    animation:none!important;
+  }
+
+  .social-app button:not(:disabled):active,
+  .social-app button:not(:disabled):hover{
+    transform:none!important;
+  }
+}

@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/login-cursos', '/social/login', '/social/design-preview', '/integra', '/consultar', '/f', '/servicos/solicitar'];
+const PUBLIC_PAGES = ['/login', '/login-cursos', '/social/login', '/visitantes/login', '/social/design-preview', '/integra', '/consultar', '/f', '/servicos/solicitar'];
 const PUBLIC_API_PATHS = [
   '/api/integra',
   '/api/public/check-member',
@@ -90,14 +90,18 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = pathname === '/cursos' || pathname.startsWith('/cursos/')
       ? '/login-cursos'
-      : '/login';
+      : pathname === '/visitantes' || pathname.startsWith('/visitantes/')
+        ? '/visitantes/login'
+        : pathname === '/social' || pathname.startsWith('/social/')
+          ? '/social/login'
+          : '/login';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, course_only, social_only, is_active')
+    .select('role, course_only, social_only, visitors_only, is_active')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -107,7 +111,11 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = profile?.social_only ? '/social/login' : '/login';
+    loginUrl.pathname = profile?.visitors_only
+      ? '/visitantes/login'
+      : profile?.social_only
+        ? '/social/login'
+        : '/login';
     loginUrl.search = '';
     loginUrl.searchParams.set('acesso', 'aguardando-aprovacao');
     return NextResponse.redirect(loginUrl);
@@ -116,8 +124,34 @@ export async function middleware(request: NextRequest) {
   const isAdmin = profile.role === 'admin';
   const isCourseOnly = Boolean(profile.course_only);
   const isSocialOnly = Boolean(profile.social_only);
+  const isVisitorsOnly = Boolean(profile.visitors_only);
   const isCoursesPath = pathname === '/cursos' || pathname.startsWith('/cursos/');
   const isSocialPath = pathname === '/social' || pathname.startsWith('/social/');
+  const isVisitorsPath = pathname === '/visitantes' || pathname.startsWith('/visitantes/');
+
+
+  if (isVisitorsPath && !isAdmin && !isVisitorsOnly) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Conta sem acesso ao CEAMI Visitantes.' }, { status: 403 });
+    }
+
+    const visitorsLoginUrl = request.nextUrl.clone();
+    visitorsLoginUrl.pathname = '/visitantes/login';
+    visitorsLoginUrl.search = '';
+    visitorsLoginUrl.searchParams.set('acesso', 'negado');
+    return NextResponse.redirect(visitorsLoginUrl);
+  }
+
+  if (isVisitorsOnly && !isAdmin && !isVisitorsPath) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Conta restrita ao CEAMI Visitantes.' }, { status: 403 });
+    }
+
+    const visitorsUrl = request.nextUrl.clone();
+    visitorsUrl.pathname = '/visitantes';
+    visitorsUrl.search = '';
+    return NextResponse.redirect(visitorsUrl);
+  }
 
   if (isSocialPath && !isAdmin && !isSocialOnly) {
     if (pathname.startsWith('/api/')) {

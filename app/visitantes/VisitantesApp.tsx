@@ -289,11 +289,16 @@ export default function VisitantesApp() {
 
   const filteredVisitors = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('pt-BR');
+    const queryDigits = phoneDigits(query);
     const todayIds = new Set(visitsToday.map((visit) => visit.visitor_id));
 
     return visitors.filter((visitor) => {
       if (todayOnly && !todayIds.has(visitor.id)) return false;
-      if (normalized && !visitor.full_name.toLocaleLowerCase('pt-BR').includes(normalized) && !visitor.phone.includes(phoneDigits(normalized))) return false;
+      if (normalized) {
+        const matchesName = visitor.full_name.toLocaleLowerCase('pt-BR').includes(normalized);
+        const matchesPhone = queryDigits.length >= 2 && visitor.phone.includes(queryDigits);
+        if (!matchesName && !matchesPhone) return false;
+      }
       if (visitorFilter === 'novos' && visitor.visit_count !== 1) return false;
       if (visitorFilter === 'retornos' && visitor.visit_count < 2) return false;
       if (visitorFilter === 'pendentes' && visitor.followup_status !== 'pendente') return false;

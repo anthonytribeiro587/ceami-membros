@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/login-cursos', '/social/login', '/social/cadastro', '/social/design-preview', '/integra', '/consultar', '/f', '/servicos/solicitar'];
+const PUBLIC_PAGES = ['/login', '/login-cursos', '/social/login', '/social/design-preview', '/integra', '/consultar', '/f', '/servicos/solicitar'];
 const PUBLIC_API_PATHS = [
   '/api/integra',
   '/api/public/check-member',

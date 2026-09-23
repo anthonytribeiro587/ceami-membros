@@ -1833,3 +1833,63 @@ body:has(.social-app){
     transform:translateY(1px) scale(.99)!important;
   }
 }
+
+
+/* === CEAMI Social · equipe e acessos === */
+.social-access-summary{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+.social-access-summary>div{
+  padding:14px;
+  border:1px solid var(--social-line);
+  border-radius:16px;
+  background:#fff;
+}
+.social-access-summary strong,.social-access-summary span{display:block}
+.social-access-summary strong{font-size:24px;color:var(--social-blue)}
+.social-access-summary span{margin-top:3px;font-size:10.5px;color:var(--social-muted);font-weight:650}
+.social-access-list{display:grid;gap:9px}
+.social-access-card{
+  padding:12px;
+  border:1px solid var(--social-line);
+  border-radius:17px;
+  background:#fff;
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+}
+.social-access-card>div{min-width:0}
+.social-access-card h3{margin:0;font-size:13px}
+.social-access-card p{margin:3px 0 0;font-size:10.5px;color:#537087;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.social-access-card small{display:block;margin-top:3px;font-size:9.5px;color:var(--social-muted)}
+.social-access-status{
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:9.5px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.social-access-status.active{background:var(--social-green-bg);color:var(--social-green)}
+.social-access-status.pending{background:var(--social-yellow-bg);color:var(--social-yellow)}
+.social-access-card>button{
+  min-height:38px;
+  border-radius:11px;
+  padding:0 12px;
+  font-size:10.5px;
+  font-weight:800;
+}
+.social-access-card>button.approve{border:0;background:#e9f7ef;color:#167148}
+.social-access-card>button.danger-soft{border:1px solid #f0c8c1;background:#fff5f3;color:#9e4437}
+@media(max-width:620px){
+  .social-access-card{grid-template-columns:44px minmax(0,1fr) auto}
+  .social-access-card>button{grid-column:2/4;width:100%}
+}
+@media(min-width:960px){
+  .social-access-screen{max-width:900px}
+  .social-access-summary{grid-template-columns:220px 220px}
+  .social-access-list{grid-template-columns:1fr}
+  .social-access-card{padding:13px 14px}
+}

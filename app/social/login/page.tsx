@@ -47,7 +47,9 @@ export default function SocialLoginPage() {
     const allowed = profile?.is_active === true && (profile.role === 'admin' || profile.social_only === true);
     if (profileError || !allowed) {
       await supabase.auth.signOut();
-      setError('Este usuário não possui acesso ao CEAMI Social.');
+      setError(profile?.social_only === true && profile?.is_active === false
+        ? 'Seu cadastro está aguardando aprovação da administração.'
+        : 'Este usuário não possui acesso ao CEAMI Social.');
       setLoading(false);
       return;
     }
@@ -85,6 +87,7 @@ export default function SocialLoginPage() {
         </form>
 
         <small>Acesso exclusivo para pessoas autorizadas pela administração.</small>
+        <Link className="social-login-back social-login-register-link" href="/social/cadastro">Criar acesso para a equipe Social</Link>
         <Link className="social-login-back" href="/login">Voltar ao acesso do CEAMI Membros</Link>
       </section>
     </main>

@@ -2242,3 +2242,470 @@ body:has(.social-app){
     font-size:11px;
   }
 }
+
+
+/* === CEAMI Social · fluxo Estoque → Produtos → Entregas === */
+.social-stock-basket-summary{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:18px;
+  padding:16px 18px;
+  border:1px solid #dfe7ee;
+  border-radius:16px;
+  background:#fff;
+}
+
+.social-stock-basket-copy{
+  min-width:0;
+}
+
+.social-stock-basket-copy>span,
+.social-products-basket-config>div>span,
+.social-delivery-step-head small{
+  display:block;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.11em;
+  color:var(--social-orange);
+}
+
+.social-stock-basket-copy>strong{
+  display:block;
+  margin-top:3px;
+  font-size:14px;
+  color:var(--social-navy);
+}
+
+.social-stock-basket-copy>small{
+  display:block;
+  margin-top:3px;
+  max-width:520px;
+  font-size:10px;
+  line-height:1.4;
+  color:var(--social-muted);
+}
+
+.social-stock-basket-numbers{
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+}
+
+.social-stock-basket-numbers>div{
+  min-width:105px;
+  padding:8px 11px;
+  border:1px solid #e5ebf0;
+  border-radius:12px;
+  background:#f8fafc;
+}
+
+.social-stock-basket-numbers span,
+.social-stock-basket-numbers strong{
+  display:block;
+}
+
+.social-stock-basket-numbers span{
+  font-size:9px;
+  color:#7a8b9c;
+}
+
+.social-stock-basket-numbers strong{
+  margin-top:2px;
+  font-size:21px;
+  line-height:1;
+  color:#153b60;
+  font-variant-numeric:tabular-nums;
+}
+
+.social-stock-basket-summary>button{
+  min-height:44px;
+  padding:0 15px;
+  border:0;
+  border-radius:12px;
+  background:var(--social-orange);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.social-stock-basket-summary>button svg{
+  width:17px;
+  height:17px;
+}
+
+.social-stock-basket-summary>button:disabled{
+  opacity:.45;
+}
+
+.social-products-basket-config{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:18px;
+  align-items:center;
+  padding:16px 18px;
+  border:1px solid #dfe7ee;
+  border-radius:16px;
+  background:linear-gradient(145deg,#fff,#fafcff);
+}
+
+.social-products-basket-config h2{
+  margin:3px 0 0;
+  font-size:16px;
+  color:var(--social-navy);
+}
+
+.social-products-basket-config p{
+  max-width:680px;
+  margin:5px 0 9px;
+  font-size:10.5px;
+  line-height:1.45;
+  color:var(--social-muted);
+}
+
+.social-products-basket-config .social-template-items{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+}
+
+.social-products-basket-config .social-template-items small{
+  padding:5px 7px;
+  border-radius:8px;
+  background:#f0f5fa;
+  color:#4e6c87;
+  font-size:9.5px;
+}
+
+.social-products-basket-config>button{
+  min-height:42px;
+  padding:0 14px;
+  border:1px solid #d7e2ec;
+  border-radius:11px;
+  background:#fff;
+  color:#16446f;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:10.5px;
+  font-weight:750;
+  white-space:nowrap;
+}
+
+.social-products-basket-config>button svg{
+  width:16px;
+  height:16px;
+}
+
+.social-deliveries-screen{
+  max-width:860px;
+  margin:0 auto;
+  gap:12px;
+}
+
+.social-delivery-simple-card{
+  padding:18px;
+  border:1px solid #dfe7ee;
+  border-radius:17px;
+  background:#fff;
+  display:grid;
+  gap:14px;
+}
+
+.social-delivery-step-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.social-delivery-step-head>span{
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  background:#fff0e7;
+  color:var(--social-orange);
+  display:grid;
+  place-items:center;
+  font-size:12px;
+  font-weight:850;
+}
+
+.social-delivery-step-head h2{
+  margin:2px 0 0;
+  font-size:16px;
+  color:var(--social-navy);
+}
+
+.social-selected-family{
+  display:grid;
+  gap:9px;
+}
+
+.social-family-history-summary{
+  min-height:48px;
+  padding:9px 11px;
+  border:1px solid #e2e9ef;
+  border-radius:13px;
+  background:#f8fafc;
+  display:grid;
+  grid-template-columns:28px minmax(0,1fr);
+  align-items:center;
+  gap:9px;
+}
+
+.social-family-history-summary>svg{
+  width:28px;
+  height:28px;
+  padding:6px;
+  border-radius:9px;
+  background:#eaf2fb;
+  color:#356b9d;
+}
+
+.social-family-history-summary span,
+.social-family-history-summary strong{
+  display:block;
+}
+
+.social-family-history-summary span{
+  font-size:9px;
+  color:#7b8e9f;
+}
+
+.social-family-history-summary strong{
+  margin-top:2px;
+  font-size:11px;
+  color:#284967;
+}
+
+.social-delivery-choice-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.social-delivery-choice-grid>button{
+  min-height:76px;
+  padding:11px 12px;
+  border:1px solid #dce5ed;
+  border-radius:14px;
+  background:#fafcfe;
+  color:#375a79;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) 18px;
+  align-items:center;
+  gap:9px;
+  text-align:left;
+}
+
+.social-delivery-choice-grid>button>svg:first-child{
+  width:34px;
+  height:34px;
+  padding:8px;
+  border-radius:10px;
+  background:#edf4fa;
+  color:#356b9d;
+}
+
+.social-delivery-choice-grid>button>div{
+  min-width:0;
+}
+
+.social-delivery-choice-grid>button strong,
+.social-delivery-choice-grid>button small{
+  display:block;
+}
+
+.social-delivery-choice-grid>button strong{
+  font-size:12px;
+  color:#23496c;
+}
+
+.social-delivery-choice-grid>button small{
+  margin-top:2px;
+  font-size:9.5px;
+  color:#7c8d9d;
+}
+
+.social-delivery-choice-grid>button>svg:last-child{
+  width:18px;
+  height:18px;
+  color:#14945b;
+}
+
+.social-delivery-choice-grid>button.active{
+  border-color:#9fc2df;
+  background:#f2f8fd;
+  box-shadow:inset 0 0 0 1px #d5e7f5;
+}
+
+.social-ready-delivery-summary{
+  min-height:64px;
+  padding:11px 12px;
+  border:1px solid #dfe8ef;
+  border-radius:14px;
+  background:#f8fbfd;
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr);
+  align-items:center;
+  gap:10px;
+}
+
+.social-ready-delivery-summary>svg{
+  width:38px;
+  height:38px;
+  padding:9px;
+  border-radius:11px;
+  background:#e8f5ed;
+  color:#188958;
+}
+
+.social-ready-delivery-summary span,
+.social-ready-delivery-summary strong,
+.social-ready-delivery-summary small{
+  display:block;
+}
+
+.social-ready-delivery-summary span{
+  font-size:9px;
+  color:#7b8c9b;
+}
+
+.social-ready-delivery-summary strong{
+  margin-top:1px;
+  font-size:13px;
+  color:#214663;
+}
+
+.social-ready-delivery-summary small{
+  margin-top:2px;
+  font-size:9.5px;
+  color:#6e8295;
+}
+
+.social-delivery-empty-hint{
+  min-height:120px;
+  padding:18px;
+  border:1px dashed #d5e0e9;
+  border-radius:16px;
+  background:#f9fbfd;
+  color:#708599;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.social-delivery-empty-hint svg{
+  width:28px;
+  height:28px;
+  margin-bottom:7px;
+  color:#7897b3;
+}
+
+.social-delivery-empty-hint strong{
+  font-size:12px;
+  color:#345673;
+}
+
+.social-delivery-empty-hint span{
+  max-width:360px;
+  margin-top:3px;
+  font-size:10px;
+  line-height:1.4;
+}
+
+.social-prepare-modal-summary{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.social-prepare-modal-summary>div{
+  padding:12px;
+  border:1px solid #e1e8ee;
+  border-radius:13px;
+  background:#f8fafc;
+}
+
+.social-prepare-modal-summary span,
+.social-prepare-modal-summary strong,
+.social-prepare-modal-summary small{
+  display:block;
+}
+
+.social-prepare-modal-summary span{
+  font-size:9px;
+  color:#7b8d9d;
+}
+
+.social-prepare-modal-summary strong{
+  margin-top:3px;
+  font-size:24px;
+  color:#163b5e;
+}
+
+.social-prepare-modal-summary small{
+  margin-top:2px;
+  font-size:9.5px;
+  color:#7b8d9d;
+}
+
+@media(max-width:700px){
+  .social-stock-basket-summary{
+    grid-template-columns:1fr;
+    gap:10px;
+    padding:13px;
+  }
+
+  .social-stock-basket-numbers{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .social-stock-basket-summary>button{
+    width:100%;
+  }
+
+  .social-products-basket-config{
+    grid-template-columns:1fr;
+    padding:13px;
+  }
+
+  .social-products-basket-config>button{
+    width:100%;
+    justify-content:center;
+  }
+
+  .social-delivery-simple-card{
+    padding:13px;
+  }
+
+  .social-delivery-choice-grid{
+    grid-template-columns:1fr;
+  }
+
+  .social-delivery-choice-grid>button{
+    min-height:68px;
+  }
+
+  .social-deliveries-screen{
+    gap:10px;
+  }
+}
+
+@media(max-width:420px){
+  .social-stock-basket-numbers>div{
+    min-width:0;
+  }
+
+  .social-delivery-simple-card{
+    border-radius:15px;
+  }
+}

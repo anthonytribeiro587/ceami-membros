@@ -419,6 +419,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [donationReviewOpen, setDonationReviewOpen] = useState(false);
 
   const [prepareQty, setPrepareQty] = useState(1);
+  const [prepareBasketOpen, setPrepareBasketOpen] = useState(false);
   const [deliveryQty, setDeliveryQty] = useState(1);
   const [deliveryFamilyId, setDeliveryFamilyId] = useState('');
   const [deliveryNote, setDeliveryNote] = useState('');
@@ -533,7 +534,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     return deliveries.filter((delivery) => {
       const date = new Date(`${delivery.delivered_on}T12:00:00`);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    }).reduce((sum, delivery) => sum + Number(delivery.quantity_baskets || 0), 0);
+    }).length;
   }, [deliveries]);
 
   const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
@@ -708,18 +709,20 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
   async function prepareBaskets() {
     if (saving || prepareQty < 1 || prepareQty > capacity) return;
-    if (demoMode) { setToast(`${prepareQty} cesta(s) montada(s).`); setPrepareQty(1); return; }
+    if (demoMode) { setToast(`${prepareQty} cesta(s) montada(s).`); setPrepareQty(1); setPrepareBasketOpen(false); return; }
     setSaving(true);
     const { error: rpcError } = await supabase.rpc('social_prepare_baskets', { p_quantity: prepareQty });
     setSaving(false);
     if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
     setPrepareQty(1);
+    setPrepareBasketOpen(false);
     await load();
     setToast('Cestas montadas e estoque atualizado.');
   }
 
   async function deliverBaskets() {
-    if (saving || !deliveryFamilyId || deliveryQty < 1 || deliveryQty > readyBaskets) return;
+    if (saving || !deliveryFamilyId || readyBaskets < 1) return;
+    const deliveryQty = 1;
     const last = lastDeliveryByFamily.get(deliveryFamilyId);
     const hasRecent = last ? daysSinceDate(last.delivered_on) >= 0 && daysSinceDate(last.delivered_on) <= 15 : false;
     if (hasRecent && !confirmRecentDelivery) {
@@ -933,7 +936,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const title = screen === 'home' ? 'CEAMI Social'
     : screen === 'stock' ? 'Estoque'
       : screen === 'donation' ? 'Receber doação'
-        : screen === 'baskets' ? 'Cestas'
+        : screen === 'baskets' ? 'Entregas'
           : screen === 'families' ? 'Famílias'
             : screen === 'history' ? 'Histórico'
               : screen === 'products' ? 'Produtos' : 'Mais opções';
@@ -954,7 +957,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
           <button type="button" className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home /><span>Visão geral</span></button>
           <button type="button" className={screen === 'donation' ? 'active' : ''} onClick={() => setScreen('donation')}><Gift /><span>Receber doação</span></button>
           <button type="button" className={screen === 'stock' ? 'active' : ''} onClick={() => setScreen('stock')}><Package /><span>Estoque</span></button>
-          <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><ShoppingBasket /><span>Cestas</span></button>
+          <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><HeartHandshake /><span>Entregas</span></button>
           <button type="button" className={screen === 'families' ? 'active' : ''} onClick={() => setScreen('families')}><Users /><span>Famílias</span></button>
           <button type="button" className={screen === 'history' ? 'active' : ''} onClick={() => setScreen('history')}><History /><span>Histórico</span></button>
           <button type="button" className={screen === 'products' ? 'active' : ''} onClick={() => setScreen('products')}><Settings2 /><span>Produtos</span></button>
@@ -992,7 +995,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
             <section className="social-main-actions" aria-label="Ações principais">
               <button type="button" className="orange" onClick={() => setScreen('donation')}><Gift /><strong>Receber doação</strong><ChevronRight /></button>
-              <button type="button" className="blue" onClick={() => setScreen('baskets')}><ShoppingBasket /><strong>Montar / entregar cesta</strong><ChevronRight /></button>
+              <button type="button" className="blue" onClick={() => setScreen('baskets')}><HeartHandshake /><strong>Registrar entrega</strong><ChevronRight /></button>
               <button type="button" className="blue soft" onClick={() => setScreen('stock')}><Package /><strong>Ver estoque</strong><ChevronRight /></button>
               <button type="button" className="orange soft" onClick={() => setScreen('families')}><Users /><strong>Famílias atendidas</strong><ChevronRight /></button>
             </section>
@@ -1003,7 +1006,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
                 <SummaryCard icon={<ShoppingBasket />} value={capacity} label="cestas possíveis" tone="green" />
                 <SummaryCard icon={<AlertTriangle />} value={lowStockCount} label="itens com estoque baixo" tone="orange" />
                 <SummaryCard icon={<Clock3 />} value={expiringCount} label="produtos vencendo em até 60 dias" tone="red" />
-                <SummaryCard icon={<CheckCircle2 />} value={deliveriesThisMonth} label="cestas entregues neste mês" tone="blue" />
+                <SummaryCard icon={<CheckCircle2 />} value={deliveriesThisMonth} label="atendimentos neste mês" tone="blue" />
               </div>
             </section>
 
@@ -1036,6 +1039,18 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
         {screen === 'stock' && (
           <section className="social-screen">
+            <section className="social-stock-basket-summary">
+              <div className="social-stock-basket-copy">
+                <span>CESTAS</span>
+                <strong>Transformar estoque em cestas prontas</strong>
+                <small>A composição da cesta é definida em Produtos. Aqui você apenas monta as cestas físicas.</small>
+              </div>
+              <div className="social-stock-basket-numbers">
+                <div><span>Podemos montar</span><strong>{capacity}</strong></div>
+                <div><span>Cestas prontas</span><strong>{readyBaskets}</strong></div>
+              </div>
+              <button type="button" disabled={capacity < 1} onClick={() => { setPrepareQty(1); setPrepareBasketOpen(true); }}><ShoppingBasket />Montar cestas</button>
+            </section>
             <div className="social-search"><Search /><input value={stockQuery} onChange={(event) => setStockQuery(event.target.value)} placeholder="Buscar item no estoque" /></div>
             <div className="social-filter-pills">
               <button type="button" className={stockFilter === 'all' ? 'active' : ''} onClick={() => setStockFilter('all')}>Todos</button>
@@ -1099,96 +1114,124 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         )}
 
         {screen === 'baskets' && (
-          <section className="social-screen social-baskets-screen">
-            <article className="social-basket-template">
-              <div className="social-basket-illustration"><ShoppingBasket /></div>
-              <div><span>CESTA ATUAL</span><h2>{basketTemplate?.name || 'Cesta básica padrão'}</h2><div className="social-template-items">{templateItems.map((item) => { const product = productMap.get(item.product_id); return product ? <small key={item.id}>{item.quantity} × {productTitle(product)}</small> : null; })}</div></div>
-              <button type="button" onClick={openBasketConfig} aria-label="Configurar cesta"><Settings2 /></button>
-            </article>
-
-            <div className="social-basket-metrics"><div><small>Podemos montar</small><strong>{capacity}</strong><span>com o estoque atual</span></div><div><small>Cestas prontas</small><strong>{readyBaskets}</strong><span>disponíveis para entrega</span></div></div>
-
-            <section className="social-operation-card">
-              <div className="social-section-title"><div><span>MONTAR CESTAS</span><h2>Quantas serão preparadas?</h2></div></div>
-              <QuantityStepper value={prepareQty} onChange={setPrepareQty} min={1} max={Math.max(1, capacity)} />
-              {capacity > 0 ? <div className="social-success-note"><ShoppingBasket />Com o estoque atual, você consegue montar <strong>{capacity} cesta(s)</strong>.</div> : <div className="social-warning-note"><AlertTriangle />Não há itens suficientes para montar uma cesta completa.</div>}
-              <button type="button" className="social-primary-action" disabled={saving || capacity < 1 || prepareQty > capacity} onClick={() => void prepareBaskets()}><Check />Confirmar montagem</button>
-            </section>
-
-            <section className="social-operation-card social-delivery-operation">
-              <div className="social-section-title"><div><span>REGISTRAR ENTREGA</span><h2>O que será entregue?</h2></div></div>
-
-              <div className="social-segmented social-delivery-mode">
-                <button type="button" className={deliveryMode === 'basket' ? 'active' : ''} onClick={() => setDeliveryMode('basket')}><ShoppingBasket />Cesta pronta</button>
-                <button type="button" className={deliveryMode === 'avulsa' ? 'active' : ''} onClick={() => setDeliveryMode('avulsa')}><Package />Entrega avulsa</button>
+          <section className="social-screen social-deliveries-screen">
+            <section className="social-delivery-simple-card">
+              <div className="social-delivery-step-head">
+                <span>1</span>
+                <div><small>FAMÍLIA</small><h2>Quem será atendido?</h2></div>
               </div>
 
-              <label className="social-field"><span>Família</span><select value={deliveryFamilyId} onChange={(event) => setDeliveryFamilyId(event.target.value)}><option value="">Selecione uma família</option>{families.filter((family) => family.is_active).map((family) => <option key={family.id} value={family.id}>{family.responsible_name} · {family.household_size} pessoa(s)</option>)}</select></label>
+              <label className="social-field">
+                <span>Família</span>
+                <select value={deliveryFamilyId} onChange={(event) => setDeliveryFamilyId(event.target.value)}>
+                  <option value="">Selecione uma família</option>
+                  {families.filter((family) => family.is_active).map((family) => <option key={family.id} value={family.id}>{family.responsible_name} · {family.household_size} pessoa(s)</option>)}
+                </select>
+              </label>
 
               {deliveryFamilyId && (() => {
                 const family = familyMap.get(deliveryFamilyId);
-                const last = lastDeliveryByFamily.get(deliveryFamilyId);
+                const familyDeliveries = deliveries
+                  .filter((delivery) => delivery.family_id === deliveryFamilyId)
+                  .sort((a, b) => b.delivered_on.localeCompare(a.delivered_on) || b.created_at.localeCompare(a.created_at));
+                const last = familyDeliveries[0];
                 const days = last ? daysSinceDate(last.delivered_on) : Number.POSITIVE_INFINITY;
                 const recent = Boolean(last && days >= 0 && days <= 15);
                 if (!family) return null;
+
                 return (
-                  <>
+                  <div className="social-selected-family">
                     <div className="social-family-preview">
                       <span className="social-avatar">{initials(family.responsible_name)}</span>
                       <div>
                         <strong>{family.responsible_name}</strong>
                         <small>{family.household_size} pessoas · {family.neighborhood || 'Bairro não informado'}</small>
-                        <small>Último atendimento: {last ? `${formatDate(last.delivered_on)} · ${deliveryTypeLabel(last)}` : 'nenhum registrado'}</small>
+                        <small>{familyDeliveries.length ? `${familyDeliveries.length} atendimento(s) registrado(s)` : 'Nenhum atendimento anterior'}</small>
                       </div>
                     </div>
+
+                    {last && (
+                      <div className="social-family-history-summary">
+                        <History />
+                        <div><span>Último atendimento</span><strong>{formatDate(last.delivered_on)} · {deliveryTypeLabel(last)}</strong></div>
+                      </div>
+                    )}
 
                     {recent && last && (
                       <div className="social-recent-delivery-warning">
                         <AlertTriangle />
                         <div>
-                          <strong>Atendimento recente</strong>
-                          <p>Esta família já recebeu <b>{deliveryTypeLabel(last)}</b> em <b>{formatDate(last.delivered_on)}</b>{days === 0 ? ' (hoje)' : ` (há ${days} dia(s))`}. O aviso permanece por 15 dias, até {alertUntilDate(last.delivered_on)}.</p>
-                          <label><input type="checkbox" checked={confirmRecentDelivery} onChange={(event) => setConfirmRecentDelivery(event.target.checked)} /><span>Estou ciente e quero registrar outra entrega agora.</span></label>
+                          <strong>Atendimento dentro dos últimos 15 dias</strong>
+                          <p>Esta família recebeu <b>{deliveryTypeLabel(last)}</b> em <b>{formatDate(last.delivered_on)}</b>{days === 0 ? ' (hoje)' : ` (há ${days} dia(s))`}. O aviso permanece até {alertUntilDate(last.delivered_on)}.</p>
+                          <label><input type="checkbox" checked={confirmRecentDelivery} onChange={(event) => setConfirmRecentDelivery(event.target.checked)} /><span>Estou ciente e quero registrar outra entrega.</span></label>
                         </div>
                       </div>
                     )}
-                  </>
+                  </div>
                 );
               })()}
-
-              {deliveryMode === 'basket' ? (
-                <>
-                  <label className="social-field"><span>Quantidade de cestas</span><QuantityStepper value={deliveryQty} onChange={setDeliveryQty} min={1} max={Math.max(1, readyBaskets)} /></label>
-                  <div className="social-delivery-stock-note"><ShoppingBasket /><span><strong>{readyBaskets}</strong> cesta(s) pronta(s) disponível(is)</span></div>
-                </>
-              ) : (
-                <div className="social-direct-delivery">
-                  <div className="social-direct-delivery-head"><div><span>ITENS AVULSOS</span><strong>Escolha o que a família vai levar</strong></div><small>Baixa direto do estoque</small></div>
-                  <div className="social-direct-items">
-                    {activeProducts.filter((product) => quantityFor(product.id, batches) > 0).map((product) => {
-                      const available = quantityFor(product.id, batches);
-                      const selected = directDeliveryDraft[product.id] || 0;
-                      return (
-                        <div className="social-direct-item" key={product.id}>
-                          <div className="social-product-art mini">{categoryIcon(product)}</div>
-                          <div><strong>{productTitle(product)}</strong><small>Saldo: {available} {product.unit_label}</small></div>
-                          <QuantityStepper value={selected} onChange={(value) => setDirectDeliveryDraft((current) => ({ ...current, [product.id]: value }))} min={0} max={available} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {!activeProducts.some((product) => quantityFor(product.id, batches) > 0) && <div className="social-warning-note"><AlertTriangle />Não há itens disponíveis no estoque para uma entrega avulsa.</div>}
-                </div>
-              )}
-
-              <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} placeholder={deliveryMode === 'basket' ? 'Ex.: retirada na igreja' : 'Ex.: atendimento emergencial'} /></label>
-
-              {deliveryMode === 'basket' ? (
-                <button type="button" className="social-primary-action" disabled={saving || !deliveryFamilyId || readyBaskets < 1 || deliveryQty > readyBaskets || Boolean(deliveryFamilyId && (() => { const last = lastDeliveryByFamily.get(deliveryFamilyId); const days = last ? daysSinceDate(last.delivered_on) : 99; return last && days >= 0 && days <= 15 && !confirmRecentDelivery; })())} onClick={() => void deliverBaskets()}><Check />Confirmar entrega da cesta</button>
-              ) : (
-                <button type="button" className="social-primary-action" disabled={saving || !deliveryFamilyId || !Object.values(directDeliveryDraft).some((quantity) => quantity > 0) || Boolean(deliveryFamilyId && (() => { const last = lastDeliveryByFamily.get(deliveryFamilyId); const days = last ? daysSinceDate(last.delivered_on) : 99; return last && days >= 0 && days <= 15 && !confirmRecentDelivery; })())} onClick={() => void deliverDirectItems()}><Check />Confirmar entrega avulsa</button>
-              )}
             </section>
+
+            {deliveryFamilyId && (
+              <section className="social-delivery-simple-card">
+                <div className="social-delivery-step-head">
+                  <span>2</span>
+                  <div><small>TIPO DE ENTREGA</small><h2>O que a família vai levar?</h2></div>
+                </div>
+
+                <div className="social-delivery-choice-grid">
+                  <button type="button" className={deliveryMode === 'basket' ? 'active' : ''} onClick={() => setDeliveryMode('basket')}>
+                    <ShoppingBasket />
+                    <div><strong>1 cesta pronta</strong><small>{readyBaskets > 0 ? `${readyBaskets} disponível(is)` : 'Nenhuma cesta pronta'}</small></div>
+                    {deliveryMode === 'basket' && <CheckCircle2 />}
+                  </button>
+                  <button type="button" className={deliveryMode === 'avulsa' ? 'active' : ''} onClick={() => setDeliveryMode('avulsa')}>
+                    <Package />
+                    <div><strong>Entrega avulsa</strong><small>Escolher itens do estoque</small></div>
+                    {deliveryMode === 'avulsa' && <CheckCircle2 />}
+                  </button>
+                </div>
+
+                {deliveryMode === 'basket' ? (
+                  <div className="social-ready-delivery-summary">
+                    <ShoppingBasket />
+                    <div>
+                      <span>Será registrada</span>
+                      <strong>1 cesta pronta</strong>
+                      <small>{readyBaskets > 0 ? `Restarão ${Math.max(0, readyBaskets - 1)} cesta(s) pronta(s)` : 'Monte uma cesta no Estoque antes de entregar.'}</small>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="social-direct-delivery">
+                    <div className="social-direct-delivery-head"><div><span>ITENS AVULSOS</span><strong>Selecione somente o que será entregue</strong></div><small>Baixa direta do estoque</small></div>
+                    <div className="social-direct-items">
+                      {activeProducts.filter((product) => quantityFor(product.id, batches) > 0).map((product) => {
+                        const available = quantityFor(product.id, batches);
+                        const selected = directDeliveryDraft[product.id] || 0;
+                        return (
+                          <div className="social-direct-item" key={product.id}>
+                            <div className="social-product-art mini">{categoryIcon(product)}</div>
+                            <div><strong>{productTitle(product)}</strong><small>Saldo: {available} {product.unit_label}</small></div>
+                            <QuantityStepper value={selected} onChange={(value) => setDirectDeliveryDraft((current) => ({ ...current, [product.id]: value }))} min={0} max={available} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {!activeProducts.some((product) => quantityFor(product.id, batches) > 0) && <div className="social-warning-note"><AlertTriangle />Não há itens disponíveis no estoque para uma entrega avulsa.</div>}
+                  </div>
+                )}
+
+                <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} placeholder={deliveryMode === 'basket' ? 'Ex.: retirada na igreja' : 'Ex.: atendimento emergencial'} /></label>
+
+                {deliveryMode === 'basket' ? (
+                  <button type="button" className="social-primary-action" disabled={saving || readyBaskets < 1 || Boolean((() => { const last = lastDeliveryByFamily.get(deliveryFamilyId); const days = last ? daysSinceDate(last.delivered_on) : 99; return last && days >= 0 && days <= 15 && !confirmRecentDelivery; })())} onClick={() => void deliverBaskets()}><Check />Confirmar entrega de 1 cesta</button>
+                ) : (
+                  <button type="button" className="social-primary-action" disabled={saving || !Object.values(directDeliveryDraft).some((quantity) => quantity > 0) || Boolean((() => { const last = lastDeliveryByFamily.get(deliveryFamilyId); const days = last ? daysSinceDate(last.delivered_on) : 99; return last && days >= 0 && days <= 15 && !confirmRecentDelivery; })())} onClick={() => void deliverDirectItems()}><Check />Confirmar entrega avulsa</button>
+                )}
+              </section>
+            )}
+
+            {!deliveryFamilyId && <div className="social-delivery-empty-hint"><Users /><strong>Comece selecionando a família</strong><span>O histórico dela aparecerá antes de você escolher o tipo de entrega.</span></div>}
           </section>
         )}
 
@@ -1240,6 +1283,15 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
         {screen === 'products' && (
           <section className="social-screen">
+            <section className="social-products-basket-config">
+              <div>
+                <span>COMPOSIÇÃO DA CESTA</span>
+                <h2>{basketTemplate?.name || 'Cesta básica padrão'}</h2>
+                <p>Defina aqui o que compõe uma cesta. Essa configuração é usada para calcular quantas cestas podem ser montadas no Estoque.</p>
+                <div className="social-template-items">{templateItems.map((item) => { const product = productMap.get(item.product_id); return product ? <small key={item.id}>{item.quantity} × {productTitle(product)}</small> : null; })}</div>
+              </div>
+              <button type="button" onClick={openBasketConfig}><Settings2 />Editar composição</button>
+            </section>
             <div className="social-toolbar"><div><span className="social-eyebrow">CADASTRO</span><h2 className="social-inline-title">Produtos do estoque</h2></div><button type="button" className="social-icon-action" onClick={() => setProductModal({ name: '', packageLabel: '', unitLabel: 'unidades', category: 'alimentos', minStock: '0', tracksExpiry: true })}><Plus /><span>Novo</span></button></div>
             <div className="social-product-admin-list">
               {products.filter((product) => product.is_active).slice(0, productVisible).map((product) => (
@@ -1256,7 +1308,6 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
             <div className="social-menu-list">
               <button type="button" onClick={() => setScreen('history')}><History /><span><strong>Histórico</strong><small>Veja tudo que entrou, saiu ou foi corrigido.</small></span><ChevronRight /></button>
               <button type="button" onClick={() => setScreen('products')}><Package /><span><strong>Produtos</strong><small>Cadastre itens e defina estoque mínimo.</small></span><ChevronRight /></button>
-              <button type="button" onClick={openBasketConfig}><Settings2 /><span><strong>Configurar cesta</strong><small>Defina a composição da cesta básica padrão.</small></span><ChevronRight /></button>
               <button type="button" onClick={() => void refreshData()}><RefreshCw /><span><strong>Atualizar dados</strong><small>Busca as informações mais recentes do estoque.</small></span><ChevronRight /></button>
             </div>
             <button type="button" className="social-signout" onClick={() => void signOut()}><LogOut />Sair do CEAMI Social</button>
@@ -1267,7 +1318,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       <nav className="social-bottom-nav" aria-label="Navegação do CEAMI Social">
         <button type="button" className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home /><span>Início</span></button>
         <button type="button" className={screen === 'stock' ? 'active' : ''} onClick={() => setScreen('stock')}><Package /><span>Estoque</span></button>
-        <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><ShoppingBasket /><span>Cestas</span></button>
+        <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><HeartHandshake /><span>Entregas</span></button>
         <button type="button" className={screen === 'families' ? 'active' : ''} onClick={() => setScreen('families')}><Users /><span>Famílias</span></button>
         <button type="button" className={['more', 'history', 'products'].includes(screen) ? 'active' : ''} onClick={() => setScreen('more')}><MoreHorizontal /><span>Mais</span></button>
       </nav>
@@ -1352,6 +1403,18 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
           {adjustDirection === 'add' && adjustProduct.tracks_expiry && <label className="social-field"><span>Validade <small>(opcional)</small></span><input type="month" value={adjustExpiry.slice(0, 7)} onChange={(event) => setAdjustExpiry(event.target.value ? `${event.target.value}-01` : '')} /></label>}
           <label className="social-field"><span>Motivo do ajuste</span><input value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} placeholder="Ex.: erro de contagem, item danificado..." /></label>
           <button type="button" className="social-primary-action" disabled={saving || !adjustReason.trim()} onClick={() => void confirmAdjustment()}><Check />Confirmar ajuste</button>
+        </Modal>
+      )}
+
+      {prepareBasketOpen && (
+        <Modal title="Montar cestas" subtitle="Os itens serão baixados do estoque e passarão a contar como cestas prontas." onClose={() => setPrepareBasketOpen(false)}>
+          <div className="social-prepare-modal-summary">
+            <div><span>Podemos montar</span><strong>{capacity}</strong><small>com o estoque atual</small></div>
+            <div><span>Já prontas</span><strong>{readyBaskets}</strong><small>aguardando entrega</small></div>
+          </div>
+          <label className="social-field"><span>Quantidade a montar</span><QuantityStepper value={prepareQty} onChange={setPrepareQty} min={1} max={Math.max(1, capacity)} /></label>
+          {capacity > 0 ? <div className="social-success-note"><ShoppingBasket />Você pode montar até <strong>{capacity} cesta(s)</strong> agora.</div> : <div className="social-warning-note"><AlertTriangle />O estoque não possui todos os itens necessários para uma cesta completa.</div>}
+          <button type="button" className="social-primary-action" disabled={saving || capacity < 1 || prepareQty > capacity} onClick={() => void prepareBaskets()}><Check />{saving ? 'Montando...' : `Confirmar ${prepareQty} cesta(s)`}</button>
         </Modal>
       )}
 

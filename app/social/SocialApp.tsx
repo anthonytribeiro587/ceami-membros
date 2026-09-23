@@ -27,6 +27,7 @@ import {
   Settings2,
   ShoppingBasket,
   Trash2,
+  Undo2,
   SlidersHorizontal,
   Users,
   Wheat,
@@ -139,6 +140,15 @@ type DeliveryItem = {
   created_at: string;
 };
 
+type Reversal = {
+  id: string;
+  entity_type: 'donation' | 'assembly' | 'delivery' | 'movement';
+  entity_id: string;
+  reason: string;
+  created_by: string;
+  created_at: string;
+};
+
 type Profile = { id: string; full_name: string; role?: string };
 type DonationDraftItem = { productId: string; quantity: number; expiresOn: string };
 
@@ -164,11 +174,14 @@ type FamilyDraft = {
 type Activity = {
   id: string;
   type: 'donation' | 'movement' | 'delivery' | 'assembly';
+  entityType: 'donation' | 'assembly' | 'delivery' | 'movement';
+  entityId: string;
   title: string;
   detail: string;
   createdAt: string;
   actorId: string;
   tone: 'positive' | 'negative' | 'neutral';
+  reversible: boolean;
 };
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -224,6 +237,8 @@ const DEMO_DELIVERIES: Delivery[] = [
 ];
 
 const DEMO_DELIVERY_ITEMS: DeliveryItem[] = [];
+
+const DEMO_REVERSALS: Reversal[] = [];
 
 const DEMO_DONATIONS: Donation[] = [
   { id: 'don1', donor_name: 'Comunidade CEAMI', note: 'Doações do culto', received_on: '2026-09-20', created_at: '2026-09-20T16:00:00Z', created_by: 'demo-user' },
@@ -400,6 +415,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [movements, setMovements] = useState<Movement[]>(demoMode ? DEMO_MOVEMENTS : []);
   const [deliveries, setDeliveries] = useState<Delivery[]>(demoMode ? DEMO_DELIVERIES : []);
   const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>(demoMode ? DEMO_DELIVERY_ITEMS : []);
+  const [reversals, setReversals] = useState<Reversal[]>(demoMode ? DEMO_REVERSALS : []);
 
   const [stockQuery, setStockQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
@@ -437,6 +453,9 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [adjustExpiry, setAdjustExpiry] = useState('');
   const [basketConfigOpen, setBasketConfigOpen] = useState(false);
   const [basketConfig, setBasketConfig] = useState<Record<string, number>>({});
+  const [reverseTarget, setReverseTarget] = useState<Activity | null>(null);
+  const [reverseReason, setReverseReason] = useState('');
+  const [reverseError, setReverseError] = useState('');
 
   useEffect(() => {
     setGreetingLabel(greeting());
@@ -468,7 +487,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('Sessão expirada. Entre novamente.');
 
-      const [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, deliveryItemsResult, actorsResult] = await Promise.all([
+      const [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, deliveryItemsResult, reversalsResult, actorsResult] = await Promise.all([
         supabase.from('profiles').select('id, full_name, role').eq('id', auth.user.id).maybeSingle(),
         supabase.from('social_products').select('*').order('name'),
         supabase.from('social_stock_batches').select('id, product_id, quantity_available, expires_on, created_at').gt('quantity_available', 0).order('created_at', { ascending: false }),
@@ -480,10 +499,11 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         supabase.from('social_inventory_movements').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('social_deliveries').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('social_delivery_items').select('*').order('created_at', { ascending: false }).limit(300),
+        supabase.from('social_reversals').select('*').order('created_at', { ascending: false }).limit(300),
         supabase.rpc('social_actor_profiles'),
       ]);
 
-      const firstError = [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, deliveryItemsResult, actorsResult].find((result) => result.error)?.error;
+      const firstError = [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, deliveryItemsResult, reversalsResult, actorsResult].find((result) => result.error)?.error;
       if (firstError) throw new Error(firstError.message);
 
       const loadedProfile = profileResult.data as Profile | null;
@@ -499,6 +519,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       setMovements((movementsResult.data || []) as Movement[]);
       setDeliveries((deliveriesResult.data || []) as Delivery[]);
       setDeliveryItems((deliveryItemsResult.data || []) as DeliveryItem[]);
+      setReversals((reversalsResult.data || []) as Reversal[]);
       setProfiles((actorsResult.data || []) as Profile[]);
 
       if (loadedTemplate) {
@@ -532,10 +553,11 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const deliveriesThisMonth = useMemo(() => {
     const now = new Date();
     return deliveries.filter((delivery) => {
+      if (reversals.some((reversal) => reversal.entity_type === 'delivery' && reversal.entity_id === delivery.id)) return false;
       const date = new Date(`${delivery.delivered_on}T12:00:00`);
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length;
-  }, [deliveries]);
+  }, [deliveries, reversals]);
 
   const productMap = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const familyMap = useMemo(() => new Map(families.map((family) => [family.id, family])), [families]);
@@ -563,6 +585,14 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     return activeProducts.filter((product) => !query || productTitle(product).toLocaleLowerCase('pt-BR').includes(query)).slice(0, 12);
   }, [activeProducts, donationSearch]);
 
+  const reversalMap = useMemo(() => {
+    return new Map(reversals.map((reversal) => [`${reversal.entity_type}:${reversal.entity_id}`, reversal]));
+  }, [reversals]);
+
+  const activeDeliveries = useMemo(() => {
+    return deliveries.filter((delivery) => !reversalMap.has(`delivery:${delivery.id}`));
+  }, [deliveries, reversalMap]);
+
   const activities = useMemo<Activity[]>(() => {
     const movementActivities = movements
       .filter((movement) => movement.movement_type === 'adjustment' || movement.movement_type === 'expired')
@@ -577,11 +607,14 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         return {
           id: `movement-${movement.id}`,
           type: 'movement' as const,
+          entityType: 'movement' as const,
+          entityId: movement.id,
           title,
           detail: `${isPositive ? '+' : ''}${movement.quantity_delta} ${product ? productTitle(product) : 'item'}${movement.note ? ` · ${movement.note}` : ''}`,
           createdAt: movement.created_at,
           actorId: movement.created_by,
           tone: isPositive ? 'positive' as const : 'negative' as const,
+          reversible: movement.movement_type === 'adjustment',
         };
       });
 
@@ -591,11 +624,14 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       return {
         id: `donation-${donation.id}`,
         type: 'donation' as const,
+        entityType: 'donation' as const,
+        entityId: donation.id,
         title: 'Doação recebida',
         detail: `${total} item(ns)${donation.donor_name ? ` · ${donation.donor_name}` : ''}`,
         createdAt: donation.created_at,
         actorId: donation.created_by,
         tone: 'positive' as const,
+        reversible: true,
       };
     });
 
@@ -611,33 +647,42 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         return {
           id: `delivery-${delivery.id}`,
           type: 'delivery' as const,
+          entityType: 'delivery' as const,
+          entityId: delivery.id,
           title: 'Entrega avulsa',
           detail: `${familyName}${items.length ? ` · ${items.slice(0, 3).join(', ')}${items.length > 3 ? '…' : ''}` : ''}`,
           createdAt: delivery.created_at,
           actorId: delivery.created_by,
           tone: 'neutral' as const,
+          reversible: true,
         };
       }
 
       return {
         id: `delivery-${delivery.id}`,
         type: 'delivery' as const,
+        entityType: 'delivery' as const,
+        entityId: delivery.id,
         title: 'Cesta entregue',
         detail: `${delivery.quantity_baskets || 0} cesta(s) · ${familyName}`,
         createdAt: delivery.created_at,
         actorId: delivery.created_by,
         tone: 'neutral' as const,
+        reversible: true,
       };
     });
 
     const assemblyActivities = assemblies.map((assembly) => ({
       id: `assembly-${assembly.id}`,
       type: 'assembly' as const,
+      entityType: 'assembly' as const,
+      entityId: assembly.id,
       title: 'Cestas montadas',
       detail: `${assembly.quantity_prepared} cesta(s) preparadas`,
       createdAt: assembly.created_at,
       actorId: assembly.created_by,
       tone: 'neutral' as const,
+      reversible: true,
     }));
 
     return [...donationActivities, ...movementActivities, ...deliveryActivities, ...assemblyActivities]
@@ -646,11 +691,11 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
   const lastDeliveryByFamily = useMemo(() => {
     const map = new Map<string, Delivery>();
-    for (const delivery of [...deliveries].sort((a, b) => b.delivered_on.localeCompare(a.delivered_on))) {
+    for (const delivery of [...activeDeliveries].sort((a, b) => b.delivered_on.localeCompare(a.delivered_on) || b.created_at.localeCompare(a.created_at))) {
       if (!map.has(delivery.family_id)) map.set(delivery.family_id, delivery);
     }
     return map;
-  }, [deliveries]);
+  }, [activeDeliveries]);
 
   async function signOut() {
     if (demoMode) { setToast('No sistema real, este botão encerra a sessão.'); return; }
@@ -663,6 +708,51 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     if (demoMode) { setToast('Dados de demonstração atualizados.'); return; }
     await load();
     setToast('Dados atualizados.');
+  }
+
+  async function reverseActivity() {
+    if (!reverseTarget || saving) return;
+    const reason = reverseReason.trim();
+    if (reason.length < 3) {
+      setReverseError('Informe o motivo do estorno.');
+      return;
+    }
+
+    if (demoMode) {
+      setReversals((current) => [{
+        id: `demo-reversal-${reverseTarget.entityId}`,
+        entity_type: reverseTarget.entityType,
+        entity_id: reverseTarget.entityId,
+        reason,
+        created_by: profile?.id || 'demo-user',
+        created_at: new Date().toISOString(),
+      }, ...current]);
+      setReverseTarget(null);
+      setReverseReason('');
+      setReverseError('');
+      setToast('Estorno registrado. O histórico original foi preservado.');
+      return;
+    }
+
+    setSaving(true);
+    setReverseError('');
+    const { error: rpcError } = await supabase.rpc('social_reverse_activity', {
+      p_entity_type: reverseTarget.entityType,
+      p_entity_id: reverseTarget.entityId,
+      p_reason: reason,
+    });
+    setSaving(false);
+
+    if (rpcError) {
+      setReverseError(friendlyError(rpcError.message));
+      return;
+    }
+
+    setReverseTarget(null);
+    setReverseReason('');
+    setReverseError('');
+    await load();
+    setToast('Estorno concluído. O registro original foi mantido no histórico.');
   }
 
   function selectDonationProduct(productId: string) {
@@ -1243,8 +1333,8 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
                 const last = lastDeliveryByFamily.get(family.id);
                 const days = last ? daysSinceDate(last.delivered_on) : Number.POSITIVE_INFINITY;
                 const recent = Boolean(last && days >= 0 && days <= 15);
-                const basketCount = deliveries.filter((delivery) => delivery.family_id === family.id && delivery.delivery_type === 'basket').reduce((sum, delivery) => sum + Number(delivery.quantity_baskets || 0), 0);
-                const directCount = deliveries.filter((delivery) => delivery.family_id === family.id && delivery.delivery_type === 'avulsa').length;
+                const basketCount = activeDeliveries.filter((delivery) => delivery.family_id === family.id && delivery.delivery_type === 'basket').reduce((sum, delivery) => sum + Number(delivery.quantity_baskets || 0), 0);
+                const directCount = activeDeliveries.filter((delivery) => delivery.family_id === family.id && delivery.delivery_type === 'avulsa').length;
                 return (
                   <article className="social-family-card" key={family.id}>
                     <span className="social-avatar">{initials(family.responsible_name)}</span>
@@ -1267,16 +1357,30 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
         {screen === 'history' && (
           <section className="social-screen">
-            <div className="social-help-banner compact"><History /><div><strong>Histórico protegido</strong><span>Entradas, saídas e correções não são apagadas. Assim sempre sabemos o que mudou e quem registrou.</span></div></div>
+            <div className="social-help-banner compact"><History /><div><strong>Histórico protegido</strong><span>Nada é apagado. Quando algo foi lançado por engano, use Estornar: o sistema desfaz o efeito e preserva quem fez, quando fez e o motivo.</span></div></div>
             <div className="social-history-list">
-              {activities.slice(0, historyVisible).map((activity) => (
-                <article key={activity.id} className={`social-history-card ${activity.tone}`}>
-                  <div className="social-history-icon">{activity.type === 'donation' ? <Gift /> : activity.type === 'delivery' ? <HeartHandshake /> : activity.type === 'assembly' ? <ShoppingBasket /> : <SlidersHorizontal />}</div>
-                  <div><h3>{activity.title}</h3><p>{activity.detail}</p><small>{formatDateTime(activity.createdAt)} · {profileMap.get(activity.actorId) || 'Equipe CEAMI'}</small></div>
-                </article>
-              ))}
+              {activities.slice(0, historyVisible).map((activity) => {
+                const reversal = reversalMap.get(`${activity.entityType}:${activity.entityId}`);
+                return (
+                  <article key={activity.id} className={`social-history-card ${activity.tone} ${reversal ? 'reversed' : ''}`}>
+                    <div className="social-history-icon">{activity.type === 'donation' ? <Gift /> : activity.type === 'delivery' ? <HeartHandshake /> : activity.type === 'assembly' ? <ShoppingBasket /> : <SlidersHorizontal />}</div>
+                    <div className="social-history-content">
+                      <div className="social-history-heading">
+                        <h3>{activity.title}</h3>
+                        {reversal && <span className="social-reversed-badge"><Undo2 />Estornado</span>}
+                      </div>
+                      <p>{activity.detail}</p>
+                      <small>{formatDateTime(activity.createdAt)} · {profileMap.get(activity.actorId) || 'Equipe CEAMI'}</small>
+                      {reversal && <div className="social-reversal-info"><strong>Estornado em {formatDateTime(reversal.created_at)}</strong><span>{profileMap.get(reversal.created_by) || 'Equipe CEAMI'} · {reversal.reason}</span></div>}
+                    </div>
+                    {!reversal && activity.reversible && (
+                      <button type="button" className="social-history-reverse" onClick={() => { setReverseTarget(activity); setReverseReason(''); setReverseError(''); }}><Undo2 /><span>Estornar</span></button>
+                    )}
+                  </article>
+                );
+              })}
             </div>
-            {!activities.length && <div className="social-empty"><History /><strong>Nenhuma movimentação ainda</strong><span>As próximas doações, cestas e ajustes aparecerão aqui.</span></div>}
+            {!activities.length && <div className="social-empty"><History /><strong>Nenhuma movimentação ainda</strong><span>As próximas doações, entregas, cestas e ajustes aparecerão aqui.</span></div>}
             {activities.length > historyVisible && <button type="button" className="social-more-results" onClick={() => setHistoryVisible((value) => value + 15)}>Mostrar histórico anterior</button>}
           </section>
         )}
@@ -1352,6 +1456,22 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
             <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={donationNote} onChange={(event) => setDonationNote(event.target.value)} placeholder="Ex.: doações do culto" /></label>
           </div>
           <button type="button" className="social-primary-action" disabled={saving} onClick={() => void confirmDonation()}><Check />{saving ? 'Registrando...' : 'Confirmar entrada'}</button>
+        </Modal>
+      )}
+
+      {reverseTarget && (
+        <Modal title="Estornar movimentação?" subtitle="O registro original continuará no histórico. O sistema fará apenas o movimento inverso." onClose={() => { setReverseTarget(null); setReverseReason(''); setReverseError(''); }}>
+          <div className="social-reversal-target">
+            <div className="social-history-icon">{reverseTarget.type === 'donation' ? <Gift /> : reverseTarget.type === 'delivery' ? <HeartHandshake /> : reverseTarget.type === 'assembly' ? <ShoppingBasket /> : <SlidersHorizontal />}</div>
+            <div><strong>{reverseTarget.title}</strong><span>{reverseTarget.detail}</span><small>{formatDateTime(reverseTarget.createdAt)}</small></div>
+          </div>
+          <div className="social-reversal-warning"><AlertTriangle /><div><strong>Esta ação altera os saldos atuais</strong><p>O sistema só conclui o estorno quando consegue devolver o estoque ou a cesta com segurança. Registros antigos sem rastreio suficiente serão bloqueados.</p></div></div>
+          <label className="social-field"><span>Motivo do estorno</span><textarea autoFocus value={reverseReason} onChange={(event) => { setReverseReason(event.target.value); setReverseError(''); }} placeholder="Ex.: entrega registrada duas vezes por engano" /></label>
+          {reverseError && <p className="social-reversal-error">{reverseError}</p>}
+          <div className="social-modal-actions">
+            <button type="button" onClick={() => { setReverseTarget(null); setReverseReason(''); setReverseError(''); }}>Cancelar</button>
+            <button type="button" className="danger" disabled={saving || reverseReason.trim().length < 3} onClick={() => void reverseActivity()}><Undo2 />{saving ? 'Estornando...' : 'Confirmar estorno'}</button>
+          </div>
         </Modal>
       )}
 

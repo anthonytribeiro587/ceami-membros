@@ -113,7 +113,7 @@ type DonationItem = {
 type Movement = {
   id: string;
   product_id: string;
-  movement_type: 'donation' | 'basket_prepare' | 'adjustment' | 'expired';
+  movement_type: 'donation' | 'basket_prepare' | 'adjustment' | 'expired' | 'direct_delivery';
   quantity_delta: number;
   note: string | null;
   created_by: string;
@@ -123,10 +123,19 @@ type Movement = {
 type Delivery = {
   id: string;
   family_id: string;
-  quantity_baskets: number;
+  delivery_type: 'basket' | 'avulsa';
+  quantity_baskets: number | null;
   note: string | null;
   delivered_on: string;
   created_by: string;
+  created_at: string;
+};
+
+type DeliveryItem = {
+  id: string;
+  delivery_id: string;
+  product_id: string;
+  quantity: number;
   created_at: string;
 };
 
@@ -210,9 +219,11 @@ const DEMO_ASSEMBLIES: Assembly[] = [
 ];
 
 const DEMO_DELIVERIES: Delivery[] = [
-  { id: 'd1', family_id: 'family-1', quantity_baskets: 1, note: null, delivered_on: '2026-08-18', created_at: '2026-08-18T14:00:00Z', created_by: 'demo-user' },
-  { id: 'd2', family_id: 'family-2', quantity_baskets: 2, note: null, delivered_on: '2026-09-10', created_at: '2026-09-10T14:00:00Z', created_by: 'demo-user' },
+  { id: 'd1', family_id: 'family-1', delivery_type: 'basket', quantity_baskets: 1, note: null, delivered_on: '2026-08-18', created_at: '2026-08-18T14:00:00Z', created_by: 'demo-user' },
+  { id: 'd2', family_id: 'family-2', delivery_type: 'basket', quantity_baskets: 2, note: null, delivered_on: '2026-09-10', created_at: '2026-09-10T14:00:00Z', created_by: 'demo-user' },
 ];
+
+const DEMO_DELIVERY_ITEMS: DeliveryItem[] = [];
 
 const DEMO_DONATIONS: Donation[] = [
   { id: 'don1', donor_name: 'Comunidade CEAMI', note: 'Doações do culto', received_on: '2026-09-20', created_at: '2026-09-20T16:00:00Z', created_by: 'demo-user' },
@@ -254,6 +265,24 @@ function formatDate(value: string) {
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(date);
+}
+
+function daysSinceDate(value: string) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return Number.POSITIVE_INFINITY;
+  return Math.floor((today.getTime() - date.getTime()) / 86_400_000);
+}
+
+function alertUntilDate(value: string) {
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  date.setDate(date.getDate() + 15);
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(date);
+}
+
+function deliveryTypeLabel(delivery: Delivery) {
+  return delivery.delivery_type === 'avulsa' ? 'entrega avulsa' : `${delivery.quantity_baskets || 0} cesta(s)`;
 }
 
 function formatDateTime(value: string) {
@@ -370,6 +399,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [donationItems, setDonationItems] = useState<DonationItem[]>(demoMode ? DEMO_DONATION_ITEMS : []);
   const [movements, setMovements] = useState<Movement[]>(demoMode ? DEMO_MOVEMENTS : []);
   const [deliveries, setDeliveries] = useState<Delivery[]>(demoMode ? DEMO_DELIVERIES : []);
+  const [deliveryItems, setDeliveryItems] = useState<DeliveryItem[]>(demoMode ? DEMO_DELIVERY_ITEMS : []);
 
   const [stockQuery, setStockQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
@@ -392,6 +422,9 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [deliveryQty, setDeliveryQty] = useState(1);
   const [deliveryFamilyId, setDeliveryFamilyId] = useState('');
   const [deliveryNote, setDeliveryNote] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState<'basket' | 'avulsa'>('basket');
+  const [confirmRecentDelivery, setConfirmRecentDelivery] = useState(false);
+  const [directDeliveryDraft, setDirectDeliveryDraft] = useState<Record<string, number>>({});
 
   const [productModal, setProductModal] = useState<ProductDraft | null>(null);
   const [familyModal, setFamilyModal] = useState<FamilyDraft | null>(null);
@@ -415,6 +448,10 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   }, [toast]);
 
   useEffect(() => {
+    setConfirmRecentDelivery(false);
+  }, [deliveryFamilyId, deliveryMode]);
+
+  useEffect(() => {
     setStockVisible(12);
     setFamilyVisible(10);
     setHistoryVisible(15);
@@ -430,7 +467,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('Sessão expirada. Entre novamente.');
 
-      const [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, actorsResult] = await Promise.all([
+      const [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, deliveryItemsResult, actorsResult] = await Promise.all([
         supabase.from('profiles').select('id, full_name, role').eq('id', auth.user.id).maybeSingle(),
         supabase.from('social_products').select('*').order('name'),
         supabase.from('social_stock_batches').select('id, product_id, quantity_available, expires_on, created_at').gt('quantity_available', 0).order('created_at', { ascending: false }),
@@ -441,10 +478,11 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         supabase.from('social_donation_items').select('*').order('created_at', { ascending: false }).limit(200),
         supabase.from('social_inventory_movements').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('social_deliveries').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('social_delivery_items').select('*').order('created_at', { ascending: false }).limit(300),
         supabase.rpc('social_actor_profiles'),
       ]);
 
-      const firstError = [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, actorsResult].find((result) => result.error)?.error;
+      const firstError = [profileResult, productsResult, batchesResult, templateResult, familiesResult, assembliesResult, donationsResult, donationItemsResult, movementsResult, deliveriesResult, deliveryItemsResult, actorsResult].find((result) => result.error)?.error;
       if (firstError) throw new Error(firstError.message);
 
       const loadedProfile = profileResult.data as Profile | null;
@@ -459,6 +497,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       setDonationItems((donationItemsResult.data || []) as DonationItem[]);
       setMovements((movementsResult.data || []) as Movement[]);
       setDeliveries((deliveriesResult.data || []) as Delivery[]);
+      setDeliveryItems((deliveryItemsResult.data || []) as DeliveryItem[]);
       setProfiles((actorsResult.data || []) as Profile[]);
 
       if (loadedTemplate) {
@@ -559,15 +598,36 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
       };
     });
 
-    const deliveryActivities = deliveries.map((delivery) => ({
-      id: `delivery-${delivery.id}`,
-      type: 'delivery' as const,
-      title: 'Cesta entregue',
-      detail: `${delivery.quantity_baskets} cesta(s) · ${familyMap.get(delivery.family_id)?.responsible_name || 'Família'}`,
-      createdAt: delivery.created_at,
-      actorId: delivery.created_by,
-      tone: 'neutral' as const,
-    }));
+    const deliveryActivities = deliveries.map((delivery) => {
+      const familyName = familyMap.get(delivery.family_id)?.responsible_name || 'Família';
+      if (delivery.delivery_type === 'avulsa') {
+        const items = deliveryItems
+          .filter((item) => item.delivery_id === delivery.id)
+          .map((item) => {
+            const product = productMap.get(item.product_id);
+            return `${item.quantity}× ${product ? productTitle(product) : 'item'}`;
+          });
+        return {
+          id: `delivery-${delivery.id}`,
+          type: 'delivery' as const,
+          title: 'Entrega avulsa',
+          detail: `${familyName}${items.length ? ` · ${items.slice(0, 3).join(', ')}${items.length > 3 ? '…' : ''}` : ''}`,
+          createdAt: delivery.created_at,
+          actorId: delivery.created_by,
+          tone: 'neutral' as const,
+        };
+      }
+
+      return {
+        id: `delivery-${delivery.id}`,
+        type: 'delivery' as const,
+        title: 'Cesta entregue',
+        detail: `${delivery.quantity_baskets || 0} cesta(s) · ${familyName}`,
+        createdAt: delivery.created_at,
+        actorId: delivery.created_by,
+        tone: 'neutral' as const,
+      };
+    });
 
     const assemblyActivities = assemblies.map((assembly) => ({
       id: `assembly-${assembly.id}`,
@@ -581,7 +641,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
     return [...donationActivities, ...movementActivities, ...deliveryActivities, ...assemblyActivities]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [assemblies, deliveries, donationItems, donations, familyMap, movements, productMap]);
+  }, [assemblies, deliveries, deliveryItems, donationItems, donations, familyMap, movements, productMap]);
 
   const lastDeliveryByFamily = useMemo(() => {
     const map = new Map<string, Delivery>();
@@ -660,18 +720,86 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
   async function deliverBaskets() {
     if (saving || !deliveryFamilyId || deliveryQty < 1 || deliveryQty > readyBaskets) return;
-    if (demoMode) { setToast('Entrega registrada com sucesso.'); setDeliveryQty(1); setDeliveryNote(''); return; }
+    const last = lastDeliveryByFamily.get(deliveryFamilyId);
+    const hasRecent = last ? daysSinceDate(last.delivered_on) >= 0 && daysSinceDate(last.delivered_on) <= 15 : false;
+    if (hasRecent && !confirmRecentDelivery) {
+      setToast('Confirme o aviso de atendimento recente antes de continuar.');
+      return;
+    }
+
+    const familyName = familyMap.get(deliveryFamilyId)?.responsible_name || 'família';
+    if (demoMode) {
+      setToast(`Entrega confirmada: ${deliveryQty} cesta(s) entregue(s) hoje para ${familyName}.`);
+      setDeliveryQty(1); setDeliveryNote(''); setConfirmRecentDelivery(false);
+      return;
+    }
+
     setSaving(true);
-    const { error: rpcError } = await supabase.rpc('social_deliver_baskets', {
+    const { error: rpcError } = await supabase.rpc('social_deliver_baskets_controlled', {
       p_family_id: deliveryFamilyId,
       p_quantity: deliveryQty,
       p_note: deliveryNote.trim() || null,
+      p_confirm_recent: confirmRecentDelivery,
     });
     setSaving(false);
     if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
-    setDeliveryQty(1); setDeliveryNote('');
+
+    const today = new Date().toLocaleDateString('en-CA');
+    setDeliveryQty(1); setDeliveryNote(''); setConfirmRecentDelivery(false);
     await load();
-    setToast('Entrega registrada com sucesso.');
+    setToast(`Entrega confirmada: ${deliveryQty} cesta(s) entregue(s) hoje para ${familyName}. Aviso ativo até ${alertUntilDate(today)}.`);
+  }
+
+  async function deliverDirectItems() {
+    if (saving || !deliveryFamilyId) return;
+    const items = Object.entries(directDeliveryDraft)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([productId, quantity]) => ({ product_id: productId, quantity }));
+
+    if (!items.length) {
+      setToast('Selecione pelo menos um item para a entrega avulsa.');
+      return;
+    }
+
+    const invalidStock = items.find((item) => item.quantity > quantityFor(item.product_id, batches));
+    if (invalidStock) {
+      const product = productMap.get(invalidStock.product_id);
+      setToast(`Estoque insuficiente para ${product ? productTitle(product) : 'um dos itens'}.`);
+      return;
+    }
+
+    const last = lastDeliveryByFamily.get(deliveryFamilyId);
+    const hasRecent = last ? daysSinceDate(last.delivered_on) >= 0 && daysSinceDate(last.delivered_on) <= 15 : false;
+    if (hasRecent && !confirmRecentDelivery) {
+      setToast('Confirme o aviso de atendimento recente antes de continuar.');
+      return;
+    }
+
+    const familyName = familyMap.get(deliveryFamilyId)?.responsible_name || 'família';
+    if (demoMode) {
+      setDirectDeliveryDraft({});
+      setDeliveryNote('');
+      setConfirmRecentDelivery(false);
+      setToast(`Entrega avulsa registrada hoje para ${familyName}.`);
+      return;
+    }
+
+    setSaving(true);
+    const { error: rpcError } = await supabase.rpc('social_register_direct_delivery', {
+      p_family_id: deliveryFamilyId,
+      p_items: items,
+      p_note: deliveryNote.trim() || null,
+      p_confirm_recent: confirmRecentDelivery,
+    });
+    setSaving(false);
+    if (rpcError) { setToast(friendlyError(rpcError.message)); return; }
+
+    const today = new Date().toLocaleDateString('en-CA');
+    setDirectDeliveryDraft({});
+    setDeliveryNote('');
+    setConfirmRecentDelivery(false);
+    await load();
+    setToast(`Entrega avulsa registrada hoje para ${familyName}. Aviso ativo até ${alertUntilDate(today)}.`);
   }
 
   async function saveProduct() {
@@ -987,13 +1115,79 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
               <button type="button" className="social-primary-action" disabled={saving || capacity < 1 || prepareQty > capacity} onClick={() => void prepareBaskets()}><Check />Confirmar montagem</button>
             </section>
 
-            <section className="social-operation-card">
-              <div className="social-section-title"><div><span>ENTREGAR CESTA</span><h2>Para qual família?</h2></div></div>
+            <section className="social-operation-card social-delivery-operation">
+              <div className="social-section-title"><div><span>REGISTRAR ENTREGA</span><h2>O que será entregue?</h2></div></div>
+
+              <div className="social-segmented social-delivery-mode">
+                <button type="button" className={deliveryMode === 'basket' ? 'active' : ''} onClick={() => setDeliveryMode('basket')}><ShoppingBasket />Cesta pronta</button>
+                <button type="button" className={deliveryMode === 'avulsa' ? 'active' : ''} onClick={() => setDeliveryMode('avulsa')}><Package />Entrega avulsa</button>
+              </div>
+
               <label className="social-field"><span>Família</span><select value={deliveryFamilyId} onChange={(event) => setDeliveryFamilyId(event.target.value)}><option value="">Selecione uma família</option>{families.filter((family) => family.is_active).map((family) => <option key={family.id} value={family.id}>{family.responsible_name} · {family.household_size} pessoa(s)</option>)}</select></label>
-              <label className="social-field"><span>Quantidade de cestas</span><QuantityStepper value={deliveryQty} onChange={setDeliveryQty} min={1} max={Math.max(1, readyBaskets)} /></label>
-              {deliveryFamilyId && (() => { const family = familyMap.get(deliveryFamilyId); const last = lastDeliveryByFamily.get(deliveryFamilyId); return family ? <div className="social-family-preview"><span className="social-avatar">{initials(family.responsible_name)}</span><div><strong>{family.responsible_name}</strong><small>{family.household_size} pessoas · {family.neighborhood || 'Bairro não informado'}</small><small>Última cesta: {last ? formatDate(last.delivered_on) : 'nenhuma registrada'}</small></div></div> : null; })()}
-              <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} placeholder="Ex.: retirada na igreja" /></label>
-              <button type="button" className="social-primary-action" disabled={saving || !deliveryFamilyId || readyBaskets < 1 || deliveryQty > readyBaskets} onClick={() => void deliverBaskets()}><Check />Confirmar entrega</button>
+
+              {deliveryFamilyId && (() => {
+                const family = familyMap.get(deliveryFamilyId);
+                const last = lastDeliveryByFamily.get(deliveryFamilyId);
+                const days = last ? daysSinceDate(last.delivered_on) : Number.POSITIVE_INFINITY;
+                const recent = Boolean(last && days >= 0 && days <= 15);
+                if (!family) return null;
+                return (
+                  <>
+                    <div className="social-family-preview">
+                      <span className="social-avatar">{initials(family.responsible_name)}</span>
+                      <div>
+                        <strong>{family.responsible_name}</strong>
+                        <small>{family.household_size} pessoas · {family.neighborhood || 'Bairro não informado'}</small>
+                        <small>Último atendimento: {last ? `${formatDate(last.delivered_on)} · ${deliveryTypeLabel(last)}` : 'nenhum registrado'}</small>
+                      </div>
+                    </div>
+
+                    {recent && last && (
+                      <div className="social-recent-delivery-warning">
+                        <AlertTriangle />
+                        <div>
+                          <strong>Atendimento recente</strong>
+                          <p>Esta família já recebeu <b>{deliveryTypeLabel(last)}</b> em <b>{formatDate(last.delivered_on)}</b>{days === 0 ? ' (hoje)' : ` (há ${days} dia(s))`}. O aviso permanece por 15 dias, até {alertUntilDate(last.delivered_on)}.</p>
+                          <label><input type="checkbox" checked={confirmRecentDelivery} onChange={(event) => setConfirmRecentDelivery(event.target.checked)} /><span>Estou ciente e quero registrar outra entrega agora.</span></label>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {deliveryMode === 'basket' ? (
+                <>
+                  <label className="social-field"><span>Quantidade de cestas</span><QuantityStepper value={deliveryQty} onChange={setDeliveryQty} min={1} max={Math.max(1, readyBaskets)} /></label>
+                  <div className="social-delivery-stock-note"><ShoppingBasket /><span><strong>{readyBaskets}</strong> cesta(s) pronta(s) disponível(is)</span></div>
+                </>
+              ) : (
+                <div className="social-direct-delivery">
+                  <div className="social-direct-delivery-head"><div><span>ITENS AVULSOS</span><strong>Escolha o que a família vai levar</strong></div><small>Baixa direto do estoque</small></div>
+                  <div className="social-direct-items">
+                    {activeProducts.filter((product) => quantityFor(product.id, batches) > 0).map((product) => {
+                      const available = quantityFor(product.id, batches);
+                      const selected = directDeliveryDraft[product.id] || 0;
+                      return (
+                        <div className="social-direct-item" key={product.id}>
+                          <div className="social-product-art mini">{categoryIcon(product)}</div>
+                          <div><strong>{productTitle(product)}</strong><small>Saldo: {available} {product.unit_label}</small></div>
+                          <QuantityStepper value={selected} onChange={(value) => setDirectDeliveryDraft((current) => ({ ...current, [product.id]: value }))} min={0} max={available} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!activeProducts.some((product) => quantityFor(product.id, batches) > 0) && <div className="social-warning-note"><AlertTriangle />Não há itens disponíveis no estoque para uma entrega avulsa.</div>}
+                </div>
+              )}
+
+              <label className="social-field"><span>Observação <small>(opcional)</small></span><input value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} placeholder={deliveryMode === 'basket' ? 'Ex.: retirada na igreja' : 'Ex.: atendimento emergencial'} /></label>
+
+              {deliveryMode === 'basket' ? (
+                <button type="button" className="social-primary-action" disabled={saving || !deliveryFamilyId || readyBaskets < 1 || deliveryQty > readyBaskets || Boolean(deliveryFamilyId && (() => { const last = lastDeliveryByFamily.get(deliveryFamilyId); const days = last ? daysSinceDate(last.delivered_on) : 99; return last && days >= 0 && days <= 15 && !confirmRecentDelivery; })())} onClick={() => void deliverBaskets()}><Check />Confirmar entrega da cesta</button>
+              ) : (
+                <button type="button" className="social-primary-action" disabled={saving || !deliveryFamilyId || !Object.values(directDeliveryDraft).some((quantity) => quantity > 0) || Boolean(deliveryFamilyId && (() => { const last = lastDeliveryByFamily.get(deliveryFamilyId); const days = last ? daysSinceDate(last.delivered_on) : 99; return last && days >= 0 && days <= 15 && !confirmRecentDelivery; })())} onClick={() => void deliverDirectItems()}><Check />Confirmar entrega avulsa</button>
+              )}
             </section>
           </section>
         )}
@@ -1004,13 +1198,21 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
             <div className="social-family-list">
               {filteredFamilies.slice(0, familyVisible).map((family) => {
                 const last = lastDeliveryByFamily.get(family.id);
-                const deliveryCount = deliveries.filter((delivery) => delivery.family_id === family.id).reduce((sum, delivery) => sum + delivery.quantity_baskets, 0);
+                const days = last ? daysSinceDate(last.delivered_on) : Number.POSITIVE_INFINITY;
+                const recent = Boolean(last && days >= 0 && days <= 15);
+                const basketCount = deliveries.filter((delivery) => delivery.family_id === family.id && delivery.delivery_type === 'basket').reduce((sum, delivery) => sum + Number(delivery.quantity_baskets || 0), 0);
+                const directCount = deliveries.filter((delivery) => delivery.family_id === family.id && delivery.delivery_type === 'avulsa').length;
                 return (
                   <article className="social-family-card" key={family.id}>
                     <span className="social-avatar">{initials(family.responsible_name)}</span>
-                    <div><h3>{family.responsible_name}</h3><p>{family.household_size} pessoa(s) · {family.neighborhood || 'Bairro não informado'}</p><small>{formatPhoneBR(family.phone, 'Sem telefone')} · Última cesta: {last ? formatDate(last.delivered_on) : 'nenhuma'} · Total: {deliveryCount}</small></div>
+                    <div>
+                      <h3>{family.responsible_name}</h3>
+                      <p>{family.household_size} pessoa(s) · {family.neighborhood || 'Bairro não informado'}</p>
+                      <small>{formatPhoneBR(family.phone, 'Sem telefone')} · Cestas: {basketCount}{directCount ? ` · Avulsas: ${directCount}` : ''}</small>
+                      {recent && last && <span className="social-family-recent-badge"><AlertTriangle />Atendimento recente · {days === 0 ? 'hoje' : `há ${days} dia(s)`} · {formatDate(last.delivered_on)}</span>}
+                    </div>
                     <button type="button" onClick={() => setFamilyModal({ id: family.id, responsibleName: family.responsible_name, phone: formatPhoneBR(family.phone, ''), neighborhood: family.neighborhood || '', householdSize: String(family.household_size), notes: family.notes || '' })} aria-label="Editar família"><Pencil /></button>
-                    <button type="button" className="social-family-deliver" onClick={() => { setDeliveryFamilyId(family.id); setScreen('baskets'); }}>Entregar cesta</button>
+                    <button type="button" className="social-family-deliver" onClick={() => { setDeliveryFamilyId(family.id); setDeliveryMode('basket'); setScreen('baskets'); }}>Registrar entrega</button>
                   </article>
                 );
               })}

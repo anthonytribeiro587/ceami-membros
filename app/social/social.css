@@ -1990,3 +1990,255 @@ body:has(.social-app){
     font-size:18px;
   }
 }
+
+
+/* === CEAMI Social · controle de entregas === */
+.social-delivery-operation{
+  gap:14px;
+}
+
+.social-delivery-mode{
+  margin-bottom:0;
+}
+
+.social-family-preview{
+  margin-top:0;
+}
+
+.social-recent-delivery-warning{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:10px;
+  padding:13px;
+  border:1px solid #efcf91;
+  border-radius:15px;
+  background:#fff8e8;
+  color:#77510c;
+}
+
+.social-recent-delivery-warning>svg{
+  width:34px;
+  height:34px;
+  padding:7px;
+  border-radius:11px;
+  background:#fff0c8;
+  color:#b46b00;
+}
+
+.social-recent-delivery-warning strong{
+  display:block;
+  font-size:12px;
+  font-weight:800;
+  color:#80530a;
+}
+
+.social-recent-delivery-warning p{
+  margin:4px 0 9px;
+  font-size:10.5px;
+  line-height:1.45;
+  color:#856528;
+}
+
+.social-recent-delivery-warning label{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  cursor:pointer;
+  font-size:10.5px;
+  line-height:1.35;
+  font-weight:700;
+  color:#6f4c10;
+}
+
+.social-recent-delivery-warning input{
+  width:17px;
+  height:17px;
+  margin:0;
+  flex:0 0 auto;
+  accent-color:var(--social-orange);
+}
+
+.social-delivery-stock-note{
+  min-height:42px;
+  padding:9px 11px;
+  border:1px solid #dce8f2;
+  border-radius:13px;
+  background:#f7fafc;
+  color:#496982;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:10.5px;
+}
+
+.social-delivery-stock-note svg{
+  width:19px;
+  height:19px;
+  color:var(--social-blue);
+}
+
+.social-delivery-stock-note strong{
+  font-size:13px;
+  color:var(--social-navy);
+}
+
+.social-direct-delivery{
+  display:grid;
+  gap:10px;
+}
+
+.social-direct-delivery-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.social-direct-delivery-head>div>span,
+.social-direct-delivery-head>div>strong{
+  display:block;
+}
+
+.social-direct-delivery-head>div>span{
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.1em;
+  color:var(--social-orange);
+}
+
+.social-direct-delivery-head>div>strong{
+  margin-top:3px;
+  font-size:13px;
+  color:var(--social-navy);
+}
+
+.social-direct-delivery-head>small{
+  font-size:9.5px;
+  color:var(--social-muted);
+}
+
+.social-direct-items{
+  display:grid;
+  gap:7px;
+}
+
+.social-direct-item{
+  min-height:62px;
+  padding:8px;
+  border:1px solid var(--social-line);
+  border-radius:14px;
+  background:#fbfdff;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr) minmax(138px,170px);
+  gap:9px;
+  align-items:center;
+}
+
+.social-direct-item>div:nth-child(2){
+  min-width:0;
+}
+
+.social-direct-item>div:nth-child(2)>strong,
+.social-direct-item>div:nth-child(2)>small{
+  display:block;
+}
+
+.social-direct-item>div:nth-child(2)>strong{
+  font-size:11.5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.social-direct-item>div:nth-child(2)>small{
+  margin-top:2px;
+  font-size:9.5px;
+  color:var(--social-muted);
+}
+
+.social-direct-item .social-stepper{
+  min-height:42px;
+  grid-template-columns:40px minmax(42px,1fr) 40px;
+}
+
+.social-direct-item .social-stepper button{
+  height:40px;
+}
+
+.social-direct-item .social-stepper strong{
+  font-size:16px;
+}
+
+.social-family-recent-badge{
+  width:max-content;
+  max-width:100%;
+  margin-top:7px;
+  padding:5px 8px;
+  border-radius:999px;
+  background:#fff3da;
+  color:#9b6105;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  font-size:9.5px;
+  font-weight:750;
+  line-height:1.2;
+}
+
+.social-family-recent-badge svg{
+  width:13px;
+  height:13px;
+  flex:0 0 auto;
+}
+
+@media(max-width:620px){
+  .social-recent-delivery-warning{
+    grid-template-columns:30px minmax(0,1fr);
+    padding:11px;
+  }
+
+  .social-recent-delivery-warning>svg{
+    width:30px;
+    height:30px;
+    padding:6px;
+  }
+
+  .social-direct-item{
+    grid-template-columns:38px minmax(0,1fr);
+  }
+
+  .social-direct-item .social-stepper{
+    grid-column:1/-1;
+    width:100%;
+  }
+
+  .social-direct-delivery-head{
+    align-items:start;
+  }
+
+  .social-direct-delivery-head>small{
+    max-width:92px;
+    text-align:right;
+  }
+
+  .social-family-recent-badge{
+    border-radius:10px;
+    white-space:normal;
+  }
+}
+
+@media(min-width:960px){
+  .social-delivery-operation{
+    align-self:start;
+  }
+
+  .social-direct-items{
+    max-height:430px;
+    overflow-y:auto;
+    padding-right:3px;
+  }
+
+  .social-recent-delivery-warning p{
+    font-size:11px;
+  }
+}

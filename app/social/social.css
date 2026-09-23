@@ -1826,3 +1826,10 @@ body:has(.social-app){
     transform:none!important;
   }
 }
+
+
+@media (prefers-reduced-motion:no-preference){
+  .social-app button:not(:disabled):active{
+    transform:translateY(1px) scale(.99)!important;
+  }
+}

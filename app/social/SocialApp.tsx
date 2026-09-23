@@ -35,7 +35,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { formatPhoneBR, phoneDigits } from '@/lib/formatters';
 
-type Screen = 'home' | 'stock' | 'donation' | 'baskets' | 'families' | 'more' | 'history' | 'products';
+type Screen = 'home' | 'stock' | 'donation' | 'baskets' | 'families' | 'more' | 'history' | 'products' | 'access';
 type StockFilter = 'all' | 'low' | 'expiring';
 type Category = 'alimentos' | 'higiene' | 'limpeza' | 'roupas' | 'outros';
 
@@ -131,6 +131,13 @@ type Delivery = {
 };
 
 type Profile = { id: string; full_name: string; role?: string };
+type SocialAccessProfile = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+};
 type DonationDraftItem = { productId: string; quantity: number; expiresOn: string };
 
 type ProductDraft = {
@@ -360,6 +367,8 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   const [toast, setToast] = useState('');
   const [profile, setProfile] = useState<Profile | null>(demoMode ? { id: 'demo-user', full_name: 'Maria', role: 'social' } : null);
   const [profiles, setProfiles] = useState<Profile[]>(demoMode ? [{ id: 'demo-user', full_name: 'Maria' }] : []);
+  const [accessProfiles, setAccessProfiles] = useState<SocialAccessProfile[]>([]);
+  const [accessLoading, setAccessLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>(demoMode ? DEMO_PRODUCTS : []);
   const [batches, setBatches] = useState<Batch[]>(demoMode ? DEMO_BATCHES : []);
   const [basketTemplate, setBasketTemplate] = useState<BasketTemplate | null>(demoMode ? DEMO_TEMPLATE : null);
@@ -483,6 +492,12 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (screen === 'access' && profile?.role === 'admin') {
+      void loadSocialAccess();
+    }
+  }, [screen, profile?.role]);
+
   const activeProducts = useMemo(() => products.filter((product) => product.is_active), [products]);
   const readyBaskets = useMemo(() => assemblies.reduce((sum, assembly) => sum + Number(assembly.quantity_available || 0), 0), [assemblies]);
   const capacity = useMemo(() => basketCapacity(activeProducts, batches, templateItems), [activeProducts, batches, templateItems]);
@@ -598,8 +613,41 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
     router.refresh();
   }
 
+  async function loadSocialAccess() {
+    if (demoMode || profile?.role !== 'admin') return;
+    setAccessLoading(true);
+    const { data, error: accessError } = await supabase.rpc('social_access_profiles');
+    setAccessLoading(false);
+    if (accessError) {
+      setToast(friendlyError(accessError.message));
+      return;
+    }
+    setAccessProfiles((data || []) as SocialAccessProfile[]);
+  }
+
+  async function setSocialAccess(profileId: string, enabled: boolean) {
+    if (saving || profile?.role !== 'admin') return;
+    setSaving(true);
+    const { error: accessError } = await supabase.rpc('social_set_user_access', {
+      p_profile_id: profileId,
+      p_enabled: enabled,
+    });
+    setSaving(false);
+    if (accessError) {
+      setToast(friendlyError(accessError.message));
+      return;
+    }
+    await loadSocialAccess();
+    setToast(enabled ? 'Acesso ao CEAMI Social aprovado.' : 'Acesso ao CEAMI Social bloqueado.');
+  }
+
   async function refreshData() {
     if (demoMode) { setToast('Dados de demonstração atualizados.'); return; }
+    if (screen === 'access' && profile?.role === 'admin') {
+      await loadSocialAccess();
+      setToast('Acessos atualizados.');
+      return;
+    }
     await load();
     setToast('Dados atualizados.');
   }
@@ -808,7 +856,8 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         : screen === 'baskets' ? 'Cestas'
           : screen === 'families' ? 'Famílias'
             : screen === 'history' ? 'Histórico'
-              : screen === 'products' ? 'Produtos' : 'Mais opções';
+              : screen === 'products' ? 'Produtos'
+                : screen === 'access' ? 'Equipe e acessos' : 'Mais opções';
 
   if (loading) {
     return <main className="social-app social-loading"><div className="social-loading-mark"><HeartHandshake /></div><strong>Carregando CEAMI Social...</strong><span>Organizando estoque, cestas e famílias.</span></main>;
@@ -830,6 +879,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
           <button type="button" className={screen === 'families' ? 'active' : ''} onClick={() => setScreen('families')}><Users /><span>Famílias</span></button>
           <button type="button" className={screen === 'history' ? 'active' : ''} onClick={() => setScreen('history')}><History /><span>Histórico</span></button>
           <button type="button" className={screen === 'products' ? 'active' : ''} onClick={() => setScreen('products')}><Settings2 /><span>Produtos</span></button>
+          {profile?.role === 'admin' && <button type="button" className={screen === 'access' ? 'active' : ''} onClick={() => setScreen('access')}><Users /><span>Equipe / acessos</span></button>}
         </nav>
 
         <div className="social-desktop-profile">
@@ -1037,12 +1087,45 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
           </section>
         )}
 
+        {screen === 'access' && profile?.role === 'admin' && (
+          <section className="social-screen social-access-screen">
+            <div className="social-toolbar">
+              <div><span className="social-eyebrow">ADMINISTRAÇÃO</span><h2 className="social-inline-title">Equipe do CEAMI Social</h2></div>
+              <button type="button" className="social-icon-action" onClick={() => window.open('/social/cadastro', '_blank', 'noopener,noreferrer')}><Plus /><span>Novo cadastro</span></button>
+            </div>
+            <div className="social-help-banner compact"><Users /><div><strong>Cada pessoa usa o próprio acesso</strong><span>Novos cadastros ficam bloqueados até você aprovar. Eles não enxergam o CEAMI Membros, somente o Social.</span></div></div>
+            <div className="social-access-summary">
+              <div><strong>{accessProfiles.filter((item) => !item.is_active).length}</strong><span>aguardando aprovação</span></div>
+              <div><strong>{accessProfiles.filter((item) => item.is_active).length}</strong><span>acessos ativos</span></div>
+            </div>
+            {accessLoading ? (
+              <div className="social-empty"><RefreshCw /><strong>Carregando acessos...</strong></div>
+            ) : accessProfiles.length ? (
+              <div className="social-access-list">
+                {accessProfiles.map((item) => (
+                  <article key={item.id} className="social-access-card">
+                    <span className="social-avatar">{initials(item.full_name)}</span>
+                    <div><h3>{item.full_name}</h3><p>{item.email || 'E-mail não informado'}</p><small>Cadastro em {formatDate(item.created_at)}</small></div>
+                    <span className={`social-access-status ${item.is_active ? 'active' : 'pending'}`}>{item.is_active ? 'Ativo' : 'Pendente'}</span>
+                    <button type="button" className={item.is_active ? 'danger-soft' : 'approve'} disabled={saving} onClick={() => void setSocialAccess(item.id, !item.is_active)}>
+                      {item.is_active ? 'Bloquear' : 'Aprovar'}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="social-empty"><Users /><strong>Nenhum acesso exclusivo ainda</strong><span>Abra “Novo cadastro” para criar o primeiro acesso da equipe Social.</span></div>
+            )}
+          </section>
+        )}
+
         {screen === 'more' && (
           <section className="social-screen social-more-screen">
             <div className="social-more-profile"><div className="social-avatar large">{initials(profile?.full_name || 'CEAMI')}</div><div><span>VOCÊ ESTÁ CONECTADO COMO</span><h2>{profile?.full_name || 'Equipe CEAMI Social'}</h2><p>CEAMI Social · acesso autorizado</p></div></div>
             <div className="social-menu-list">
               <button type="button" onClick={() => setScreen('history')}><History /><span><strong>Histórico</strong><small>Veja tudo que entrou, saiu ou foi corrigido.</small></span><ChevronRight /></button>
               <button type="button" onClick={() => setScreen('products')}><Package /><span><strong>Produtos</strong><small>Cadastre itens e defina estoque mínimo.</small></span><ChevronRight /></button>
+              {profile?.role === 'admin' && <button type="button" onClick={() => setScreen('access')}><Users /><span><strong>Equipe e acessos</strong><small>Aprove ou bloqueie os acessos exclusivos do Social.</small></span><ChevronRight /></button>}
               <button type="button" onClick={openBasketConfig}><Settings2 /><span><strong>Configurar cesta</strong><small>Defina a composição da cesta básica padrão.</small></span><ChevronRight /></button>
               <button type="button" onClick={() => void refreshData()}><RefreshCw /><span><strong>Atualizar dados</strong><small>Busca as informações mais recentes do estoque.</small></span><ChevronRight /></button>
             </div>
@@ -1056,7 +1139,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
         <button type="button" className={screen === 'stock' ? 'active' : ''} onClick={() => setScreen('stock')}><Package /><span>Estoque</span></button>
         <button type="button" className={screen === 'baskets' ? 'active' : ''} onClick={() => setScreen('baskets')}><ShoppingBasket /><span>Cestas</span></button>
         <button type="button" className={screen === 'families' ? 'active' : ''} onClick={() => setScreen('families')}><Users /><span>Famílias</span></button>
-        <button type="button" className={['more', 'history', 'products'].includes(screen) ? 'active' : ''} onClick={() => setScreen('more')}><MoreHorizontal /><span>Mais</span></button>
+        <button type="button" className={['more', 'history', 'products', 'access'].includes(screen) ? 'active' : ''} onClick={() => setScreen('more')}><MoreHorizontal /><span>Mais</span></button>
       </nav>
 
       {selectedDonationProductId && (() => {

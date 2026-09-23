@@ -923,7 +923,18 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
                 return (
                   <article className="social-stock-card" key={product.id}>
                     <div className="social-product-art">{categoryIcon(product)}</div>
-                    <div className="social-stock-copy"><h3>{productTitle(product)}</h3><strong>{quantity} {product.unit_label}</strong><span className={`social-stock-status ${state.tone}`}><i />{state.label}</span><small>Próx. validade: {formatMonthYear(expiry)}</small></div>
+                    <div className="social-stock-copy">
+                      <h3>{productTitle(product)}</h3>
+                      <div className="social-stock-meta">
+                        <span className={`social-stock-status ${state.tone}`}><i />{state.label}</span>
+                        <small>Próx. validade: {formatMonthYear(expiry)}</small>
+                      </div>
+                    </div>
+                    <div className={`social-stock-balance ${quantity === 0 ? 'is-zero' : ''}`} aria-label={`Saldo atual: ${quantity} ${product.unit_label}`}>
+                      <span>Saldo</span>
+                      <strong>{quantity}</strong>
+                      <small>{product.unit_label}</small>
+                    </div>
                     <button type="button" className="social-stock-adjust" onClick={() => { setAdjustProduct(product); setAdjustDirection('add'); setAdjustDelta(1); setAdjustReason(''); setAdjustExpiry(''); }} aria-label={`Ajustar ${productTitle(product)}`}><SlidersHorizontal /></button>
                   </article>
                 );

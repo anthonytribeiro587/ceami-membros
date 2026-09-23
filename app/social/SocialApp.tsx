@@ -1127,7 +1127,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
             <label className="social-field"><span>Pessoas na residência</span><input inputMode="numeric" value={familyModal.householdSize} onChange={(event) => setFamilyModal({ ...familyModal, householdSize: event.target.value.replace(/\D/g, '') })} /></label>
             <label className="social-field"><span>Observação <small>(opcional)</small></span><textarea value={familyModal.notes} onChange={(event) => setFamilyModal({ ...familyModal, notes: event.target.value })} placeholder="Informações úteis para a equipe" /></label>
           </div>
-          <div className="social-modal-actions">{familyModal.id && <button type="button" className="danger-soft" onClick={() => { const family = families.find((item) => item.id === familyModal.id); if (family) setFamilyDeleteTarget(family); }}><Trash2 />Excluir</button>}<button type="button" className="primary" disabled={saving || !familyModal.responsibleName.trim()} onClick={() => void saveFamily()}><Save />{saving ? 'Salvando...' : 'Salvar família'}</button></div>
+          <div className="social-modal-actions">{familyModal.id && <button type="button" className="danger-soft" onClick={() => { const family = families.find((item) => item.id === familyModal.id); if (family) { setFamilyModal(null); setFamilyDeleteTarget(family); } }}><Trash2 />Excluir</button>}<button type="button" className="primary" disabled={saving || !familyModal.responsibleName.trim()} onClick={() => void saveFamily()}><Save />{saving ? 'Salvando...' : 'Salvar família'}</button></div>
         </Modal>
       )}
 

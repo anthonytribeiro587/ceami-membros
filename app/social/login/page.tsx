@@ -87,7 +87,6 @@ export default function SocialLoginPage() {
         </form>
 
         <small>Acesso exclusivo para pessoas autorizadas pela administração.</small>
-        <Link className="social-login-back social-login-register-link" href="/social/cadastro">Criar acesso para a equipe Social</Link>
         <Link className="social-login-back" href="/login">Voltar ao acesso do CEAMI Membros</Link>
       </section>
     </main>

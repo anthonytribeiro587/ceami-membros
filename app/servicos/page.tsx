@@ -1,14 +1,12 @@
-import AdminRouteShell from '@/app/components/AdminRouteShell';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import type { Metadata } from 'next';
 import ServicesClient from './ServicesClient';
 import './services.css';
 
-export default async function ServicesPage() {
-  const role = await getCurrentUiRole();
+export const metadata: Metadata = {
+  title: 'CEAMI Serviços',
+  description: 'Solicitações e acompanhamento de serviços da comunidade CEAMI.',
+};
 
-  return (
-    <AdminRouteShell initialRole={role}>
-      <ServicesClient />
-    </AdminRouteShell>
-  );
+export default function ServicesPage() {
+  return <ServicesClient />;
 }

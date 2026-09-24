@@ -34,6 +34,29 @@
   --ceami-content: 1180px;
 }
 
+/* Shell da aplicação: módulos internos não usam o rodapé institucional. */
+body:has(.member-v3-shell),
+body:has(.courses-page),
+body:has(.forms-admin-page),
+body:has(.services-admin-page),
+body:has(.access-page),
+body:has(.account-page),
+body:has(.ceami-portal),
+body:has(.checkin-page) {
+  background: var(--ceami-bg);
+}
+
+body:has(.member-v3-shell) .site-footer,
+body:has(.courses-page) .site-footer,
+body:has(.forms-admin-page) .site-footer,
+body:has(.services-admin-page) .site-footer,
+body:has(.access-page) .site-footer,
+body:has(.account-page) .site-footer,
+body:has(.ceami-portal) .site-footer,
+body:has(.checkin-page) .site-footer {
+  display: none;
+}
+
 /* Base compartilhada ------------------------------------------------------ */
 .member-v3-shell,
 .courses-page,

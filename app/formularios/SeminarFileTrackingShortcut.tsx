@@ -86,7 +86,7 @@ export default function SeminarFileTrackingShortcut() {
 
   return createPortal(
     <div className="forms-files-shortcut-wrap">
-      <Link href="/formularios/envios-arquivos" className="forms-files-shortcut">
+      <Link href="/eventos/envios-arquivos" className="forms-files-shortcut">
         <span className="forms-files-shortcut-copy">
           <strong>Acompanhar envio de arquivos</strong>
           <small>Apostila PDF, pendentes e histórico de entregas</small>

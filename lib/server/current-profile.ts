@@ -75,7 +75,7 @@ async function loadCurrentAccess(): Promise<CurrentCeamiAccess | null> {
       })),
     );
   } else if (!profile.course_only && !profile.visitors_only) {
-    const { data: accessRows } = await supabase
+    const { data: accessRows, error: accessError } = await supabase
       .from('profile_module_access')
       .select('module_key, access_level, can_access')
       .eq('profile_id', profile.id)
@@ -90,7 +90,7 @@ async function loadCurrentAccess(): Promise<CurrentCeamiAccess | null> {
     }
 
     // Compatibilidade durante a transição caso a matriz ainda não exista para um perfil antigo.
-    if (modules.length === 0) {
+    if (accessError && modules.length === 0) {
       if (profile.social_only) modules.push({ moduleKey: 'social', accessLevel: 'manager' });
       else modules.push({ moduleKey: 'members', accessLevel: 'viewer' });
     }

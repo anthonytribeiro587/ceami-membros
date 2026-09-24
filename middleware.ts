@@ -65,6 +65,8 @@ function requiredModuleForPath(pathname: string): RequiredModule | null {
     pathname.startsWith('/eventos/') ||
     pathname === '/formularios' ||
     pathname.startsWith('/formularios/') ||
+    pathname === '/api/admin/events' ||
+    pathname.startsWith('/api/admin/events/') ||
     pathname === '/api/admin/forms' ||
     pathname.startsWith('/api/admin/forms/') ||
     pathname === '/api/admin/form-submissions' ||

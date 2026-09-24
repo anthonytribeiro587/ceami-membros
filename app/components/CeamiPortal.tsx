@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   HeartHandshake,
+  LogOut,
   ShieldCheck,
   Users,
   Wrench,

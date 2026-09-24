@@ -88,12 +88,6 @@ jobs:
             audit-report.txt
           retention-days: 3
 
-      - name: Enforce dependency audit
-        if: steps.audit.outcome == 'failure'
-        run: |
-          cat audit-report.txt
-          exit 1
-
       - name: TypeScript
         run: npm run typecheck
 
@@ -116,3 +110,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Enforce dependency audit
+        if: steps.audit.outcome == 'failure'
+        run: |
+          cat audit-report.txt
+          exit 1

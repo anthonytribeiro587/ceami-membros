@@ -259,3 +259,24 @@
   .ceami-app-switcher-trigger { width: 44px; padding: 0; justify-content: center; border-radius: 14px; }
   .ceami-app-switcher-panel { top: auto; bottom: 52px; width: min(310px, calc(100vw - 32px)); }
 }
+
+.ceami-portal-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  grid-column: 2;
+  width: max-content;
+  margin-top: -4px;
+  padding: 9px 12px;
+  color: #5f503e;
+  text-decoration: none;
+  background: rgba(255,255,255,.7);
+  border: 1px solid rgba(64,54,42,.13);
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .ceami-portal-admin { grid-column: 1; margin-top: 0; }
+}

@@ -4,11 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
+  Award,
   CheckCircle2,
   FileText,
+  GraduationCap,
   Home,
   LogOut,
   Menu,
+  Users,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,6 +52,9 @@ const MODULES: Record<ShellModule, {
     team: 'Equipe de cursos',
     nav: [
       { href: '/cursos', label: 'Visão geral', icon: Home, exact: true },
+      { href: '/cursos/turmas', label: 'Turmas', icon: GraduationCap, exact: true },
+      { href: '/cursos/alunos', label: 'Alunos', icon: Users, exact: true },
+      { href: '/cursos/formados', label: 'Formados', icon: Award, exact: true },
     ],
   },
 };
@@ -67,6 +73,11 @@ function pageTitle(moduleKey: ShellModule, pathname: string) {
   if (moduleKey === 'events') {
     if (pathname.startsWith('/eventos/checkin')) return 'Check-in';
     if (pathname.startsWith('/eventos/envios-arquivos')) return 'Envios e arquivos';
+  }
+  if (moduleKey === 'courses') {
+    if (pathname.startsWith('/cursos/turmas')) return 'Turmas';
+    if (pathname.startsWith('/cursos/alunos')) return 'Alunos';
+    if (pathname.startsWith('/cursos/formados')) return 'Formados';
   }
   return 'Visão geral';
 }

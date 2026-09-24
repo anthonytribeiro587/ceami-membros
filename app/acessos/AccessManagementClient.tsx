@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   GraduationCap,
   Handshake,
   HeartHandshake,
@@ -16,7 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import type { CeamiModuleKey } from '@/lib/types/ceami-module';
+import type { CeamiModuleAccessLevel, CeamiModuleKey } from '@/lib/types/ceami-module';
 
 type Profile = {
   id: string;
@@ -32,15 +33,23 @@ type AccessRow = {
   profile_id: string;
   module_key: CeamiModuleKey;
   can_access: boolean;
+  access_level: CeamiModuleAccessLevel;
 };
 
-const MODULES: Array<{ key: CeamiModuleKey; label: string; icon: LucideIcon }> = [
-  { key: 'members', label: 'Membros', icon: Users },
-  { key: 'social', label: 'Social', icon: HeartHandshake },
-  { key: 'events', label: 'Eventos', icon: CalendarDays },
-  { key: 'services', label: 'Serviços', icon: Wrench },
-  { key: 'welcome', label: 'Acolhimentos', icon: Handshake },
-  { key: 'courses', label: 'Cursos', icon: GraduationCap },
+type ModuleDefinition = {
+  key: CeamiModuleKey;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+};
+
+const MODULES: ModuleDefinition[] = [
+  { key: 'members', label: 'Membros', description: 'Cadastros e gestão de pessoas', icon: Users },
+  { key: 'social', label: 'Social', description: 'Doações, estoque e entregas', icon: HeartHandshake },
+  { key: 'events', label: 'Eventos', description: 'Inscrições, pagamentos e check-in', icon: CalendarDays },
+  { key: 'services', label: 'Serviços', description: 'Solicitações e atendimentos', icon: Wrench },
+  { key: 'welcome', label: 'Acolhimentos', description: 'Visitantes e acompanhamento', icon: Handshake },
+  { key: 'courses', label: 'Cursos', description: 'Turmas, alunos e frequência', icon: GraduationCap },
 ];
 
 function roleLabel(role: string) {
@@ -51,10 +60,15 @@ function roleLabel(role: string) {
   return 'Usuário';
 }
 
+function initials(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).slice(0,2).map((part) => part[0]?.toUpperCase() || '').join('') || 'CE';
+}
+
 export default function AccessManagementClient() {
   const supabase = useMemo(() => createClient(), []);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [access, setAccess] = useState<AccessRow[]>([]);
+  const [selectedModule, setSelectedModule] = useState<CeamiModuleKey>('members');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState('');
   const [query, setQuery] = useState('');
@@ -71,7 +85,7 @@ export default function AccessManagementClient() {
         .order('full_name', { ascending: true }),
       supabase
         .from('profile_module_access')
-        .select('profile_id, module_key, can_access'),
+        .select('profile_id, module_key, can_access, access_level'),
     ]);
 
     if (profilesResult.error || accessResult.error) {
@@ -89,14 +103,24 @@ export default function AccessManagementClient() {
     void load();
   }, []);
 
+  function accessRow(profile: Profile, moduleKey: CeamiModuleKey) {
+    if (profile.role === 'admin') {
+      return {
+        profile_id: profile.id,
+        module_key: moduleKey,
+        can_access: true,
+        access_level: 'manager' as CeamiModuleAccessLevel,
+      };
+    }
+
+    return access.find(
+      (item) => item.profile_id === profile.id && item.module_key === moduleKey,
+    );
+  }
+
   function hasAccess(profile: Profile, moduleKey: CeamiModuleKey) {
     if (profile.role === 'admin') return true;
-    return access.some(
-      (item) =>
-        item.profile_id === profile.id &&
-        item.module_key === moduleKey &&
-        item.can_access === true,
-    );
+    return accessRow(profile, moduleKey)?.can_access === true;
   }
 
   async function toggle(profile: Profile, moduleKey: CeamiModuleKey) {
@@ -124,14 +148,28 @@ export default function AccessManagementClient() {
       const without = current.filter(
         (item) => !(item.profile_id === profile.id && item.module_key === moduleKey),
       );
-      return [...without, { profile_id: profile.id, module_key: moduleKey, can_access: enabled }];
+      const previous = accessRow(profile, moduleKey);
+      return [
+        ...without,
+        {
+          profile_id: profile.id,
+          module_key: moduleKey,
+          can_access: enabled,
+          access_level: previous?.access_level || (moduleKey === 'members' ? 'viewer' : 'manager'),
+        },
+      ];
     });
     setSaving('');
   }
 
+  const selected = MODULES.find((module) => module.key === selectedModule) || MODULES[0];
+  const SelectedIcon = selected.icon;
+  const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
   const visible = profiles.filter((profile) =>
-    profile.full_name.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR')),
+    !normalizedQuery ||
+    `${profile.full_name} ${roleLabel(profile.role)}`.toLocaleLowerCase('pt-BR').includes(normalizedQuery),
   );
+  const enabledCount = profiles.filter((profile) => hasAccess(profile, selectedModule)).length;
 
   return (
     <main className="access-page">
@@ -142,73 +180,102 @@ export default function AccessManagementClient() {
           </Link>
           <span>ADMINISTRAÇÃO MASTER</span>
           <h1><ShieldCheck /> Acessos dos aplicativos</h1>
-          <p>Defina quais módulos cada conta pode abrir. Uma mesma pessoa pode ter acesso a vários aplicativos com o mesmo login.</p>
+          <p>Escolha um aplicativo e gerencie quem pode acessá-lo. Administradores Master mantêm acesso total à plataforma.</p>
         </div>
+        <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
       </header>
 
-      <section className="access-toolbar">
-        <label>
-          <Search size={18} />
-          <input
-            type="search"
-            placeholder="Buscar usuário..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-        <span>{profiles.length} contas</span>
+      <section className="access-workspace">
+        <aside className="access-apps" aria-label="Aplicativos">
+          <div className="access-apps-title">
+            <strong>Aplicativos</strong>
+            <span>Selecione para administrar</span>
+          </div>
+          {MODULES.map(({ key, label, description, icon: Icon }) => {
+            const count = profiles.filter((profile) => hasAccess(profile, key)).length;
+            return (
+              <button key={key} type="button" className={selectedModule === key ? 'active' : ''} onClick={() => setSelectedModule(key)}>
+                <span className="access-app-icon"><Icon size={18} /></span>
+                <span><strong>{label}</strong><small>{description}</small></span>
+                <em>{count}</em>
+              </button>
+            );
+          })}
+        </aside>
+
+        <section className="access-panel">
+          <div className="access-panel-head">
+            <div className="access-selected-app">
+              <span className="access-selected-icon"><SelectedIcon size={21} /></span>
+              <div>
+                <span>CEAMI {selected.label}</span>
+                <h2>Usuários com acesso</h2>
+                <p>{enabledCount} de {profiles.length} contas podem abrir este aplicativo.</p>
+              </div>
+            </div>
+
+            <label className="access-search">
+              <Search size={17} />
+              <input type="search" placeholder="Buscar usuário..." value={query} onChange={(event) => setQuery(event.target.value)} />
+            </label>
+          </div>
+
+          {message && <div className="access-message">{message}</div>}
+
+          {loading ? (
+            <div className="access-loading"><LoaderCircle className="access-spin" /> Carregando acessos...</div>
+          ) : (
+            <div className="access-table-wrap">
+              <table className="access-table">
+                <thead>
+                  <tr><th>Usuário</th><th>Perfil</th><th>Nível</th><th>Status</th><th>Acesso</th></tr>
+                </thead>
+                <tbody>
+                  {visible.map((profile) => {
+                    const row = accessRow(profile, selectedModule);
+                    const enabled = hasAccess(profile, selectedModule);
+                    const locked = profile.role === 'admin';
+                    const disabled = locked || !profile.is_active;
+                    const savingKey = `${profile.id}:${selectedModule}`;
+                    const level = locked ? 'Master' : enabled ? row?.access_level === 'manager' ? 'Gestão' : 'Visualização' : '—';
+
+                    return (
+                      <tr key={profile.id}>
+                        <td>
+                          <div className="access-person">
+                            <span>{initials(profile.full_name)}</span>
+                            <div><strong>{profile.full_name}</strong><small>{profile.is_active ? 'Conta ativa' : 'Conta inativa'}</small></div>
+                          </div>
+                        </td>
+                        <td><span className="access-role">{roleLabel(profile.role)}</span></td>
+                        <td><span className="access-level">{level}</span></td>
+                        <td><span className={enabled ? 'access-status allowed' : 'access-status denied'}>{enabled ? <Check size={13} /> : null}{enabled ? 'Liberado' : 'Sem acesso'}</span></td>
+                        <td>
+                          <button
+                            type="button"
+                            className={enabled ? 'access-toggle active' : 'access-toggle'}
+                            disabled={disabled || saving === savingKey}
+                            onClick={() => void toggle(profile, selectedModule)}
+                            aria-pressed={enabled}
+                            aria-label={enabled ? `Revogar acesso de ${profile.full_name}` : `Liberar acesso de ${profile.full_name}`}
+                          >
+                            <span />
+                            <small>{locked ? 'Master' : enabled ? 'Revogar' : 'Liberar'}</small>
+                            {saving === savingKey && <LoaderCircle className="access-spin access-toggle-spin" size={14} />}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </section>
 
-      {message && <div className="access-message">{message}</div>}
-
-      {loading ? (
-        <div className="access-loading"><LoaderCircle className="access-spin" /> Carregando acessos...</div>
-      ) : (
-        <section className="access-list">
-          {visible.map((profile) => (
-            <article key={profile.id} className="access-user">
-              <div className="access-user-info">
-                <div className="access-avatar">
-                  {profile.full_name.trim().slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <strong>{profile.full_name}</strong>
-                  <span>
-                    {roleLabel(profile.role)}
-                    {!profile.is_active && ' • Inativo'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="access-modules">
-                {MODULES.map(({ key, label, icon: Icon }) => {
-                  const enabled = hasAccess(profile, key);
-                  const disabled = profile.role === 'admin' || !profile.is_active;
-                  const savingKey = `${profile.id}:${key}`;
-
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      className={enabled ? 'active' : ''}
-                      disabled={disabled || saving === savingKey}
-                      onClick={() => void toggle(profile, key)}
-                      aria-pressed={enabled}
-                    >
-                      {saving === savingKey ? <LoaderCircle className="access-spin" size={17} /> : <Icon size={17} />}
-                      <span>{label}</span>
-                      <small>{profile.role === 'admin' ? 'Master' : enabled ? 'Liberado' : 'Sem acesso'}</small>
-                    </button>
-                  );
-                })}
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
-
       <p className="access-footnote">
-        Acolhimentos e Cursos agora fazem parte da mesma matriz de permissões da CEAMI.
+        Uma conta pode ter acesso a vários aplicativos. O seletor de aplicativos mostra somente os módulos liberados para cada usuário.
       </p>
     </main>
   );

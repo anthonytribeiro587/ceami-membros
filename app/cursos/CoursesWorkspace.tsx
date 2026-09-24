@@ -10,7 +10,6 @@ import {
   Copy,
   GraduationCap,
   Award,
-  LayoutDashboard,
   MapPin,
   Plus,
   Printer,
@@ -149,13 +148,17 @@ function lessonStatusLabel(status: Lesson['status']) {
   return 'Cancelada';
 }
 
-export default function CoursesWorkspace() {
+export default function CoursesWorkspace({
+  initialArea = 'overview',
+}: {
+  initialArea?: CoursesArea;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [courses, setCourses] = useState<Course[]>([]);
   const [classes, setClasses] = useState<CourseClass[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [enrollments, setEnrollments] = useState<CourseEnrollmentOverview[]>([]);
-  const [area, setArea] = useState<CoursesArea>('overview');
+  const [area, setArea] = useState<CoursesArea>(initialArea);
   const [courseQuery, setCourseQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<CourseClass | null>(null);
   const [role, setRole] = useState('visualizador');
@@ -360,13 +363,6 @@ export default function CoursesWorkspace() {
 
       {!loading && !error && (
         <>
-          <nav className="courses-area-nav" aria-label="Áreas do CEAMI Cursos">
-            <button type="button" className={area === 'overview' ? 'active' : ''} onClick={() => setArea('overview')}><LayoutDashboard size={17} /><span>Visão geral</span></button>
-            <button type="button" className={area === 'classes' ? 'active' : ''} onClick={() => setArea('classes')}><GraduationCap size={17} /><span>Turmas</span><small>{classes.length}</small></button>
-            <button type="button" className={area === 'students' ? 'active' : ''} onClick={() => setArea('students')}><Users size={17} /><span>Alunos</span><small>{uniqueStudents}</small></button>
-            <button type="button" className={area === 'graduates' ? 'active' : ''} onClick={() => setArea('graduates')}><Award size={17} /><span>Formados</span><small>{uniqueGraduates}</small></button>
-          </nav>
-
           <section className="courses-metrics courses-metrics-four">
             <article><BookOpen /><div><small>Cursos</small><strong>{courses.length}</strong></div></article>
             <article><GraduationCap /><div><small>Turmas em andamento</small><strong>{classes.filter((item) => item.status === 'open').length}</strong></div></article>
@@ -379,7 +375,7 @@ export default function CoursesWorkspace() {
               <section className="courses-panel">
                 <div className="courses-panel-head">
                   <div><h2>Turmas recentes</h2><p>Acompanhe rapidamente o andamento das turmas.</p></div>
-                  <button type="button" className="courses-inline-link" onClick={() => setArea('classes')}>Ver todas</button>
+                  <a className="courses-inline-link" href="/cursos/turmas">Ver todas</a>
                 </div>
                 {classes.length ? (
                   <div className="courses-compact-classes">

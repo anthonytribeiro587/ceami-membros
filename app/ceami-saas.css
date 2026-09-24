@@ -3376,3 +3376,11 @@ body:has(.ceami-module-shell) .site-footer {
   background:var(--ceami-red-soft);
   border-color:#eccdca;
 }
+
+
+/* CEAMI Cursos — navegação principal agora vive na sidebar */
+.courses-area-nav{display:none!important}
+.ceami-module-shell-courses .ceami-module-nav a{position:relative}
+.ceami-module-shell-courses .ceami-module-nav a.active::after{content:"";position:absolute;right:8px;width:5px;height:5px;border-radius:50%;background:var(--ceami-orange)}
+.courses-inline-link{display:inline-flex;align-items:center;color:var(--ceami-blue);text-decoration:none}
+@media(max-width:959px){.ceami-module-shell-courses .ceami-module-nav a{min-height:46px}}

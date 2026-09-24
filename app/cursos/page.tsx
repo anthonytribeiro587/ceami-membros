@@ -1,14 +1,5 @@
 import type { Metadata } from 'next';
 import CoursesWorkspace from './CoursesWorkspace';
-import CourseDeletionControls from './CourseDeletionControls';
-import QrCodeReliability from './QrCodeReliability';
-import CourseTablePortal from './CourseTablePortal';
-import CeamiModuleShell from '@/app/components/CeamiModuleShell';
-import './courses.css';
-import './course-table.css';
-import './course-table-portal.css';
-import './course-deletion.css';
-import '../ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Cursos',
@@ -16,12 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function CoursesPage() {
-  return (
-    <CeamiModuleShell moduleKey="courses">
-      <CoursesWorkspace />
-      <CourseTablePortal />
-      <CourseDeletionControls />
-      <QrCodeReliability />
-    </CeamiModuleShell>
-  );
+  return <CoursesWorkspace initialArea="overview" />;
 }

@@ -1200,3 +1200,275 @@
     animation-duration: .001ms !important;
   }
 }
+
+
+/* Cursos — telas internas, tabelas, chamada e QR ------------------------- */
+.course-tabs {
+  border-color: var(--ceami-line);
+  background: #eef3f7;
+  border-radius: 13px;
+}
+
+.course-tabs button { color: #60788b; border-radius: 10px; }
+.course-tabs button:hover { color: var(--ceami-blue); background: var(--ceami-blue-soft); }
+.course-tabs button.active { color: #fff; background: var(--ceami-blue); }
+
+.lesson-row,
+.student-list article,
+.attendance-list article,
+.course-class-table {
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lesson-row:hover,
+.student-list article:hover,
+.attendance-list article:hover,
+.course-class-table-row:hover {
+  background: #f8fbfd;
+}
+
+.lesson-number,
+.student-avatar,
+.course-class-icon {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.lesson-main p,
+.lesson-count small,
+.student-list article span,
+.attendance-person span,
+.course-class-copy small,
+.course-class-stat small,
+.course-class-next small {
+  color: var(--ceami-muted);
+}
+
+.course-class-table-head {
+  border-color: var(--ceami-line);
+  color: #71889a;
+  background: #f5f8fb;
+}
+
+.course-class-table-row {
+  border-color: var(--ceami-line-soft);
+  color: var(--ceami-text);
+}
+
+.course-class-next strong { color: var(--ceami-text); }
+.course-class-arrow { color: #7890a3; }
+
+.attendance-toolbar {
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+  background: #f6f9fb;
+}
+
+.attendance-statuses button {
+  border-color: var(--ceami-line);
+  border-radius: 10px;
+}
+
+.attendance-statuses button.active.present {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+  border-color: #b9dfca;
+}
+
+.attendance-statuses button.active.late {
+  color: var(--ceami-yellow);
+  background: var(--ceami-yellow-soft);
+  border-color: #ecd6a5;
+}
+
+.attendance-statuses button.active.absent {
+  color: var(--ceami-red);
+  background: var(--ceami-red-soft);
+  border-color: #efc8c2;
+}
+
+.course-modal-overlay { background: rgba(5,38,68,.55); backdrop-filter: blur(3px); }
+.course-modal {
+  border: 1px solid rgba(220,230,238,.9);
+  border-radius: var(--ceami-radius-xl);
+  box-shadow: 0 30px 80px rgba(5,38,68,.24);
+}
+
+.course-modal > header { border-color: var(--ceami-line); }
+.course-modal > header h2 { color: var(--ceami-text-strong); }
+.course-modal > header p { color: var(--ceami-muted); }
+.course-modal > header > button { color: var(--ceami-blue); background: var(--ceami-blue-soft); }
+
+.course-field > span { color: #315674; }
+.course-field input,
+.course-field select,
+.course-field textarea {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+}
+
+.course-field input:focus,
+.course-field select:focus,
+.course-field textarea:focus {
+  border-color: #8ab0cf;
+  box-shadow: 0 0 0 3px rgba(35,105,165,.07);
+}
+
+.qr-preview {
+  border-color: var(--ceami-line);
+  border-radius: 16px;
+  background: #f8fbfd;
+}
+
+.qr-preview img { border-color: var(--ceami-line); }
+.qr-preview p { color: #536f86; background: var(--ceami-blue-soft); }
+
+.course-table-loading {
+  color: var(--ceami-muted);
+  background: #f8fbfd;
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+}
+
+/* Eventos — check-in ------------------------------------------------------ */
+.checkin-page {
+  color: var(--ceami-text);
+  background:
+    radial-gradient(circle at 8% 5%, rgba(11,79,141,.08), transparent 280px),
+    var(--ceami-bg);
+  font-family: Inter, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.checkin-header > a { color: var(--ceami-blue); }
+.checkin-header > span { color: var(--ceami-orange); }
+.checkin-header h1 { color: var(--ceami-text-strong); }
+.checkin-header p { color: var(--ceami-muted); }
+
+.checkin-event,
+.checkin-ticket {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.checkin-event select,
+.checkin-search label > div {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+}
+
+.checkin-event label > span,
+.checkin-search label > span,
+.checkin-ticket-top span,
+.checkin-attendee > span {
+  color: var(--ceami-muted);
+}
+
+.checkin-stats > div {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+  border-radius: 11px;
+}
+
+.checkin-stats span { color: #60788b; }
+.checkin-stats strong,
+.checkin-ticket-top strong,
+.checkin-attendee h2 { color: var(--ceami-text-strong); }
+
+.checkin-search > button,
+.checkin-actions button {
+  background: var(--ceami-orange);
+  box-shadow: 0 8px 20px rgba(255,104,22,.14);
+}
+
+.checkin-actions button.secondary {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+  box-shadow: none;
+}
+
+.checkin-payment.paid,
+.checkin-payment.exempt,
+.checkin-payment.free {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+.checkin-payment.pending {
+  color: var(--ceami-yellow);
+  background: var(--ceami-yellow-soft);
+}
+
+/* Modais e estados comuns ------------------------------------------------- */
+.forms-response-modal-overlay,
+.services-modal-overlay {
+  background: rgba(5,38,68,.52);
+  backdrop-filter: blur(3px);
+}
+
+.forms-response-modal,
+.services-modal {
+  border: 1px solid rgba(220,230,238,.9);
+  border-radius: var(--ceami-radius-xl);
+  box-shadow: 0 28px 80px rgba(5,38,68,.22);
+}
+
+.forms-response-modal header,
+.services-modal header {
+  border-color: var(--ceami-line);
+}
+
+.services-modal header h2,
+.forms-response-modal header h3 {
+  color: var(--ceami-text-strong);
+}
+
+.forms-response-modal header span { color: var(--ceami-orange); }
+
+.services-empty,
+.courses-empty,
+.forms-empty {
+  color: var(--ceami-muted);
+  border-color: #cfdde8;
+  background: rgba(255,255,255,.55);
+  border-radius: var(--ceami-radius-lg);
+}
+
+.services-empty h3,
+.courses-empty h3,
+.forms-empty h3 { color: var(--ceami-text-strong); }
+
+/* Refinos mobile das telas internas -------------------------------------- */
+@media (max-width: 700px) {
+  .course-class-table-row {
+    border-color: var(--ceami-line);
+    border-radius: 15px;
+    box-shadow: var(--ceami-shadow-card);
+  }
+
+  .course-class-stat,
+  .course-class-next { border-color: var(--ceami-line-soft); }
+
+  .checkin-page {
+    padding: 18px 12px calc(90px + env(safe-area-inset-bottom));
+  }
+
+  .checkin-header { padding-top: 6px; }
+  .checkin-header h1 { font-size: 29px; }
+  .checkin-event,
+  .checkin-ticket { border-radius: 16px; }
+}
+
+@media (hover: hover) {
+  .member-v3-panel,
+  .courses-panel,
+  .forms-card,
+  .services-panel,
+  .services-request-card,
+  .access-user,
+  .ceami-portal-card {
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+  }
+}

@@ -234,84 +234,134 @@ body:has(.member-v3-shell) .site-footer{display:none}
 }
 
 
-/* Integra — workspace operacional, sem pilha de cards */
-.member-v3-integra-page{gap:12px!important;max-width:1180px;margin-inline:auto}
-.integra-tabs{
-  width:max-content;max-width:100%;display:flex;gap:2px;padding:3px;
-  border:1px solid #dce5ea;border-radius:7px;background:#eef2f4;overflow-x:auto
+/* Integra — fluxo por encontro */
+.member-v3-integra-page{max-width:1180px;margin-inline:auto;gap:12px!important}
+.integra-section-nav{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  border:1px solid #dce5ea;border-radius:8px;background:#fff;overflow:hidden
 }
-.integra-tabs button{
-  min-height:34px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;
-  border:0;border-radius:5px;background:transparent;color:#687f8f;
+.integra-section-nav button{
+  position:relative;min-height:48px;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:0 12px;border:0;border-right:1px solid #e7ecef;background:#fff;color:#708493;
   font-size:11px;font-weight:700;white-space:nowrap
 }
-.integra-tabs button.active{background:#fff;color:#0b4f7e;box-shadow:0 1px 3px rgba(8,48,78,.07)}
-.integra-overview{padding:16px!important;border-radius:9px!important}
-.integra-overview-head{align-items:center!important}
-.integra-eyebrow{display:block;color:#f26222;font-size:9px;font-weight:800;letter-spacing:.1em}
-.integra-overview-head h2,.integra-participants-panel h2,.integra-consult h2{font-size:18px!important}
-.integra-refresh{min-height:38px!important;padding:0 12px!important;border-radius:6px!important;font-size:10px!important}
-.integra-overview-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(240px,.45fr);gap:12px;margin-top:13px}
-.integra-form-access{min-width:0;display:grid;grid-template-columns:142px minmax(0,1fr);gap:16px;align-items:center;padding:14px;border:1px solid #e1e8ec;border-radius:8px;background:#fafcfd}
-.integra-qr{display:grid;place-items:center;padding:8px;background:#fff;border:1px solid #e2e9ed;border-radius:7px}
-.integra-qr img{display:block;width:100%;max-width:126px;aspect-ratio:1}
-.integra-qr.compact img{max-width:112px}
-.integra-form-copy>span,.integra-consult-link>div:last-child>span,.integra-message-panel>span{color:#f26222;font-size:9px;font-weight:800;letter-spacing:.09em}
-.integra-form-copy h3,.integra-consult-link h3{margin:4px 0 5px;color:#0b3555;font-size:15px}
-.integra-form-copy p{margin:0 0 9px;color:#748895;font-size:11px;line-height:1.45}
-.integra-form-copy code,.integra-consult-link code{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#60798b;font-size:9.5px}
-.integra-inline-actions{display:flex;gap:6px;margin-top:11px}
-.integra-inline-actions button,.integra-inline-actions a{
-  min-height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0 10px;
-  border:1px solid #d7e2e8;border-radius:6px;background:#fff;color:#164e75;text-decoration:none;
-  font-size:10.5px;font-weight:700
-}
-.integra-inline-actions button:first-child{background:#0b4f7e;border-color:#0b4f7e;color:#fff}
-.integra-today{padding:15px;border-left:3px solid #f26222;background:#fff;border-top:1px solid #e2e8ec;border-right:1px solid #e2e8ec;border-bottom:1px solid #e2e8ec;border-radius:0 8px 8px 0}
-.integra-today>span{color:#f26222;font-size:9px;font-weight:800;letter-spacing:.1em}
-.integra-today>strong{display:block;margin-top:8px;color:#0b4f7e;font-size:31px;line-height:1}
-.integra-today h3{margin:5px 0 7px;color:#0b3555;font-size:12px}
-.integra-today p,.integra-today-note{color:#718693;font-size:10.5px;line-height:1.5}
-.integra-today p{margin:0}
-.integra-today-note{margin-top:11px;padding-top:10px;border-top:1px solid #edf1f3}
-.integra-metrics{margin:0!important}
-.integra-history-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:12px}
-.integra-history-panel,.integra-participants-panel{padding:15px!important;border-radius:9px!important}
-.integra-history-list .member-v3-row.is-selected{background:#f6f8f9!important;box-shadow:inset 2px 0 0 #f26222}
-.integra-history-list .member-v3-avatar{width:34px!important;height:34px!important;border-radius:6px!important}
-.integra-history-list .member-v3-row{min-height:51px!important}
-.integra-empty-copy{padding:22px 4px;color:#738692;font-size:10px}
-.integra-empty-state{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#82929d}
-.integra-empty-state strong{margin-top:7px;color:#34566e;font-size:11px}
-.integra-empty-state span{max-width:250px;margin-top:3px;font-size:9px;line-height:1.45}
-.integra-consult{padding:16px!important;border-radius:9px!important}
-.integra-consult-grid{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr);gap:12px;margin-top:13px}
-.integra-consult-link{display:grid;grid-template-columns:128px minmax(0,1fr);gap:14px;align-items:center;padding:13px;border:1px solid #e1e8ec;border-radius:8px;background:#fafcfd}
-.integra-message-panel{padding:14px;border:1px solid #e1e8ec;border-radius:8px;background:#fff}
-.integra-message-panel>p{max-height:190px;margin:8px 0 0;overflow:auto;white-space:pre-line;color:#486476;font-size:10.5px;line-height:1.55}
-.integra-message-panel>small{display:block;margin-top:10px;color:#82939f;font-size:8.5px;line-height:1.45}
+.integra-section-nav button:last-child{border-right:0}
+.integra-section-nav button:hover{background:#f8fafb;color:#164f75}
+.integra-section-nav button.active{color:#0b4f7e;background:#fafcfd}
+.integra-section-nav button.active:after{content:"";position:absolute;left:18px;right:18px;bottom:0;height:2px;background:#f26222}
+.integra-section-nav button small{min-width:19px;height:19px;display:grid;place-items:center;border-radius:999px;background:#eef3f6;color:#69808f;font-size:8px}
 
-@media(max-width:900px){
-  .integra-overview-grid,.integra-history-layout,.integra-consult-grid{grid-template-columns:1fr}
-  .integra-today{border-left-width:2px}
+.integra-screen{background:#fff;border:1px solid #dce5ea;border-radius:9px;overflow:hidden}
+.integra-screen-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:18px 18px 15px;border-bottom:1px solid #e8edef}
+.integra-screen-header>div:first-child{min-width:0}
+.integra-eyebrow{display:block;color:#f26222;font-size:9px;font-weight:800;letter-spacing:.1em}
+.integra-screen-header h2{margin:5px 0 4px;color:#0b3555;font-size:21px;font-weight:720;letter-spacing:-.025em}
+.integra-screen-header p{max-width:650px;margin:0;color:#748895;font-size:11px;line-height:1.45}
+
+.integra-screen-actions{display:flex;align-items:flex-end;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.integra-session-select{display:grid;gap:4px}
+.integra-session-select>span{color:#82939f;font-size:8px;font-weight:750;text-transform:uppercase;letter-spacing:.05em}
+.integra-session-select select{height:38px;max-width:230px;padding:0 30px 0 10px;border:1px solid #d8e2e7;border-radius:6px;background:#fff;color:#234c67;font-size:10.5px;outline:0}
+.integra-session-select select:focus{border-color:#7da4bf;box-shadow:0 0 0 3px #edf5fa}
+.integra-action{height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border-radius:6px;font-size:10px;font-weight:750;white-space:nowrap}
+.integra-action.primary{border:1px solid #0b4f7e;background:#0b4f7e;color:#fff}
+.integra-action.secondary{border:1px solid #d9e3e8;background:#fff;color:#164f75}
+.integra-action:disabled{opacity:.45;cursor:not-allowed}
+
+.integra-summary-strip{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #e8edef;background:#fbfcfd}
+.integra-summary-strip article{min-height:76px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-content:center;column-gap:10px;padding:12px 18px;border-right:1px solid #e8edef}
+.integra-summary-strip article:last-child{border-right:0}
+.integra-summary-strip span{grid-column:1/-1;color:#7c8f9c;font-size:9px;font-weight:650}
+.integra-summary-strip strong{color:#0b4f7e;font-size:23px;line-height:1}
+.integra-summary-strip small{align-self:end;color:#8d9ba5;font-size:9px}
+
+.integra-track-grid{display:grid;grid-template-columns:minmax(0,1fr) 270px}
+.integra-participants{min-width:0;padding:16px 18px 18px}
+.integra-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.integra-section-heading h3,.integra-flow h3,.integra-share-primary h3,.integra-consult-access h3,.integra-session-detail h3{margin:0;color:#123d5d;font-size:15px}
+.integra-section-heading p{margin:3px 0 0;color:#84949f;font-size:9.5px}
+.integra-participant-list .member-v3-row{min-height:56px!important}
+.integra-participant-list .member-v3-avatar{width:36px!important;height:36px!important;border-radius:7px!important}
+
+.integra-flow{padding:17px 16px;border-left:1px solid #e8edef;background:#fafcfd}
+.integra-flow h3{margin-top:5px}
+.integra-flow ol{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:13px}
+.integra-flow li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:9px;align-items:start}
+.integra-flow li>b{width:26px;height:26px;display:grid;place-items:center;border:1px solid #dce6eb;border-radius:6px;color:#f26222;background:#fff;font-size:9px}
+.integra-flow li strong,.integra-flow li span{display:block}.integra-flow li strong{color:#31556e;font-size:10px}.integra-flow li span{margin-top:2px;color:#8796a0;font-size:8.8px;line-height:1.4}
+.integra-flow>button{width:100%;min-height:36px;margin-top:16px;border:1px solid #d8e2e7;border-radius:6px;background:#fff;color:#164f75;font-size:9.5px;font-weight:700}
+
+.integra-history-workspace{display:grid;grid-template-columns:310px minmax(0,1fr);min-height:440px}
+.integra-session-list{max-height:520px;overflow-y:auto;padding:10px;border-right:1px solid #e8edef;background:#fafcfd}
+.integra-session-list>button{width:100%;min-height:54px;display:grid;grid-template-columns:32px minmax(0,1fr) 16px;align-items:center;gap:9px;padding:7px 9px;border:0;border-radius:6px;background:transparent;color:#5f7788;text-align:left}
+.integra-session-list>button:hover{background:#f1f5f7}.integra-session-list>button.active{background:#fff;box-shadow:inset 2px 0 0 #f26222}
+.integra-session-list>button>svg:first-child{width:30px;height:30px;padding:7px;border:1px solid #dfe7eb;border-radius:6px;color:#17649f;background:#fff}
+.integra-session-list>button span{min-width:0}.integra-session-list>button strong,.integra-session-list>button small{display:block}
+.integra-session-list>button strong{color:#244c67;font-size:10.5px}.integra-session-list>button small{margin-top:2px;color:#8a9aa4;font-size:8.5px}
+.integra-session-detail{min-width:0;padding:16px 18px}
+.integra-session-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid #edf1f3}
+.integra-session-detail-head h3{margin-top:4px}.integra-session-detail-head p{margin:3px 0 0;color:#82939e;font-size:9.5px}
+.integra-session-detail-head>div:last-child{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.integra-history-members{margin-top:4px}
+
+.integra-share-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);min-height:430px}
+.integra-share-primary{display:grid;grid-template-columns:190px minmax(0,1fr);gap:24px;align-items:center;padding:28px}
+.integra-qr-large,.integra-qr-medium{display:grid;place-items:center;border:1px solid #e0e7eb;border-radius:8px;background:#fff}
+.integra-qr-large{padding:13px}.integra-qr-large img{width:100%;max-width:164px;aspect-ratio:1}
+.integra-share-primary h3{margin-top:5px;font-size:18px}.integra-share-primary p{max-width:520px;margin:7px 0 12px;color:#6f8492;font-size:10.5px;line-height:1.5}
+.integra-share-primary code,.integra-consult-access code{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#617b8c;font-size:9px}
+.integra-inline-actions{display:flex;gap:6px;margin-top:12px}
+.integra-inline-actions button,.integra-inline-actions a{min-height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0 11px;border:1px solid #d8e2e7;border-radius:6px;background:#fff;color:#164f75;text-decoration:none;font-size:9.5px;font-weight:700}
+.integra-inline-actions button:first-child{background:#0b4f7e;border-color:#0b4f7e;color:#fff}
+.integra-share-guide{padding:24px 20px;border-left:1px solid #e8edef;background:#fafcfd}
+.integra-share-guide>div{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;padding:13px 0;border-bottom:1px solid #e8edef}
+.integra-share-guide>div:last-child{border-bottom:0}.integra-share-guide b{color:#f26222;font-size:10px}
+.integra-share-guide p{margin:0}.integra-share-guide strong,.integra-share-guide span{display:block}
+.integra-share-guide strong{color:#365970;font-size:10px}.integra-share-guide span{margin-top:3px;color:#85959f;font-size:8.8px;line-height:1.4}
+
+.integra-consult-layout{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);min-height:410px}
+.integra-consult-access{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;align-items:center;padding:22px}
+.integra-qr-medium{padding:10px}.integra-qr-medium img{width:100%;max-width:130px;aspect-ratio:1}
+.integra-consult-access h3{margin:5px 0 9px;font-size:16px}
+.integra-message-panel{padding:22px;border-left:1px solid #e8edef;background:#fafcfd}
+.integra-message-panel>p{max-height:245px;margin:10px 0 0;padding:13px;overflow:auto;white-space:pre-line;color:#486476;background:#fff;border:1px solid #e1e8ec;border-radius:7px;font-size:10px;line-height:1.55}
+.integra-message-panel>small{display:block;margin-top:10px;color:#83949f;font-size:8.8px;line-height:1.45}
+
+.integra-empty-state{min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#82929d}
+.integra-empty-state.compact{min-height:180px;padding:18px}.integra-empty-state strong{margin-top:7px;color:#34566e;font-size:11px}.integra-empty-state span{max-width:270px;margin-top:3px;font-size:9px;line-height:1.45}
+
+@media(max-width:980px){
+  .integra-screen-header{align-items:flex-start;flex-direction:column}
+  .integra-screen-actions{width:100%;justify-content:flex-start}
+  .integra-track-grid{grid-template-columns:1fr}.integra-flow{border-left:0;border-top:1px solid #e8edef}
+  .integra-share-layout,.integra-consult-layout{grid-template-columns:1fr}
+  .integra-share-guide,.integra-message-panel{border-left:0;border-top:1px solid #e8edef}
 }
-@media(max-width:620px){
+@media(max-width:760px){
   .member-v3-integra-page{gap:9px!important}
-  .integra-tabs{width:100%}
-  .integra-tabs button{flex:1;justify-content:center;padding:0 8px}
-  .integra-overview,.integra-history-panel,.integra-participants-panel,.integra-consult{padding:11px!important}
-  .integra-overview-head{align-items:flex-start!important}
-  .integra-overview-head .member-v3-primary{width:auto!important}
-  .integra-form-access,.integra-consult-link{grid-template-columns:96px minmax(0,1fr);gap:10px;padding:10px}
-  .integra-qr{padding:5px}
-  .integra-form-copy h3,.integra-consult-link h3{font-size:13px}
-  .integra-form-copy p{display:none}
-  .integra-inline-actions{display:grid;grid-template-columns:1fr 1fr}
-  .integra-inline-actions>*{min-width:0;padding:0 6px!important}
-  .integra-today>strong{font-size:27px}
-  .integra-message-panel>p{max-height:150px}
+  .integra-section-nav{display:flex;overflow-x:auto;scrollbar-width:none}.integra-section-nav::-webkit-scrollbar{display:none}
+  .integra-section-nav button{flex:0 0 auto;min-width:132px;min-height:43px;padding:0 11px;font-size:10px}
+  .integra-section-nav button.active:after{left:11px;right:11px}
+  .integra-screen-header{padding:14px 13px 12px}
+  .integra-screen-header h2{font-size:19px}.integra-screen-header p{font-size:10px}
+  .integra-screen-actions{display:grid;grid-template-columns:1fr 1fr}
+  .integra-session-select{grid-column:1/-1}.integra-session-select select{width:100%;max-width:none}
+  .integra-action{width:100%;padding:0 8px;white-space:normal;text-align:center}
+  .integra-summary-strip{grid-template-columns:1fr 1fr}.integra-summary-strip article{min-height:68px;padding:10px 13px}.integra-summary-strip article:nth-child(2){border-right:0}.integra-summary-strip article:last-child{grid-column:1/-1;border-top:1px solid #e8edef}
+  .integra-participants{padding:13px}
+  .integra-history-workspace{grid-template-columns:1fr;min-height:0}.integra-session-list{max-height:none;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px;border-right:0;border-bottom:1px solid #e8edef;scrollbar-width:none}.integra-session-list::-webkit-scrollbar{display:none}
+  .integra-session-list>button{flex:0 0 180px}
+  .integra-session-detail{padding:13px}
+  .integra-session-detail-head{display:grid}.integra-session-detail-head>div:last-child{justify-content:flex-start}
+  .integra-share-primary{grid-template-columns:112px minmax(0,1fr);gap:13px;padding:15px}
+  .integra-share-guide{padding:16px 14px}
+  .integra-consult-access{grid-template-columns:108px minmax(0,1fr);gap:12px;padding:14px}
+  .integra-message-panel{padding:14px}
 }
-@media(max-width:390px){
-  .integra-form-access,.integra-consult-link{grid-template-columns:78px minmax(0,1fr)}
-  .integra-inline-actions{grid-template-columns:1fr}
+@media(max-width:480px){
+  .integra-screen-actions{grid-template-columns:1fr}
+  .integra-summary-strip{grid-template-columns:1fr}.integra-summary-strip article,.integra-summary-strip article:nth-child(2){grid-column:auto;border-right:0;border-top:1px solid #e8edef}.integra-summary-strip article:first-child{border-top:0}
+  .integra-share-primary,.integra-consult-access{grid-template-columns:88px minmax(0,1fr);gap:10px;padding:12px}
+  .integra-share-primary p{display:none}.integra-inline-actions{display:grid;grid-template-columns:1fr}.integra-inline-actions>*{min-width:0}
+  .integra-session-detail-head>div:last-child{display:grid;grid-template-columns:1fr;width:100%}
 }

@@ -14,6 +14,7 @@ import {
   Church,
   LayoutDashboard,
   LayoutGrid,
+  History,
   LogOut,
   Mail,
   MapPin,
@@ -22,6 +23,8 @@ import {
   Pencil,
   Phone,
   Plus,
+  Printer,
+  QrCode,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -592,9 +595,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   const [selectedDate, setSelectedDate] = useState(today);
   const [copied, setCopied] = useState<'form' | 'consult' | 'message' | ''>('');
-  const [activeTab, setActiveTab] = useState<'integra' | 'consulta'>('integra');
-  const [historyPage, setHistoryPage] = useState(1);
-  const HISTORY_PAGE_SIZE = 7;
+  const [activeTab, setActiveTab] = useState<'track' | 'history' | 'share' | 'consult'>('track');
 
   const sessions = useMemo(() => {
     const grouped = new Map<string, Member[]>();
@@ -604,6 +605,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
       current.push(member);
       grouped.set(member.integraDate, current);
     }
+
     return Array.from(grouped.entries())
       .map(([date, people]) => ({
         date,
@@ -612,19 +614,21 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [members]);
 
-  const historyPages = Math.max(1, Math.ceil(sessions.length / HISTORY_PAGE_SIZE));
-  const currentHistoryPage = Math.min(historyPage, historyPages);
-  const visibleSessions = sessions.slice(
-    (currentHistoryPage - 1) * HISTORY_PAGE_SIZE,
-    currentHistoryPage * HISTORY_PAGE_SIZE,
-  );
-  const selectedSession = sessions.find((session) => session.date === selectedDate);
-  const selectedMembers = selectedSession?.people || [];
-  const todayCount = sessions.find((session) => session.date === today)?.people.length || 0;
+  const preferredSession =
+    sessions.find((session) => session.date === selectedDate) ||
+    sessions.find((session) => session.date === today) ||
+    sessions[0];
+
+  const effectiveDate = preferredSession?.date || selectedDate;
+  const selectedMembers = preferredSession?.people || [];
   const totalWithIntegra = sessions.reduce((total, session) => total + session.people.length, 0);
   useEffect(() => {
-    if (historyPage > historyPages) setHistoryPage(historyPages);
-  }, [historyPage, historyPages]);
+    if (!sessions.length) return;
+    const hasSelected = sessions.some((session) => session.date === selectedDate);
+    if (!hasSelected) {
+      setSelectedDate(sessions.find((session) => session.date === today)?.date || sessions[0].date);
+    }
+  }, [sessions, selectedDate, today]);
 
   const consultationMessage = `Olá! 👋\n\nA CEAMI está conferindo e atualizando o cadastro dos membros.\n\nAcesse o link abaixo e verifique se o seu cadastro já existe e se as informações estão corretas:\n${CONSULT_FORM_URL}\n\nInforme seu nome — pode ser apenas o primeiro — e confirme sua identidade com a data de nascimento, WhatsApp ou e-mail.\n\nSe o sistema não localizar seu cadastro, confira os dados informados antes de preencher uma nova ficha do Integra. 🧡`;
 
@@ -638,154 +642,267 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
     }
   }
 
+  function printSelectedSession() {
+    if (!preferredSession?.date || !selectedMembers.length) return;
+    window.dispatchEvent(new CustomEvent('ceami:print-integra', {
+      detail: { date: preferredSession.date },
+    }));
+  }
+
+  function openSession(date: string, destination: 'track' | 'history' = 'track') {
+    setSelectedDate(date);
+    setActiveTab(destination);
+  }
+
   return (
     <div className="member-v3-dashboard member-v3-integra-page">
-      <nav className="integra-tabs" aria-label="Áreas do Integra">
-        <button
-          type="button"
-          className={activeTab === 'integra' ? 'active' : ''}
-          onClick={() => setActiveTab('integra')}
-        >
+      <nav className="integra-section-nav" aria-label="Áreas do Integra">
+        <button type="button" className={activeTab === 'track' ? 'active' : ''} onClick={() => setActiveTab('track')}>
           <CalendarCheck2 size={16} />
-          Integra
+          <span>Acompanhar</span>
         </button>
-        <button
-          type="button"
-          className={activeTab === 'consulta' ? 'active' : ''}
-          onClick={() => setActiveTab('consulta')}
-        >
+        <button type="button" className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')}>
+          <History size={16} />
+          <span>Histórico</span>
+          <small>{sessions.length}</small>
+        </button>
+        <button type="button" className={activeTab === 'share' ? 'active' : ''} onClick={() => setActiveTab('share')}>
+          <QrCode size={16} />
+          <span>Divulgação</span>
+        </button>
+        <button type="button" className={activeTab === 'consult' ? 'active' : ''} onClick={() => setActiveTab('consult')}>
           <ShieldCheck size={16} />
-          Consulta de cadastro
+          <span>Consulta de cadastro</span>
         </button>
       </nav>
 
-      {activeTab === 'integra' && (
-        <>
-          <section className="member-v3-panel integra-overview">
-            <div className="member-v3-panel-head integra-overview-head">
-              <div>
-                <span className="integra-eyebrow">GESTÃO DO ENCONTRO</span>
-                <h2>Integra CEAMI</h2>
-                <p>Compartilhe o formulário e acompanhe os participantes do encontro atual.</p>
-              </div>
-              <button type="button" className="member-v3-primary integra-refresh" onClick={onRefresh}>
-                <RefreshCw size={17} />
+      {activeTab === 'track' && (
+        <section className="integra-screen">
+          <header className="integra-screen-header">
+            <div>
+              <span className="integra-eyebrow">ENCONTRO SELECIONADO</span>
+              <h2>{preferredSession ? formatDate(effectiveDate) : 'Nenhum encontro registrado'}</h2>
+              <p>Confira participantes, atualize os dados e imprima somente as fichas desta turma.</p>
+            </div>
+
+            <div className="integra-screen-actions">
+              {sessions.length > 0 && (
+                <label className="integra-session-select">
+                  <span>Encontro</span>
+                  <select value={effectiveDate} onChange={(event) => setSelectedDate(event.target.value)}>
+                    {sessions.map((session) => (
+                      <option key={session.date} value={session.date}>
+                        {formatDate(session.date)} · {session.people.length} {session.people.length === 1 ? 'participante' : 'participantes'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button type="button" className="integra-action secondary" onClick={onRefresh}>
+                <RefreshCw size={16} />
                 Atualizar
               </button>
+              <button
+                type="button"
+                className="integra-action primary"
+                disabled={!selectedMembers.length}
+                onClick={printSelectedSession}
+              >
+                <Printer size={16} />
+                Imprimir fichas deste encontro
+              </button>
             </div>
+          </header>
 
-            <div className="integra-overview-grid">
-              <div className="integra-form-access">
-                <div className="integra-qr">
-                  <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" />
-                </div>
-                <div className="integra-form-copy">
-                  <span>FORMULÁRIO DE ENTRADA</span>
-                  <h3>Novos membros</h3>
-                  <p>Use o QR Code durante o encontro ou compartilhe o link pelo WhatsApp.</p>
-                  <code>{INTEGRA_FORM_URL}</code>
-                  <div className="integra-inline-actions">
-                    <button type="button" onClick={() => void copyText(INTEGRA_FORM_URL, 'form')}>
-                      {copied === 'form' ? 'Link copiado' : 'Copiar link'}
-                    </button>
-                    <a href={INTEGRA_FORM_URL} target="_blank" rel="noreferrer">Abrir formulário</a>
-                  </div>
-                </div>
-              </div>
+          <div className="integra-summary-strip">
+            <article>
+              <span>Participantes</span>
+              <strong>{selectedMembers.length}</strong>
+              <small>neste encontro</small>
+            </article>
+            <article>
+              <span>Encontros</span>
+              <strong>{sessions.length}</strong>
+              <small>registrados</small>
+            </article>
+            <article>
+              <span>Integra concluído</span>
+              <strong>{totalWithIntegra}</strong>
+              <small>cadastros vinculados</small>
+            </article>
+          </div>
 
-              <aside className="integra-today">
-                <span>HOJE</span>
-                <strong>{todayCount}</strong>
-                <h3>{todayCount === 1 ? 'cadastro recebido' : 'cadastros recebidos'}</h3>
-                <p>Atualize durante o encontro para conferir se o total de fichas acompanha as pessoas presentes.</p>
-                <div className="integra-today-note">
-                  Cada ficha fica vinculada à data informada no formulário e entra automaticamente no histórico.
-                </div>
-              </aside>
-            </div>
-          </section>
-
-          <section className="member-v3-metrics integra-metrics">
-            <Metric icon={<CalendarCheck2 />} label="Encontros registrados" value={sessions.length} />
-            <Metric icon={<Users />} label="Participantes hoje" value={todayCount} />
-            <Metric icon={<Check />} label="Pessoas com Integra" value={totalWithIntegra} />
-          </section>
-
-          <div className="integra-history-layout">
-            <section className="member-v3-panel integra-history-panel">
-              <div className="member-v3-panel-head">
-                <div><h2>Histórico</h2><p>Encontros registrados no cadastro dos membros.</p></div>
-              </div>
-              <div className="member-v3-list integra-history-list">
-                {sessions.length ? visibleSessions.map((session) => (
-                  <button
-                    type="button"
-                    className={`member-v3-row ${selectedDate === session.date ? 'is-selected' : ''}`}
-                    key={session.date}
-                    onClick={() => setSelectedDate(session.date)}
-                  >
-                    <div className="member-v3-avatar"><CalendarCheck2 size={18} /></div>
-                    <div>
-                      <strong>{formatDate(session.date)}{session.date === today ? ' · Hoje' : ''}</strong>
-                      <span>{session.people.length} {session.people.length === 1 ? 'participante' : 'participantes'}</span>
-                    </div>
-                    <ChevronRight />
-                  </button>
-                )) : (
-                  <div className="integra-empty-copy">Ainda não há nenhum Integra registrado nos cadastros.</div>
-                )}
-              </div>
-              <AdminPagination
-                page={currentHistoryPage}
-                pageSize={HISTORY_PAGE_SIZE}
-                totalItems={sessions.length}
-                onPageChange={setHistoryPage}
-                itemLabel="encontros"
-              />
-            </section>
-
-            <section className="member-v3-panel integra-participants-panel">
-              <div className="member-v3-panel-head">
+          <div className="integra-track-grid">
+            <div className="integra-participants">
+              <div className="integra-section-heading">
                 <div>
-                  <span className="integra-eyebrow">{selectedDate === today ? 'ENCONTRO ATUAL' : 'ENCONTRO SELECIONADO'}</span>
-                  <h2>{selectedDate === today ? 'Participantes de hoje' : formatDate(selectedDate)}</h2>
-                  <p>{selectedMembers.length} {selectedMembers.length === 1 ? 'participante encontrado' : 'participantes encontrados'}.</p>
+                  <h3>Participantes da turma</h3>
+                  <p>{selectedMembers.length ? 'Abra uma ficha para consultar ou ajustar o cadastro.' : 'Selecione um encontro que possua participantes.'}</p>
                 </div>
               </div>
-              <div className="member-v3-list">
+
+              <div className="member-v3-list integra-participant-list">
                 {selectedMembers.length ? selectedMembers.map((member) => (
                   <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />
                 )) : (
                   <div className="integra-empty-state">
-                    <CalendarCheck2 size={23} />
-                    <strong>Nenhuma ficha nesta data</strong>
-                    <span>Quando os participantes enviarem o formulário, eles aparecerão aqui.</span>
+                    <CalendarCheck2 size={22} />
+                    <strong>Nenhum participante neste encontro</strong>
+                    <span>Quando houver fichas vinculadas a esta data, elas aparecerão aqui.</span>
                   </div>
                 )}
               </div>
-            </section>
+            </div>
+
+            <aside className="integra-flow">
+              <span className="integra-eyebrow">FLUXO DO INTEGRA</span>
+              <h3>Uma data organiza toda a turma</h3>
+              <ol>
+                <li><b>1</b><div><strong>A pessoa preenche</strong><span>Pode enviar a ficha antes do dia do encontro.</span></div></li>
+                <li><b>2</b><div><strong>Escolhe a data do Integra</strong><span>O cadastro entra automaticamente na turma correta.</span></div></li>
+                <li><b>3</b><div><strong>Você acompanha a turma</strong><span>Selecione o encontro para consultar e imprimir as fichas.</span></div></li>
+              </ol>
+              <button type="button" onClick={() => setActiveTab('share')}>Abrir divulgação e QR Code</button>
+            </aside>
           </div>
-        </>
+        </section>
       )}
 
-      {activeTab === 'consulta' && (
-        <section className="member-v3-panel integra-consult">
-          <div className="member-v3-panel-head">
+      {activeTab === 'history' && (
+        <section className="integra-screen">
+          <header className="integra-screen-header">
+            <div>
+              <span className="integra-eyebrow">HISTÓRICO</span>
+              <h2>Encontros do Integra</h2>
+              <p>Abra uma turma pela data. A data representa o encontro, não o momento em que a ficha foi enviada.</p>
+            </div>
+          </header>
+
+          <div className="integra-history-workspace">
+            <div className="integra-session-list">
+              {sessions.length ? sessions.map((session) => (
+                <button
+                  type="button"
+                  key={session.date}
+                  className={effectiveDate === session.date ? 'active' : ''}
+                  onClick={() => setSelectedDate(session.date)}
+                >
+                  <CalendarCheck2 size={17} />
+                  <span>
+                    <strong>{formatDate(session.date)}</strong>
+                    <small>{session.people.length} {session.people.length === 1 ? 'participante' : 'participantes'}</small>
+                  </span>
+                  <ChevronRight size={16} />
+                </button>
+              )) : (
+                <div className="integra-empty-state compact">
+                  <CalendarCheck2 size={20} />
+                  <strong>Nenhum encontro registrado</strong>
+                  <span>Os encontros aparecerão aqui conforme as fichas forem vinculadas.</span>
+                </div>
+              )}
+            </div>
+
+            <div className="integra-session-detail">
+              <div className="integra-session-detail-head">
+                <div>
+                  <span className="integra-eyebrow">TURMA SELECIONADA</span>
+                  <h3>{preferredSession ? formatDate(effectiveDate) : 'Selecione um encontro'}</h3>
+                  <p>{selectedMembers.length} {selectedMembers.length === 1 ? 'participante' : 'participantes'}</p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="integra-action primary"
+                    disabled={!selectedMembers.length}
+                    onClick={printSelectedSession}
+                  >
+                    <Printer size={15} />
+                    Imprimir fichas
+                  </button>
+                  <button
+                    type="button"
+                    className="integra-action secondary"
+                    disabled={!preferredSession}
+                    onClick={() => preferredSession && openSession(preferredSession.date, 'track')}
+                  >
+                    Acompanhar turma
+                  </button>
+                </div>
+              </div>
+
+              <div className="member-v3-list integra-history-members">
+                {selectedMembers.length ? selectedMembers.map((member) => (
+                  <MemberRow key={member.id} member={member} onOpen={() => onOpen(member.id)} />
+                )) : (
+                  <div className="integra-empty-state">
+                    <Users size={21} />
+                    <strong>Sem participantes</strong>
+                    <span>Não há fichas vinculadas a esta data.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'share' && (
+        <section className="integra-screen">
+          <header className="integra-screen-header">
+            <div>
+              <span className="integra-eyebrow">DIVULGAÇÃO</span>
+              <h2>Formulário do Integra</h2>
+              <p>Compartilhe o acesso antes ou durante o encontro. A pessoa informa no formulário a data da turma que irá participar.</p>
+            </div>
+          </header>
+
+          <div className="integra-share-layout">
+            <div className="integra-share-primary">
+              <div className="integra-qr-large">
+                <img src={INTEGRA_QR_DATA_URI} alt="QR Code do formulário Integra CEAMI" />
+              </div>
+              <div>
+                <span className="integra-eyebrow">LINK PÚBLICO</span>
+                <h3>Cadastro para novos membros</h3>
+                <p>O envio pode acontecer em qualquer dia. A organização da turma acontece pela <strong>Data do Integra</strong> informada na ficha.</p>
+                <code>{INTEGRA_FORM_URL}</code>
+                <div className="integra-inline-actions">
+                  <button type="button" onClick={() => void copyText(INTEGRA_FORM_URL, 'form')}>
+                    {copied === 'form' ? 'Link copiado' : 'Copiar link'}
+                  </button>
+                  <a href={INTEGRA_FORM_URL} target="_blank" rel="noreferrer">Abrir formulário</a>
+                </div>
+              </div>
+            </div>
+
+            <aside className="integra-share-guide">
+              <span className="integra-eyebrow">COMO USAR</span>
+              <div><b>01</b><p><strong>Envie o link antes do encontro.</strong><span>A pessoa pode preencher de casa.</span></p></div>
+              <div><b>02</b><p><strong>Exiba o QR Code no dia.</strong><span>Quem ainda não preencheu acessa rapidamente.</span></p></div>
+              <div><b>03</b><p><strong>Acompanhe pela data da turma.</strong><span>Não importa quando a ficha foi enviada.</span></p></div>
+            </aside>
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'consult' && (
+        <section className="integra-screen">
+          <header className="integra-screen-header">
             <div>
               <span className="integra-eyebrow">BASE DE MEMBROS</span>
               <h2>Consulta de cadastro</h2>
-              <p>Ajude cada pessoa a verificar se já possui cadastro antes de criar uma nova ficha.</p>
+              <p>Antes de cadastrar novamente, ajude a pessoa a conferir se já existe na base da CEAMI.</p>
             </div>
-            <ShieldCheck size={21} />
-          </div>
+          </header>
 
-          <div className="integra-consult-grid">
-            <div className="integra-consult-link">
-              <div className="integra-qr compact">
+          <div className="integra-consult-layout">
+            <div className="integra-consult-access">
+              <div className="integra-qr-medium">
                 <img src={CONSULT_QR_DATA_URI} alt="QR Code da consulta de cadastro CEAMI" />
               </div>
               <div>
-                <span>LINK DE CONSULTA</span>
+                <span className="integra-eyebrow">CONSULTA PÚBLICA</span>
                 <h3>Verificar meu cadastro</h3>
                 <code>{CONSULT_FORM_URL}</code>
                 <div className="integra-inline-actions">
@@ -798,7 +915,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
             </div>
 
             <div className="integra-message-panel">
-              <span>MENSAGEM PARA O GRUPO</span>
+              <span className="integra-eyebrow">MENSAGEM PARA O GRUPO</span>
               <p>{consultationMessage}</p>
               <div className="integra-inline-actions">
                 <button type="button" onClick={() => void copyText(consultationMessage, 'message')}>
@@ -808,7 +925,7 @@ function IntegraWorkspace({ members, onOpen, onRefresh }: {
                   Abrir WhatsApp
                 </a>
               </div>
-              <small>O membro pode informar apenas o primeiro nome, mas precisa confirmar a identidade com outro dado.</small>
+              <small>Se houver mais de uma pessoa compatível, o sistema não revela nenhum cadastro até a identidade ser confirmada.</small>
             </div>
           </div>
         </section>

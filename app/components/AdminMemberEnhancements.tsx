@@ -177,25 +177,29 @@ export default function AdminMemberEnhancements() {
       }
     }
 
-    async function printToday() {
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    async function printIntegra(date: string) {
       const popup = window.open('', '_blank', 'width=980,height=1100');
       if (!popup) return show('O navegador bloqueou a janela de impressão.', 'error');
       popup.document.write('<p style="font-family:Arial;padding:24px">Preparando fichas do Integra...</p>');
       try {
-        const response = await fetch(`/api/admin/members?integraDate=${encodeURIComponent(today)}`, { cache: 'no-store' });
+        const response = await fetch(`/api/admin/members?integraDate=${encodeURIComponent(date)}`, { cache: 'no-store' });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Não foi possível carregar as fichas.');
         const members = Array.isArray(result.members) ? result.members : [];
         if (!members.length) {
           popup.close();
-          return show('Ainda não há fichas cadastradas no Integra de hoje.', 'error');
+          return show(`Não há fichas vinculadas ao encontro de ${formatDate(date)}.`, 'error');
         }
-        printDocument(members, `Fichas do Integra - ${formatDate(today)}`, popup);
+        printDocument(members, `Fichas do Integra - ${formatDate(date)}`, popup);
       } catch (error) {
         popup.close();
         show(error instanceof Error ? error.message : 'Não foi possível imprimir as fichas.', 'error');
       }
+    }
+
+    function handleIntegraPrint(event: Event) {
+      const date = (event as CustomEvent<{ date?: string }>).detail?.date;
+      if (date) void printIntegra(date);
     }
 
     function enhance() {
@@ -215,19 +219,6 @@ export default function AdminMemberEnhancements() {
         }
       }
 
-      const headings = Array.from(document.querySelectorAll('.member-v3-panel h2'));
-      const integraHeading = headings.find((heading) => heading.textContent?.trim() === 'Integra CEAMI');
-      const integraPanel = integraHeading?.closest('.member-v3-panel');
-      const panelHead = integraPanel?.querySelector('.member-v3-panel-head');
-      if (panelHead && !panelHead.querySelector('[data-ceami-print-today]')) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'member-v3-primary';
-        button.dataset.ceamiPrintToday = 'true';
-        button.innerHTML = '🖨️ Imprimir fichas de hoje';
-        button.addEventListener('click', () => void printToday());
-        panelHead.appendChild(button);
-      }
     }
 
     async function interceptSave(event: Event) {
@@ -290,10 +281,12 @@ export default function AdminMemberEnhancements() {
     const observer = new MutationObserver(enhance);
     observer.observe(document.body, { subtree: true, childList: true });
     document.addEventListener('click', interceptSave, true);
+    window.addEventListener('ceami:print-integra', handleIntegraPrint as EventListener);
 
     return () => {
       observer.disconnect();
       document.removeEventListener('click', interceptSave, true);
+      window.removeEventListener('ceami:print-integra', handleIntegraPrint as EventListener);
       window.clearTimeout(toastTimer);
     };
   }, []);

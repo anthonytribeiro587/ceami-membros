@@ -182,7 +182,7 @@ function statusLabel(status: ServiceRequestStatus) {
 
 export default function ServicesClient() {
   const supabase = useMemo(() => createClient(), []);
-  const [tab, setTab] = useState<'form' | 'requests'>('form');
+  const [tab, setTab] = useState<'setup' | 'fields' | 'requests'>('setup');
   const [form, setForm] = useState<FormRow | null>(null);
   const [fields, setFields] = useState<FieldDraft[]>([]);
   const [settings, setSettings] = useState<ServiceSettings>(defaultServiceSettings());
@@ -538,23 +538,33 @@ export default function ServicesClient() {
         </div>
       </header>
 
-      <nav className="services-tabs" aria-label="Áreas de Serviços">
+      <nav className="services-flow" aria-label="Fluxo do CEAMI Serviços">
         <button
           type="button"
-          className={tab === 'form' ? 'active' : ''}
-          onClick={() => setTab('form')}
+          className={tab === 'setup' ? 'active' : ''}
+          onClick={() => setTab('setup')}
         >
-          <Settings2 size={18} />
-          Formulário
+          <b>1</b>
+          <span><strong>Configuração</strong><small>Textos e publicação</small></span>
+          <Settings2 size={17} />
+        </button>
+        <button
+          type="button"
+          className={tab === 'fields' ? 'active' : ''}
+          onClick={() => setTab('fields')}
+        >
+          <b>2</b>
+          <span><strong>Campos</strong><small>Perguntas do formulário</small></span>
+          <ClipboardList size={17} />
         </button>
         <button
           type="button"
           className={tab === 'requests' ? 'active' : ''}
           onClick={() => setTab('requests')}
         >
-          <ClipboardList size={18} />
-          Serviços solicitados
-          <span>{counts.aberto}</span>
+          <b>3</b>
+          <span><strong>Solicitações</strong><small>Acompanhar atendimentos</small></span>
+          {counts.aberto > 0 ? <em>{counts.aberto}</em> : <CheckCircle2 size={17} />}
         </button>
       </nav>
 
@@ -566,12 +576,12 @@ export default function ServicesClient() {
         </div>
       )}
 
-      {tab === 'form' ? (
-        <section className="services-form-layout">
-          <div className="services-panel">
+      {tab !== 'requests' ? (
+        <section className={`services-form-layout services-form-layout-${tab}`}>
+          <div className="services-panel services-setup-panel">
             <div className="services-panel-heading">
               <div>
-                <span>CONFIGURAÇÃO</span>
+                <span>ETAPA 1</span>
                 <h2>Formulário público</h2>
                 <p>Edite os textos e os campos sem precisar alterar o código.</p>
               </div>
@@ -645,10 +655,10 @@ export default function ServicesClient() {
             </div>
           </div>
 
-          <div className="services-panel">
+          <div className="services-panel services-fields-panel">
             <div className="services-panel-heading">
               <div>
-                <span>CAMPOS</span>
+                <span>ETAPA 2</span>
                 <h2>O que será perguntado</h2>
                 <p>Adicione, remova, ordene e escolha quais campos são obrigatórios.</p>
               </div>
@@ -687,7 +697,7 @@ export default function ServicesClient() {
 
                   <div className="services-field-editor-main">
                     <div className="services-field-editor-grid">
-                      <label className="wide">
+                      <label className="services-question-field">
                         <span>Pergunta / rótulo</span>
                         <input
                           value={field.label}
@@ -763,13 +773,22 @@ export default function ServicesClient() {
 
           <div className="services-save-bar">
             <div>
-              <strong>Link público</strong>
+              <strong>{tab === 'setup' ? 'Etapa 1 de 3 · Configuração' : 'Etapa 2 de 3 · Campos'}</strong>
               <code>/servicos/solicitar</code>
             </div>
-            <button type="button" disabled={saving} onClick={() => void saveForm()}>
-              {saving ? <LoaderCircle className="services-spin" size={18} /> : <Save size={18} />}
-              {saving ? 'Salvando...' : 'Salvar alterações'}
-            </button>
+            <div className="services-save-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setTab(tab === 'setup' ? 'fields' : 'setup')}
+              >
+                {tab === 'setup' ? 'Próximo: Campos' : 'Voltar'}
+              </button>
+              <button type="button" disabled={saving} onClick={() => void saveForm()}>
+                {saving ? <LoaderCircle className="services-spin" size={18} /> : <Save size={18} />}
+                {saving ? 'Salvando...' : 'Salvar alterações'}
+              </button>
+            </div>
           </div>
         </section>
       ) : (

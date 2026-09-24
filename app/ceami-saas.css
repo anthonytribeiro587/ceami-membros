@@ -2223,3 +2223,666 @@ body:has(.ceami-module-shell) .site-footer {
     font-size: 24px;
   }
 }
+
+
+/* ==========================================================================
+   CEAMI SaaS Polish v3 — compactação e consistência visual final
+   ========================================================================== */
+
+/* Tipografia: labels normais, caixa alta somente em pequenos "eyebrows". */
+.member-v3-shell :where(button,a,h1,h2,h3,strong),
+.social-app :where(button,a,h1,h2,h3,strong),
+.ceami-module-shell :where(button,a,h1,h2,h3,strong),
+.services-admin-page :where(button,a,h1,h2,h3,strong) {
+  text-transform: none;
+}
+
+.member-v3-topbar span,
+.social-eyebrow,
+.social-section-title > div > span,
+.social-entry-title span,
+.services-admin-header > div:first-child > span,
+.services-panel-heading > div > span,
+.forms-admin-header span,
+.forms-builder-top span,
+.forms-responses-head span {
+  text-transform: uppercase;
+}
+
+/* Membros: remove a identidade antiga laranja e aproxima de Acolhimentos. */
+.member-v3-shell {
+  background: var(--ceami-bg) !important;
+}
+
+.member-v3-shell .member-v3-sidebar {
+  color: var(--ceami-text) !important;
+  background: #fff !important;
+  border-right: 1px solid var(--ceami-line) !important;
+  box-shadow: none !important;
+  scrollbar-color: #cad8e2 transparent;
+}
+
+.member-v3-shell .member-v3-brand {
+  border-bottom-color: var(--ceami-line-soft) !important;
+}
+
+.member-v3-shell .member-v3-brand img {
+  width: 40px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.member-v3-shell .member-v3-brand > div {
+  display: flex !important;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.member-v3-shell .member-v3-brand strong {
+  color: var(--ceami-blue-strong) !important;
+  font-size: 15px !important;
+  font-weight: 850 !important;
+}
+
+.member-v3-shell .member-v3-brand span {
+  margin: 0 !important;
+  color: var(--ceami-orange) !important;
+  font-size: 15px !important;
+  font-weight: 850 !important;
+  opacity: 1 !important;
+}
+
+.member-v3-shell .member-v3-nav button,
+.member-v3-shell .member-v3-nav a {
+  color: #5d7488 !important;
+  background: transparent !important;
+  font-size: 11.5px !important;
+  font-weight: 760 !important;
+}
+
+.member-v3-shell .member-v3-nav button:hover,
+.member-v3-shell .member-v3-nav a:hover {
+  color: var(--ceami-blue-strong) !important;
+  background: #f5f8fb !important;
+  transform: none !important;
+}
+
+.member-v3-shell .member-v3-nav button.active,
+.member-v3-shell .member-v3-nav a.active {
+  color: var(--ceami-orange-strong) !important;
+  background: var(--ceami-orange-soft) !important;
+  transform: none !important;
+}
+
+.member-v3-shell .member-v3-sidebar-bottom {
+  border-top: 1px solid var(--ceami-line-soft) !important;
+}
+
+.member-v3-shell .member-v3-sidebar-bottom small {
+  color: var(--ceami-muted) !important;
+}
+
+.member-v3-shell .member-v3-signout {
+  color: #687d8e !important;
+  background: #f6f8fa !important;
+  border: 1px solid var(--ceami-line) !important;
+}
+
+.member-v3-shell .member-v3-signout:hover {
+  color: var(--ceami-red) !important;
+  background: var(--ceami-red-soft) !important;
+}
+
+.member-v3-dashboard {
+  gap: 12px;
+}
+
+.member-v3-hero {
+  min-height: 0 !important;
+  padding: 4px 2px 8px !important;
+  overflow: visible !important;
+  align-items: flex-end;
+  color: var(--ceami-text-strong) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.member-v3-hero::after {
+  display: none !important;
+}
+
+.member-v3-hero span {
+  color: var(--ceami-orange) !important;
+  font-size: 9.5px !important;
+  letter-spacing: .13em;
+}
+
+.member-v3-hero h2 {
+  max-width: 690px;
+  margin: 6px 0 4px !important;
+  color: var(--ceami-text-strong) !important;
+  font-size: 25px !important;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+
+.member-v3-hero p {
+  color: var(--ceami-muted) !important;
+  font-size: 12px !important;
+}
+
+.member-v3-hero-actions {
+  gap: 7px;
+}
+
+.member-v3-hero button {
+  min-height: 40px;
+  padding: 0 13px;
+  border-radius: 11px;
+  font-size: 11px;
+}
+
+.member-v3-hero button.ghost {
+  color: var(--ceami-blue) !important;
+  background: #fff !important;
+  border: 1px solid var(--ceami-line) !important;
+  box-shadow: none !important;
+}
+
+.member-v3-metrics {
+  gap: 9px;
+}
+
+.member-v3-metrics article {
+  min-height: 76px;
+  padding: 11px 13px;
+}
+
+.member-v3-metric-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.member-v3-metrics strong {
+  font-size: 20px;
+}
+
+.member-v3-panel {
+  padding: 15px;
+}
+
+.member-v3-panel-head h2 {
+  font-size: 17px;
+}
+
+.member-v3-panel-head p {
+  margin-top: 3px;
+  font-size: 10.5px;
+}
+
+.member-v3-square {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+}
+
+.member-v3-row {
+  grid-template-columns: 42px minmax(0,1fr) 18px;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.member-v3-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  font-size: 10px;
+}
+
+.member-v3-row strong {
+  font-size: 12px;
+}
+
+.member-v3-row span {
+  margin-top: 2px;
+  font-size: 9.5px;
+}
+
+.member-v3-birthday-list button {
+  padding: 8px 2px;
+}
+
+.member-v3-mini-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  font-size: 9px;
+}
+
+.member-v3-birthday-list span strong {
+  font-size: 11px;
+}
+
+.member-v3-birthday-list span small {
+  font-size: 9px;
+}
+
+/* Social: mesma hierarquia, menos altura e sem capitalização artificial. */
+@media (min-width: 960px) {
+  .social-content {
+    width: min(var(--ceami-content), 100%) !important;
+    padding: 20px 28px 36px !important;
+  }
+
+  .social-welcome {
+    padding: 0 0 13px !important;
+  }
+
+  .social-welcome h2 {
+    font-size: 23px !important;
+    font-weight: 760 !important;
+    letter-spacing: -.03em !important;
+  }
+
+  .social-welcome p {
+    margin-top: 2px !important;
+    font-size: 12px !important;
+  }
+
+  .social-main-actions {
+    grid-template-columns: repeat(4, minmax(0,1fr)) !important;
+    gap: 9px !important;
+  }
+
+  .social-main-actions button,
+  .social-main-actions button.orange,
+  .social-main-actions button.blue,
+  .social-main-actions button.orange.soft,
+  .social-main-actions button.blue.soft {
+    min-height: 74px !important;
+    padding: 10px 12px !important;
+    display: grid !important;
+    grid-template-columns: 38px minmax(0,1fr) 16px !important;
+    align-items: center !important;
+    align-content: center !important;
+    gap: 9px !important;
+    color: var(--ceami-text-strong) !important;
+    text-align: left !important;
+    background: #fff !important;
+    border: 1px solid var(--ceami-line) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--ceami-shadow-card) !important;
+  }
+
+  .social-main-actions button > svg:first-child {
+    width: 38px !important;
+    height: 38px !important;
+    padding: 9px !important;
+    color: var(--ceami-blue) !important;
+    background: var(--ceami-blue-soft) !important;
+    border-radius: 11px !important;
+  }
+
+  .social-main-actions button.orange > svg:first-child,
+  .social-main-actions button.orange.soft > svg:first-child {
+    color: var(--ceami-orange) !important;
+    background: var(--ceami-orange-soft) !important;
+  }
+
+  .social-main-actions button > svg:last-child {
+    display: block !important;
+    width: 15px !important;
+    height: 15px !important;
+    color: #93a5b4 !important;
+  }
+
+  .social-main-actions strong {
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .social-home-summary {
+    margin-top: 16px !important;
+  }
+
+  .social-section-title {
+    margin-bottom: 8px !important;
+  }
+
+  .social-section-title > div > span {
+    font-size: 8.5px !important;
+    letter-spacing: .12em !important;
+  }
+
+  .social-section-title h2 {
+    margin-top: 2px !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+  }
+
+  .social-summary-grid {
+    gap: 8px !important;
+  }
+
+  .social-summary-card {
+    min-height: 68px !important;
+    padding: 9px 11px !important;
+    grid-template-columns: 34px minmax(0,1fr) !important;
+    border-radius: 14px !important;
+  }
+
+  .social-summary-card > div {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .social-summary-card strong {
+    font-size: 19px !important;
+  }
+
+  .social-summary-card span {
+    font-size: 9px !important;
+    font-weight: 650 !important;
+  }
+
+  .social-home-lower {
+    margin-top: 9px !important;
+    gap: 9px !important;
+    grid-template-columns: minmax(230px,.55fr) minmax(0,1.7fr) !important;
+  }
+
+  .social-ready-strip {
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding: 11px 13px !important;
+    border-radius: 14px !important;
+  }
+
+  .social-desktop-activity {
+    border-radius: 14px !important;
+  }
+
+  .social-desktop-activity-list article {
+    min-height: 48px !important;
+    padding-block: 6px !important;
+  }
+
+  .social-desktop-nav button,
+  .social-desktop-profile strong,
+  .social-main-actions strong,
+  .social-summary-card span {
+    letter-spacing: 0 !important;
+  }
+}
+
+/* Serviços: fluxo em 3 telas em vez de uma página única gigante. */
+.services-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.services-flow button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 30px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 11px;
+  color: #60788b;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--ceami-line);
+  border-radius: 13px;
+  box-shadow: var(--ceami-shadow-card);
+  cursor: pointer;
+}
+
+.services-flow button > b {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.services-flow button > span {
+  min-width: 0;
+}
+
+.services-flow button > span strong,
+.services-flow button > span small {
+  display: block;
+}
+
+.services-flow button > span strong {
+  color: var(--ceami-text-strong);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.services-flow button > span small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--ceami-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8.5px;
+}
+
+.services-flow button > svg {
+  width: 16px;
+  height: 16px;
+  color: #8fa1af;
+}
+
+.services-flow button > em {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--ceami-orange);
+  border-radius: 999px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.services-flow button.active {
+  border-color: #bdd5e7;
+  background: #f7fbfe;
+  box-shadow: 0 8px 22px rgba(8,52,91,.065);
+}
+
+.services-flow button.active > b {
+  color: #fff;
+  background: var(--ceami-orange);
+}
+
+.services-form-layout {
+  gap: 10px !important;
+}
+
+.services-form-layout-setup .services-fields-panel,
+.services-form-layout-fields .services-setup-panel {
+  display: none;
+}
+
+.services-panel {
+  padding: 16px !important;
+}
+
+.services-panel-heading {
+  margin-bottom: 13px !important;
+}
+
+.services-panel-heading h2 {
+  margin: 2px 0 !important;
+  font-size: 17px !important;
+}
+
+.services-panel-heading p {
+  font-size: 10.5px !important;
+}
+
+.services-settings-grid,
+.services-field-editor-grid {
+  gap: 10px !important;
+}
+
+.services-settings-grid label > span,
+.services-field-editor-grid label > span {
+  font-size: 10px !important;
+}
+
+.services-settings-grid input,
+.services-settings-grid textarea,
+.services-field-editor-grid input,
+.services-field-editor-grid textarea,
+.services-field-editor-grid select {
+  min-height: 39px !important;
+  padding: 7px 10px !important;
+  font-size: 11px !important;
+}
+
+.services-settings-grid textarea {
+  min-height: 68px !important;
+}
+
+.services-settings-grid textarea.tall {
+  min-height: 82px !important;
+}
+
+.services-field-editor {
+  border-color: var(--ceami-line) !important;
+  background: #f9fbfd !important;
+  border-radius: 12px !important;
+}
+
+.services-field-order {
+  width: 45px !important;
+  padding: 9px 6px !important;
+  background: #f3f7fa !important;
+  border-color: var(--ceami-line) !important;
+}
+
+.services-field-order strong,
+.services-field-order button {
+  width: 28px !important;
+}
+
+.services-field-editor-main {
+  padding: 10px !important;
+}
+
+.services-field-editor-grid {
+  grid-template-columns: minmax(0,1.45fr) minmax(170px,.55fr) !important;
+}
+
+.services-field-editor-grid .services-question-field {
+  grid-column: auto !important;
+}
+
+.services-field-editor-footer {
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+}
+
+.services-save-bar {
+  bottom: 14px !important;
+  padding: 9px 11px !important;
+  border-color: var(--ceami-line) !important;
+  border-radius: 13px !important;
+  box-shadow: 0 12px 30px rgba(8,47,89,.11) !important;
+}
+
+.services-save-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.services-save-actions button {
+  min-height: 38px !important;
+}
+
+.services-save-actions button.secondary {
+  color: var(--ceami-blue) !important;
+  background: #fff !important;
+  border-color: var(--ceami-line) !important;
+  box-shadow: none !important;
+}
+
+.services-summary > div {
+  min-height: 66px;
+  padding: 10px 13px !important;
+}
+
+.services-summary strong {
+  font-size: 21px !important;
+}
+
+.ceami-module-shell-services .ceami-module-body {
+  max-width: 1100px;
+}
+
+@media (max-width: 959px) {
+  .member-v3-shell .member-v3-sidebar {
+    color: var(--ceami-text) !important;
+    background: #fff !important;
+  }
+
+  .member-v3-hero {
+    display: block !important;
+    padding: 2px 0 6px !important;
+  }
+
+  .member-v3-hero-actions {
+    margin-top: 12px !important;
+    justify-content: flex-start;
+  }
+
+  .social-main-actions strong {
+    letter-spacing: 0 !important;
+  }
+
+  .services-flow {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .services-flow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .services-flow button {
+    min-width: 210px;
+  }
+
+  .services-field-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .services-save-bar {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .services-save-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}

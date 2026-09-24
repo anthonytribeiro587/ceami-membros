@@ -132,12 +132,33 @@ export default function CeamiAppSwitcher() {
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      setPortalTarget(document.getElementById('ceami-app-switcher-slot'));
+    let frame = 0;
+    let observer: MutationObserver | null = null;
+    let timeoutId = 0;
+
+    const syncTarget = () => {
+      const nextTarget = document.getElementById('ceami-app-switcher-slot');
+      setPortalTarget(nextTarget);
       setPortalReady(true);
+      return Boolean(nextTarget);
+    };
+
+    frame = window.requestAnimationFrame(() => {
+      if (syncTarget()) return;
+
+      observer = new MutationObserver(() => {
+        if (syncTarget()) observer?.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      timeoutId = window.setTimeout(() => observer?.disconnect(), 3000);
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
   }, [pathname]);
 
   if (isHiddenPath(pathname) || allowed.length === 0 || !portalReady) return null;

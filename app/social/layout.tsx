@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './social.css';
+import '../ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Social',

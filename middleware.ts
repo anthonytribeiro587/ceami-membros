@@ -34,7 +34,7 @@ const ADMIN_API_PATHS = [
   '/api/automations',
 ];
 
-type ModuleKey = 'members' | 'social' | 'events' | 'services';
+type ModuleKey = 'members' | 'social' | 'events' | 'services' | 'welcome' | 'courses';
 
 type RequiredModule = {
   key: ModuleKey;
@@ -84,6 +84,19 @@ function requiredModuleForPath(pathname: string): RequiredModule | null {
     pathname.startsWith('/api/admin/services/')
   ) {
     return { key: 'services', manage: true };
+  }
+
+  if (
+    pathname === '/acolhimentos' ||
+    pathname.startsWith('/acolhimentos/') ||
+    pathname === '/visitantes' ||
+    pathname.startsWith('/visitantes/')
+  ) {
+    return { key: 'welcome', manage: true };
+  }
+
+  if (pathname === '/cursos' || pathname.startsWith('/cursos/')) {
+    return { key: 'courses', manage: true };
   }
 
   return null;
@@ -143,11 +156,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = pathname === '/cursos' || pathname.startsWith('/cursos/')
-      ? '/login-cursos'
-      : pathname === '/visitantes' || pathname.startsWith('/visitantes/')
-        ? '/visitantes/login'
-        : '/login';
+    loginUrl.pathname = '/login';
     loginUrl.search = '';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
@@ -165,61 +174,13 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = profile?.visitors_only ? '/visitantes/login' : '/login';
+    loginUrl.pathname = '/login';
     loginUrl.search = '';
     loginUrl.searchParams.set('acesso', 'aguardando-aprovacao');
     return NextResponse.redirect(loginUrl);
   }
 
   const isAdmin = profile.role === 'admin';
-  const isCourseOnly = Boolean(profile.course_only);
-  const isVisitorsOnly = Boolean(profile.visitors_only);
-  const isCoursesPath = pathname === '/cursos' || pathname.startsWith('/cursos/');
-  const isVisitorsPath = pathname === '/visitantes' || pathname.startsWith('/visitantes/');
-
-  // Portais legados continuam isolados até serem incorporados à suíte.
-  if (isVisitorsPath && !isAdmin && !isVisitorsOnly) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Conta sem acesso ao CEAMI Visitantes.' }, { status: 403 });
-    }
-
-    const visitorsLoginUrl = request.nextUrl.clone();
-    visitorsLoginUrl.pathname = '/visitantes/login';
-    visitorsLoginUrl.search = '';
-    visitorsLoginUrl.searchParams.set('acesso', 'negado');
-    return NextResponse.redirect(visitorsLoginUrl);
-  }
-
-  if (isVisitorsOnly && !isAdmin && !isVisitorsPath) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Conta restrita ao CEAMI Visitantes.' }, { status: 403 });
-    }
-
-    const visitorsUrl = request.nextUrl.clone();
-    visitorsUrl.pathname = '/visitantes';
-    visitorsUrl.search = '';
-    return NextResponse.redirect(visitorsUrl);
-  }
-
-  if (isCoursesPath && !isAdmin && !isCourseOnly) {
-    const coursesLoginUrl = request.nextUrl.clone();
-    coursesLoginUrl.pathname = '/login-cursos';
-    coursesLoginUrl.search = '';
-    coursesLoginUrl.searchParams.set('acesso', 'negado');
-    return NextResponse.redirect(coursesLoginUrl);
-  }
-
-  if (isCourseOnly && !isAdmin && !isCoursesPath) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Conta restrita ao portal de Cursos.' }, { status: 403 });
-    }
-
-    const coursesUrl = request.nextUrl.clone();
-    coursesUrl.pathname = '/cursos';
-    coursesUrl.search = '';
-    return NextResponse.redirect(coursesUrl);
-  }
-
   const requiredModule = requiredModuleForPath(pathname);
 
   if (requiredModule && !isAdmin) {
@@ -233,9 +194,15 @@ export async function middleware(request: NextRequest) {
     const legacyFallback =
       requiredModule.key === 'social'
         ? profile.social_only === true
-        : requiredModule.key === 'members'
-          ? profile.social_only === false && profile.course_only === false && profile.visitors_only === false
-          : false;
+        : requiredModule.key === 'welcome'
+          ? profile.visitors_only === true
+          : requiredModule.key === 'courses'
+            ? profile.course_only === true
+            : requiredModule.key === 'members'
+              ? profile.social_only === false &&
+                profile.course_only === false &&
+                profile.visitors_only === false
+              : false;
 
     const canAccess =
       moduleAccess?.can_access === true &&

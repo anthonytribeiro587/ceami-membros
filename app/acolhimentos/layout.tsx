@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../visitantes/visitantes.css';
+import '../ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Acolhimentos',

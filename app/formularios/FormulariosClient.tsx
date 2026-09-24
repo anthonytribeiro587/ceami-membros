@@ -376,7 +376,7 @@ export default function FormulariosClient() {
       setLoadError(
         formsResult.error.code === '42P01'
           ? 'A estrutura de Formulários ainda não foi criada no Supabase. Execute a migration 202608310001_dynamic_forms.sql.'
-          : `Não foi possível carregar os formulários: ${formsResult.error.message}`,
+          : `Não foi possível carregar os eventos: ${formsResult.error.message}`,
       );
       setLoading(false);
       return;
@@ -513,7 +513,7 @@ export default function FormulariosClient() {
   async function saveForm() {
     if (!draft || saving) return;
     if (!draft.title.trim()) {
-      setToast('Informe o nome do formulário');
+      setToast('Informe o nome do evento');
       return;
     }
     if (!draft.fields.length || draft.fields.some((field) => !field.label.trim())) {
@@ -561,7 +561,7 @@ export default function FormulariosClient() {
     } else {
       const { data, error } = await supabase.from('forms').insert(formPayload).select('id').single();
       if (error || !data?.id) {
-        setToast(error?.code === '23505' ? 'Esse link já está sendo usado' : error?.message || 'Erro ao criar formulário');
+        setToast(error?.code === '23505' ? 'Esse link já está sendo usado' : error?.message || 'Erro ao criar evento');
         setSaving(false);
         return;
       }
@@ -655,11 +655,23 @@ export default function FormulariosClient() {
   function exportCsv(form: FormRow) {
     const formFields = fields.filter((field) => field.form_id === form.id).sort((a, b) => a.sort_order - b.sort_order);
     const rows = submissions.filter((submission) => submission.form_id === form.id);
-    const header = ['Data', ...formFields.map((field) => field.label)].map(csvEscape).join(';');
-    const body = rows.map((submission) => [
-      new Date(submission.created_at).toLocaleString('pt-BR'),
-      ...formFields.map((field) => submission.answers?.[field.key] ?? ''),
-    ].map(csvEscape).join(';'));
+    const ticketColumns = form.ticketing_enabled ? ['Ingresso', 'Check-in'] : [];
+    const header = ['Data', ...ticketColumns, ...formFields.map((field) => field.label)].map(csvEscape).join(';');
+    const body = rows.map((submission) => {
+      const ticket = tickets.find((item) => item.submission_id === submission.id);
+      const ticketValues = form.ticketing_enabled
+        ? [
+            ticket?.ticket_code || '',
+            ticket?.checked_in_at ? new Date(ticket.checked_in_at).toLocaleString('pt-BR') : '',
+          ]
+        : [];
+
+      return [
+        new Date(submission.created_at).toLocaleString('pt-BR'),
+        ...ticketValues,
+        ...formFields.map((field) => submission.answers?.[field.key] ?? ''),
+      ].map(csvEscape).join(';');
+    });
     const csv = `\uFEFF${[header, ...body].join('\n')}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1126,7 +1138,7 @@ export default function FormulariosClient() {
               return (
                 <article className="forms-card" key={form.id}>
                   <div className="forms-card-main">
-                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span>{form.ticketing_enabled && <span className="forms-badge active">Ingressos</span>}<small>{count} inscrição{count === 1 ? '' : 'ões'}</small></div>
+                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span>{form.ticketing_enabled && <span className="forms-badge active">Ingressos</span>}<small>{count} {count === 1 ? 'inscrição' : 'inscrições'}</small></div>
                     <h2>{form.title}</h2>
                     <p>{form.description || 'Sem descrição.'}</p>
                     <code>/f/{form.slug}</code>

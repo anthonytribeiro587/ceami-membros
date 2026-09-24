@@ -92,7 +92,7 @@ export async function POST(
 
     const { data: form, error: formError } = await service
       .from('forms')
-      .select('id, title, active, event_details')
+      .select('id, title, active, event_details, price, ticketing_enabled, capacity, event_start_at, event_location')
       .eq('slug', slug)
       .maybeSingle();
 
@@ -164,21 +164,58 @@ export async function POST(
       ['nome', 'nome_completo', 'name', 'full_name'].includes(field.key),
     );
     const phoneField = typedFields.find((field) => field.field_type === 'phone');
+    const respondentNameValue = nameField ? normalized[nameField.key] || '' : '';
+    const respondentPhoneValue = phoneField ? normalized[phoneField.key] || '' : '';
 
-    const { data: inserted, error: insertError } = await service
-      .from('form_submissions')
-      .insert({
-        form_id: form.id,
-        respondent_name: nameField ? normalized[nameField.key] || null : null,
-        respondent_phone: phoneField ? normalized[phoneField.key] || null : null,
-        answers: normalized,
-      })
-      .select('id')
-      .single();
+    let submissionId = '';
+    let ticketCode = '';
 
-    if (insertError || !inserted?.id) {
-      console.error('Public form submission failed:', insertError?.message || 'missing id');
-      return NextResponse.json({ error: isServiceRequest ? 'Não foi possível salvar sua solicitação.' : 'Não foi possível salvar sua inscrição.' }, { status: 500 });
+    if (!isServiceRequest && form.ticketing_enabled === true) {
+      const { data: ticketed, error: ticketError } = await service.rpc(
+        'create_ticketed_event_submission',
+        {
+          p_form_id: form.id,
+          p_respondent_name: respondentNameValue,
+          p_respondent_phone: respondentPhoneValue,
+          p_answers: normalized,
+        },
+      );
+
+      if (ticketError) {
+        if (ticketError.message.includes('EVENT_CAPACITY_REACHED')) {
+          return NextResponse.json(
+            { error: 'As vagas deste evento acabaram.' },
+            { status: 409 },
+          );
+        }
+        console.error('Ticketed event submission failed:', ticketError.message);
+        return NextResponse.json({ error: 'Não foi possível emitir seu ingresso.' }, { status: 500 });
+      }
+
+      const ticketRow = Array.isArray(ticketed) ? ticketed[0] : ticketed;
+      submissionId = String(ticketRow?.submission_id || '');
+      ticketCode = String(ticketRow?.ticket_code || '');
+    } else {
+      const { data: inserted, error: insertError } = await service
+        .from('form_submissions')
+        .insert({
+          form_id: form.id,
+          respondent_name: respondentNameValue || null,
+          respondent_phone: respondentPhoneValue || null,
+          answers: normalized,
+        })
+        .select('id')
+        .single();
+
+      if (insertError || !inserted?.id) {
+        console.error('Public form submission failed:', insertError?.message || 'missing id');
+        return NextResponse.json({ error: isServiceRequest ? 'Não foi possível salvar sua solicitação.' : 'Não foi possível salvar sua inscrição.' }, { status: 500 });
+      }
+      submissionId = String(inserted.id);
+    }
+
+    if (!submissionId) {
+      return NextResponse.json({ error: 'Não foi possível concluir sua inscrição.' }, { status: 500 });
     }
 
     if (isServiceRequest) {
@@ -191,7 +228,7 @@ export async function POST(
         phoneField ? normalized[phoneField.key] : '',
         40,
       );
-      const protocol = String(inserted.id).slice(0, 8).toUpperCase();
+      const protocol = submissionId.slice(0, 8).toUpperCase();
       const summary = requestSummary(typedFields, normalized);
 
       const adminText = [
@@ -248,10 +285,41 @@ export async function POST(
       }
     }
 
+    if (ticketCode && respondentPhoneValue) {
+      const eventDate = form.event_start_at
+        ? new Date(form.event_start_at).toLocaleString('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            dateStyle: 'short',
+            timeStyle: 'short',
+          })
+        : '';
+      const price = form.price == null ? 0 : Number(form.price);
+      const ticketText = [
+        `🎟️ *Ingresso CEAMI — ${form.title}*`,
+        '',
+        respondentNameValue ? `Olá, ${respondentNameValue}! Sua inscrição foi registrada.` : 'Sua inscrição foi registrada.',
+        `*Código do ingresso:* ${ticketCode}`,
+        eventDate ? `*Data:* ${eventDate}` : '',
+        form.event_location ? `*Local:* ${form.event_location}` : '',
+        price > 0 ? `*Valor:* ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price)}` : '',
+        '',
+        'Guarde este código. Ele será usado no check-in do evento.',
+      ].filter(Boolean).join('\n');
+
+      const ticketSend = await sendEvolutionPhoneText({
+        phone: respondentPhoneValue,
+        text: ticketText,
+      });
+      if (!ticketSend.ok) {
+        console.error('Event ticket WhatsApp notification failed:', ticketSend.errorMessage);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
-      submissionId: inserted.id,
+      submissionId,
       serviceRequest: isServiceRequest,
+      ticketCode: ticketCode || null,
     });
   } catch (error) {
     const publicError = publicErrorMessage(error);

@@ -1,4 +1,11 @@
-export const CEAMI_MODULE_KEYS = ['members', 'social', 'events', 'services'] as const;
+export const CEAMI_MODULE_KEYS = [
+  'members',
+  'social',
+  'events',
+  'services',
+  'welcome',
+  'courses',
+] as const;
 
 export type CeamiModuleKey = (typeof CEAMI_MODULE_KEYS)[number];
 export type CeamiModuleAccessLevel = 'viewer' | 'manager';
@@ -13,6 +20,8 @@ export const CEAMI_MODULE_PATHS: Record<CeamiModuleKey, string> = {
   social: '/social',
   events: '/eventos',
   services: '/servicos',
+  welcome: '/acolhimentos',
+  courses: '/cursos',
 };
 
 export function isCeamiModuleKey(value: unknown): value is CeamiModuleKey {

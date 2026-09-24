@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import ServicesClient from './ServicesClient';
 import './services.css';
+import '../ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Serviços',

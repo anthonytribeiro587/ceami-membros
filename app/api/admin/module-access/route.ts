@@ -63,13 +63,6 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  if (profile.course_only || profile.visitors_only) {
-    return NextResponse.json(
-      { error: 'Este perfil pertence a um portal legado e é gerenciado na área correspondente.' },
-      { status: 400 },
-    );
-  }
-
   const { error } = await service
     .from('profile_module_access')
     .upsert(

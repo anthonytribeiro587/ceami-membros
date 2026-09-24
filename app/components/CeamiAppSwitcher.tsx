@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarDays,
   GraduationCap,
@@ -62,6 +63,8 @@ export default function CeamiAppSwitcher() {
   const [allowed, setAllowed] = useState<CeamiModuleKey[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profileName, setProfileName] = useState('');
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
     if (isHiddenPath(pathname)) return;
@@ -122,7 +125,22 @@ export default function CeamiAppSwitcher() {
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
-  if (isHiddenPath(pathname) || allowed.length === 0) return null;
+  useEffect(() => {
+    if (isHiddenPath(pathname)) {
+      setPortalTarget(null);
+      setPortalReady(true);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setPortalTarget(document.getElementById('ceami-app-switcher-slot'));
+      setPortalReady(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
+
+  if (isHiddenPath(pathname) || allowed.length === 0 || !portalReady) return null;
 
   function remember(moduleKey: CeamiModuleKey) {
     window.localStorage.setItem('ceami:last-module', moduleKey);
@@ -135,8 +153,11 @@ export default function CeamiAppSwitcher() {
     window.location.assign('/login');
   }
 
-  return (
-    <div className="ceami-app-switcher" ref={panelRef}>
+  const switcher = (
+    <div
+      className={`ceami-app-switcher ${portalTarget ? 'ceami-app-switcher-inline' : 'ceami-app-switcher-floating'}`}
+      ref={panelRef}
+    >
       <button
         type="button"
         className="ceami-app-switcher-trigger"
@@ -186,4 +207,6 @@ export default function CeamiAppSwitcher() {
       )}
     </div>
   );
+
+  return portalTarget ? createPortal(switcher, portalTarget) : switcher;
 }

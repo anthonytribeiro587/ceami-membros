@@ -1067,7 +1067,10 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
           <button type="button" className="social-back" onClick={() => setScreen('home')} aria-label="Voltar"><ArrowLeft /></button>
         )}
         <h1>{screen === 'home' ? 'Visão geral' : title}</h1>
-        <button type="button" className="social-refresh" onClick={() => void refreshData()} aria-label="Atualizar"><RefreshCw /></button>
+        <div className="social-topbar-actions">
+          <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
+          <button type="button" className="social-refresh" onClick={() => void refreshData()} aria-label="Atualizar"><RefreshCw /></button>
+        </div>
       </header>
 
       <div className="social-content">

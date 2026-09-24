@@ -393,7 +393,10 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
             <span>CEAMI MEMBROS</span>
             <h1>{selected ? 'Detalhes do membro' : screenTitle(screen)}</h1>
           </div>
-          <button type="button" className="member-v3-notification" aria-label="Notificações"><Bell size={19} /></button>
+          <div className="member-v3-topbar-actions">
+            <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
+            <button type="button" className="member-v3-notification" aria-label="Notificações"><Bell size={19} /></button>
+          </div>
         </header>
 
         {selected ? (

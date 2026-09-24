@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import CheckinClient from './CheckinClient';
+import CeamiModuleShell from '@/app/components/CeamiModuleShell';
 import './checkin.css';
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function EventCheckinPage() {
-  return <CheckinClient />;
+  return (
+    <CeamiModuleShell moduleKey="events">
+      <CheckinClient />
+    </CeamiModuleShell>
+  );
 }

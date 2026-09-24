@@ -3,6 +3,7 @@ import CoursesWorkspace from './CoursesWorkspace';
 import CourseDeletionControls from './CourseDeletionControls';
 import QrCodeReliability from './QrCodeReliability';
 import CourseTablePortal from './CourseTablePortal';
+import CeamiModuleShell from '@/app/components/CeamiModuleShell';
 import './courses.css';
 import './course-table.css';
 import './course-table-portal.css';
@@ -16,11 +17,11 @@ export const metadata: Metadata = {
 
 export default function CoursesPage() {
   return (
-    <>
+    <CeamiModuleShell moduleKey="courses">
       <CoursesWorkspace />
       <CourseTablePortal />
       <CourseDeletionControls />
       <QrCodeReliability />
-    </>
+    </CeamiModuleShell>
   );
 }

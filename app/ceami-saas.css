@@ -1495,3 +1495,731 @@ body:has(.checkin-page) .site-footer {
     transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
   }
 }
+
+
+/* ==========================================================================
+   CEAMI SaaS Shell v2 — estrutura compartilhada entre os aplicativos
+   ========================================================================== */
+
+body:has(.ceami-module-shell) .site-footer {
+  display: none;
+}
+
+.ceami-app-switcher-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.ceami-app-switcher-inline {
+  position: relative;
+  inset: auto;
+  z-index: 120;
+}
+
+.ceami-app-switcher-floating {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 120;
+}
+
+.ceami-app-switcher-inline .ceami-app-switcher-trigger {
+  box-shadow: none;
+}
+
+.ceami-app-switcher-inline .ceami-app-switcher-panel {
+  top: 50px;
+  right: 0;
+  bottom: auto;
+}
+
+.social-topbar-actions,
+.visitors-topbar-actions,
+.member-v3-topbar-actions,
+.ceami-module-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.member-v3-topbar-actions {
+  margin-left: auto;
+}
+
+.ceami-module-shell {
+  min-height: 100dvh;
+  background: var(--ceami-bg);
+  color: var(--ceami-text);
+  font-family: Inter, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+.ceami-module-sidebar {
+  display: none;
+}
+
+.ceami-module-main {
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+.ceami-module-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  height: 64px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  color: #fff;
+  background: linear-gradient(90deg, #0a4380, #0e5796);
+  box-shadow: 0 4px 16px rgba(8,55,100,.14);
+}
+
+.ceami-module-topbar h1 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 850;
+  letter-spacing: -.02em;
+}
+
+.ceami-module-menu {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255,255,255,.09);
+  border: 0;
+  border-radius: 12px;
+}
+
+.ceami-module-menu svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ceami-module-body {
+  width: 100%;
+  min-width: 0;
+}
+
+.ceami-module-body > .courses-page,
+.ceami-module-body > .forms-admin-page,
+.ceami-module-body > .services-admin-page,
+.ceami-module-body > .checkin-page {
+  width: 100%;
+  min-height: auto;
+  margin: 0;
+}
+
+.ceami-module-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  border: 0;
+  background: rgba(4, 31, 56, .42);
+}
+
+.ceami-module-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 7px 18px;
+  border-bottom: 1px solid var(--ceami-line-soft);
+}
+
+.ceami-module-brand img {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+
+.ceami-module-brand > div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ceami-module-brand strong,
+.ceami-module-brand span {
+  font-size: 15px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.ceami-module-brand strong {
+  color: var(--ceami-blue-strong);
+}
+
+.ceami-module-brand span {
+  color: var(--ceami-orange);
+}
+
+.ceami-module-brand > button {
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  color: #6f8292;
+  background: #f5f8fa;
+  border: 0;
+  border-radius: 10px;
+}
+
+.ceami-module-nav {
+  display: grid;
+  gap: 4px;
+  padding: 16px 0;
+}
+
+.ceami-module-nav a {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  color: #5d7488;
+  text-decoration: none;
+  border-radius: 11px;
+  font-size: 11.5px;
+  font-weight: 760;
+  transition: background-color .14s ease, color .14s ease;
+}
+
+.ceami-module-nav a svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.ceami-module-nav a:hover {
+  color: var(--ceami-blue-strong);
+  background: #f5f8fb;
+}
+
+.ceami-module-nav a.active {
+  color: var(--ceami-orange-strong);
+  background: var(--ceami-orange-soft);
+}
+
+.ceami-module-profile {
+  margin-top: auto;
+  padding: 12px 7px 2px;
+  display: grid;
+  grid-template-columns: 38px minmax(0,1fr) 34px;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--ceami-line-soft);
+}
+
+.ceami-module-profile > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #205e94;
+  background: var(--ceami-blue-soft);
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.ceami-module-profile > div {
+  min-width: 0;
+}
+
+.ceami-module-profile strong,
+.ceami-module-profile small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ceami-module-profile strong {
+  color: var(--ceami-text-strong);
+  font-size: 10px;
+}
+
+.ceami-module-profile small {
+  margin-top: 2px;
+  color: var(--ceami-muted);
+  font-size: 8.5px;
+}
+
+.ceami-module-profile > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #7d8d9c;
+  background: #f5f7f9;
+  border: 0;
+  border-radius: 10px;
+}
+
+.ceami-module-profile > button:hover {
+  color: var(--ceami-red);
+  background: var(--ceami-red-soft);
+}
+
+.ceami-module-profile > button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.events-files-page {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+}
+
+.events-files-header {
+  display: grid;
+  gap: 5px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ceami-line);
+}
+
+.events-files-header > span {
+  color: var(--ceami-orange);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.events-files-header h1 {
+  margin: 0;
+  color: var(--ceami-text-strong);
+  font-size: 28px;
+  letter-spacing: -.035em;
+}
+
+.events-files-header p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--ceami-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.events-files-back {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--ceami-blue);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.events-files-error {
+  padding: 15px;
+  color: #8c3f37;
+  background: var(--ceami-red-soft);
+  border: 1px solid #ead1ce;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Uniformiza os três sidebars existentes e o novo shell. */
+@media (min-width: 960px) {
+  .ceami-module-shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0,1fr);
+    grid-template-rows: 68px minmax(calc(100vh - 68px), auto);
+  }
+
+  .ceami-module-sidebar {
+    display: flex;
+    grid-column: 1;
+    grid-row: 1 / 3;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    height: 100vh;
+    flex-direction: column;
+    padding: 18px 14px 14px;
+    background: #fff;
+    border-right: 1px solid var(--ceami-line);
+  }
+
+  .ceami-module-brand > button {
+    display: none;
+  }
+
+  .ceami-module-main {
+    display: contents;
+  }
+
+  .ceami-module-topbar {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 0 28px;
+    color: var(--ceami-text-strong);
+    background: #fff;
+    border-bottom: 1px solid var(--ceami-line);
+    box-shadow: none;
+  }
+
+  .ceami-module-topbar h1 {
+    font-size: 17px;
+  }
+
+  .ceami-module-menu {
+    display: none;
+  }
+
+  .ceami-module-body {
+    grid-column: 2;
+    grid-row: 2;
+    width: min(var(--ceami-content), 100%);
+    margin: 0 auto;
+    padding: 25px 28px 56px;
+  }
+
+  .ceami-module-overlay {
+    display: none;
+  }
+
+  .member-v3-shell {
+    grid-template-columns: 232px minmax(0,1fr);
+  }
+
+  .member-v3-sidebar,
+  .social-desktop-sidebar,
+  .visitors-sidebar {
+    width: auto;
+    padding: 18px 14px 14px;
+    color: var(--ceami-text);
+    background: #fff;
+    border-right: 1px solid var(--ceami-line);
+    box-shadow: none;
+  }
+
+  .member-v3-brand,
+  .social-desktop-brand,
+  .visitors-sidebar-brand {
+    min-height: 61px;
+    gap: 9px;
+    padding: 2px 7px 18px;
+    border-bottom: 1px solid var(--ceami-line-soft);
+  }
+
+  .member-v3-brand img,
+  .social-desktop-brand img,
+  .visitors-sidebar-brand img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .member-v3-brand > div,
+  .social-desktop-brand > div,
+  .visitors-sidebar-brand > div {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .member-v3-brand strong,
+  .member-v3-brand span,
+  .social-desktop-brand strong,
+  .social-desktop-brand span,
+  .visitors-sidebar-brand strong,
+  .visitors-sidebar-brand span {
+    font-size: 15px;
+    font-weight: 850;
+    letter-spacing: -.02em;
+  }
+
+  .member-v3-brand strong,
+  .social-desktop-brand strong,
+  .visitors-sidebar-brand strong {
+    color: var(--ceami-blue-strong);
+  }
+
+  .member-v3-brand span,
+  .social-desktop-brand span,
+  .visitors-sidebar-brand span {
+    color: var(--ceami-orange);
+  }
+
+  .member-v3-nav,
+  .social-desktop-nav,
+  .visitors-sidebar nav {
+    gap: 4px;
+    padding: 16px 0;
+    margin-top: 0;
+  }
+
+  .member-v3-nav button,
+  .member-v3-nav a,
+  .social-desktop-nav button,
+  .visitors-sidebar nav button {
+    min-height: 42px;
+    padding: 0 11px;
+    gap: 10px;
+    color: #5d7488;
+    background: transparent;
+    border: 0;
+    border-radius: 11px;
+    font-size: 11.5px;
+    font-weight: 760;
+  }
+
+  .member-v3-nav button:hover,
+  .member-v3-nav a:hover,
+  .social-desktop-nav button:hover,
+  .visitors-sidebar nav button:hover {
+    color: var(--ceami-blue-strong);
+    background: #f5f8fb;
+  }
+
+  .member-v3-nav button.active,
+  .member-v3-nav a.active,
+  .social-desktop-nav button.active,
+  .visitors-sidebar nav button.active {
+    color: var(--ceami-orange-strong);
+    background: var(--ceami-orange-soft);
+  }
+
+  .social-app {
+    grid-template-columns: 232px minmax(0,1fr);
+    grid-template-rows: 68px minmax(calc(100vh - 68px), auto);
+    padding: 0;
+    background: var(--ceami-bg);
+  }
+
+  .social-desktop-sidebar {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+
+  .social-topbar {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 0;
+    height: 68px;
+    padding: 0 28px;
+    color: var(--ceami-text-strong);
+    background: #fff;
+    border-bottom: 1px solid var(--ceami-line);
+    box-shadow: none;
+  }
+
+  .social-topbar h1 {
+    display: block;
+    margin: 0;
+    font-size: 17px;
+    text-align: left;
+  }
+
+  .social-topbar .social-brand {
+    display: none;
+  }
+
+  .social-content {
+    grid-column: 2;
+    grid-row: 2;
+    width: min(var(--ceami-content), 100%);
+    margin: 0 auto;
+    padding: 25px 28px 56px;
+  }
+
+  .social-bottom-nav {
+    display: none;
+  }
+
+  .visitors-app {
+    grid-template-columns: 232px minmax(0,1fr);
+    grid-template-rows: 68px minmax(calc(100vh - 68px), auto);
+  }
+
+  .visitors-topbar {
+    grid-column: 2;
+    grid-row: 1;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 0 28px;
+    color: var(--ceami-text-strong);
+    background: #fff;
+    border-bottom: 1px solid var(--ceami-line);
+    box-shadow: none;
+  }
+
+  .visitors-topbar h1 {
+    display: block !important;
+    margin: 0;
+    font-size: 17px;
+    text-align: left;
+  }
+
+  .visitors-topbar .visitors-mobile-brand,
+  .visitors-topbar .visitors-back {
+    display: none;
+  }
+
+  .visitors-content {
+    grid-column: 2;
+    grid-row: 2;
+    width: min(var(--ceami-content), 100%);
+    margin: 0 auto;
+    padding: 25px 28px 56px;
+  }
+
+  .member-v3-content {
+    max-width: none;
+    padding: 26px 28px 88px;
+  }
+
+  .member-v3-topbar {
+    min-height: 68px;
+    margin: -26px -28px 24px;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--ceami-line);
+    background: #fff;
+  }
+
+  .member-v3-topbar > div:first-of-type > span {
+    display: none;
+  }
+
+  .member-v3-topbar h1 {
+    font-size: 17px;
+  }
+
+  .social-refresh,
+  .visitors-refresh,
+  .member-v3-notification {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    color: var(--ceami-blue);
+    background: #f6f9fb;
+    border: 1px solid var(--ceami-line);
+    border-radius: 12px;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 959px) {
+  .ceami-module-sidebar {
+    display: flex;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 80;
+    width: min(84vw, 292px);
+    height: 100dvh;
+    flex-direction: column;
+    padding: 18px 14px 14px;
+    background: #fff;
+    border-right: 1px solid var(--ceami-line);
+    box-shadow: 18px 0 50px rgba(8,47,89,.18);
+    transform: translateX(-104%);
+    transition: transform .18s ease;
+  }
+
+  .ceami-module-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .ceami-module-body {
+    padding: 18px 12px calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .ceami-module-body > .courses-page,
+  .ceami-module-body > .forms-admin-page,
+  .ceami-module-body > .services-admin-page,
+  .ceami-module-body > .checkin-page {
+    padding: 0;
+  }
+
+  .ceami-app-switcher-inline .ceami-app-switcher-trigger {
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+    padding: 0;
+    justify-content: center;
+    color: var(--ceami-blue);
+    background: #fff;
+    border-color: rgba(255,255,255,.5);
+  }
+
+  .ceami-app-switcher-inline .ceami-app-switcher-trigger span {
+    display: none;
+  }
+
+  .ceami-app-switcher-inline .ceami-app-switcher-panel {
+    top: 48px;
+    right: 0;
+    bottom: auto;
+    width: min(310px, calc(100vw - 24px));
+  }
+
+  .ceami-app-switcher-floating {
+    top: auto;
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .social-topbar,
+  .visitors-topbar {
+    grid-template-columns: auto minmax(0,1fr) auto;
+    padding: 0 10px;
+  }
+
+  .social-topbar-actions,
+  .visitors-topbar-actions {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .social-topbar-actions .ceami-app-switcher-slot,
+  .visitors-topbar-actions .ceami-app-switcher-slot {
+    display: flex;
+  }
+
+  .social-topbar h1,
+  .visitors-topbar h1 {
+    min-width: 0;
+  }
+
+  .member-v3-topbar-actions .ceami-app-switcher-trigger {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+  }
+
+  .member-v3-topbar-actions .ceami-app-switcher-trigger span {
+    display: none;
+  }
+
+  .events-files-header h1 {
+    font-size: 24px;
+  }
+}

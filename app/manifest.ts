@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CEAMI Membros',
+    name: 'CEAMI',
     short_name: 'CEAMI',
     description: 'Cadastro de membros e aniversários automáticos da CEAMI.',
     start_url: '/',

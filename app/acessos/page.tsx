@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import AccessManagementClient from './AccessManagementClient';
 import './access.css';
+import '../ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'Acessos dos aplicativos',

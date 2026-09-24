@@ -1,0 +1,261 @@
+.ceami-portal {
+  min-height: 100vh;
+  padding: 48px 24px 80px;
+  background:
+    radial-gradient(circle at 12% 5%, rgba(181, 137, 82, .16), transparent 32%),
+    radial-gradient(circle at 92% 18%, rgba(35, 92, 82, .12), transparent 30%),
+    #f7f5f1;
+  color: #211f1b;
+}
+
+.ceami-portal-hero,
+.ceami-portal-modules,
+.ceami-portal-note {
+  width: min(1120px, 100%);
+  margin-inline: auto;
+}
+
+.ceami-portal-hero {
+  display: grid;
+  grid-template-columns: minmax(220px, .75fr) minmax(0, 1.25fr);
+  gap: 48px;
+  align-items: end;
+  padding: 36px 0 42px;
+  border-bottom: 1px solid rgba(37, 34, 29, .12);
+}
+
+.ceami-portal-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ceami-portal-brand img {
+  width: 56px;
+  height: 56px;
+}
+
+.ceami-portal-brand div {
+  display: grid;
+  gap: 2px;
+}
+
+.ceami-portal-brand strong {
+  font-size: 28px;
+  letter-spacing: -.03em;
+}
+
+.ceami-portal-brand span {
+  color: #746d62;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ceami-portal-copy > span {
+  display: block;
+  margin-bottom: 10px;
+  color: #806647;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.ceami-portal-copy h1 {
+  margin: 0;
+  max-width: 680px;
+  font-size: clamp(34px, 5vw, 58px);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.ceami-portal-copy p {
+  max-width: 660px;
+  margin: 18px 0 0;
+  color: #6c665c;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.ceami-portal-modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 30px;
+}
+
+.ceami-portal-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 18px;
+  align-items: start;
+  min-height: 168px;
+  padding: 24px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background: rgba(255, 255, 255, .86);
+  border: 1px solid rgba(37, 34, 29, .1);
+  border-radius: 22px;
+  box-shadow: 0 18px 45px rgba(32, 29, 24, .06);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.ceami-portal-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(37, 34, 29, .2);
+  box-shadow: 0 24px 55px rgba(32, 29, 24, .1);
+}
+
+.ceami-portal-card-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: #ebe5db;
+}
+
+.ceami-portal-card-social .ceami-portal-card-icon { background: #e1edf0; color: #0a4f65; }
+.ceami-portal-card-events .ceami-portal-card-icon { background: #f4e8d4; color: #785322; }
+.ceami-portal-card-services .ceami-portal-card-icon { background: #e5ebe1; color: #315a3a; }
+
+.ceami-portal-card-copy span {
+  display: block;
+  margin-bottom: 7px;
+  color: #81796e;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.ceami-portal-card-copy h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -.03em;
+}
+
+.ceami-portal-card-copy p {
+  margin: 9px 0 0;
+  color: #736d63;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ceami-portal-card-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  align-self: end;
+  color: #5c554b;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ceami-portal-empty {
+  grid-column: 1 / -1;
+  padding: 28px;
+  background: #fff;
+  border: 1px solid #e2ddd4;
+  border-radius: 20px;
+}
+
+.ceami-portal-empty p { margin: 8px 0 0; color: #716b62; }
+
+.ceami-portal-note {
+  margin-top: 22px;
+  color: #847d73;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ceami-app-switcher {
+  position: fixed;
+  z-index: 120;
+  top: 16px;
+  right: 74px;
+}
+
+.ceami-app-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 13px;
+  color: #3f3a32;
+  background: rgba(255, 255, 255, .95);
+  border: 1px solid rgba(47, 42, 34, .14);
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(39, 34, 26, .1);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.ceami-app-switcher-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 310px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #e3ded5;
+  border-radius: 18px;
+  box-shadow: 0 24px 65px rgba(24, 21, 17, .18);
+}
+
+.ceami-app-switcher-head {
+  display: grid;
+  gap: 3px;
+  padding: 4px 4px 12px;
+}
+
+.ceami-app-switcher-head strong { font-size: 14px; }
+.ceami-app-switcher-head span { color: #81796e; font-size: 11px; }
+
+.ceami-app-switcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ceami-app-switcher-grid a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 11px;
+  color: #403b34;
+  text-decoration: none;
+  background: #f7f5f1;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ceami-app-switcher-grid a:hover { background: #efebe4; }
+
+.ceami-app-switcher-all {
+  display: block;
+  margin-top: 10px;
+  padding: 10px 4px 2px;
+  color: #65543e;
+  text-align: center;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .ceami-portal { padding: 24px 16px 84px; }
+  .ceami-portal-hero { grid-template-columns: 1fr; gap: 28px; padding-top: 14px; }
+  .ceami-portal-modules { grid-template-columns: 1fr; }
+  .ceami-portal-card { grid-template-columns: auto 1fr; min-height: 150px; }
+  .ceami-portal-card-action { grid-column: 2; justify-self: start; }
+  .ceami-app-switcher { top: auto; right: 16px; bottom: 78px; }
+  .ceami-app-switcher-trigger span { display: none; }
+  .ceami-app-switcher-trigger { width: 44px; padding: 0; justify-content: center; border-radius: 14px; }
+  .ceami-app-switcher-panel { top: auto; bottom: 52px; width: min(310px, calc(100vw - 32px)); }
+}

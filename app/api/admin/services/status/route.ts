@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import { getServiceClient, readLimitedJson, requestComesFromSameSite } from '@/lib/server/security';
 import {
   SERVICE_FORM_SLUG,
@@ -15,6 +16,10 @@ const VALID_STATUSES = new Set<ServiceRequestStatus>(['aberto', 'concluido', 'ca
 export async function POST(request: NextRequest) {
   if (!requestComesFromSameSite(request)) {
     return NextResponse.json({ error: 'Origem inválida.' }, { status: 403 });
+  }
+
+  if (!(await hasCurrentModuleAccess('services', true))) {
+    return NextResponse.json({ error: 'Acesso restrito ao CEAMI Serviços.' }, { status: 403 });
   }
 
   const body = await readLimitedJson<Body>(request, 4_000);

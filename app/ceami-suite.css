@@ -280,3 +280,85 @@
 @media (max-width: 760px) {
   .ceami-portal-admin { grid-column: 1; margin-top: 0; }
 }
+
+
+.ceami-portal-account {
+  display: flex;
+  grid-column: 2;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  margin-top: -4px;
+}
+.ceami-portal-account > span {
+  max-width: 220px;
+  overflow: hidden;
+  color: #746d62;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+}
+.ceami-portal-account > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 11px;
+  color: #6f5a43;
+  background: rgba(255,255,255,.7);
+  border: 1px solid rgba(64,54,42,.13);
+  border-radius: 11px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.ceami-portal-account .ceami-portal-admin {
+  grid-column: auto;
+  margin-top: 0;
+}
+
+.ceami-app-switcher-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 10px 4px 0;
+  border-top: 1px solid #ece7df;
+}
+.ceami-app-switcher-account > span {
+  min-width: 0;
+  overflow: hidden;
+  color: #746d63;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 800;
+}
+.ceami-app-switcher-account > button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  color: #765744;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.ceami-app-switcher-account > button:hover { background: #f5f1eb; }
+
+@media (max-width: 760px) {
+  .ceami-portal-account {
+    grid-column: 1;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+}

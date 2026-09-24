@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
-import ServicesClient from './ServicesClient';
+import ServicesOverviewClient from './ServicesOverviewClient';
 import CeamiModuleShell from '@/app/components/CeamiModuleShell';
 import './services.css';
 import '../ceami-saas.css';
+import './services-v2.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Serviços',
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 export default function ServicesPage() {
   return (
     <CeamiModuleShell moduleKey="services">
-      <ServicesClient />
+      <ServicesOverviewClient />
     </CeamiModuleShell>
   );
 }

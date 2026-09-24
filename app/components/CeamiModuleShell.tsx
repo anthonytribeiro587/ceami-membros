@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   Award,
   CheckCircle2,
+  ClipboardList,
   FileText,
   GraduationCap,
   Home,
@@ -45,6 +46,8 @@ const MODULES: Record<ShellModule, {
     team: 'Equipe de serviços',
     nav: [
       { href: '/servicos', label: 'Visão geral', icon: Home, exact: true },
+      { href: '/servicos/solicitacoes', label: 'Solicitações', icon: ClipboardList, exact: true },
+      { href: '/servicos/formulario', label: 'Formulário público', icon: FileText, exact: true },
     ],
   },
   courses: {
@@ -73,6 +76,10 @@ function pageTitle(moduleKey: ShellModule, pathname: string) {
   if (moduleKey === 'events') {
     if (pathname.startsWith('/eventos/checkin')) return 'Check-in';
     if (pathname.startsWith('/eventos/envios-arquivos')) return 'Envios e arquivos';
+  }
+  if (moduleKey === 'services') {
+    if (pathname.startsWith('/servicos/solicitacoes')) return 'Solicitações';
+    if (pathname.startsWith('/servicos/formulario')) return 'Formulário público';
   }
   if (moduleKey === 'courses') {
     if (pathname.startsWith('/cursos/turmas')) return 'Turmas';

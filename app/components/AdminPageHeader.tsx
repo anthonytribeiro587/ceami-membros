@@ -25,7 +25,10 @@ export default function AdminPageHeader({
           {description && <p>{description}</p>}
         </div>
       </div>
-      {actions && <div className="admin-page-actions">{actions}</div>}
+      <div className="admin-page-actions">
+        {actions}
+        <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
+      </div>
     </header>
   );
 }

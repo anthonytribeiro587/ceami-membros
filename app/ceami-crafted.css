@@ -717,3 +717,23 @@
     transition:none!important;
   }
 }
+
+
+/* Cross-app alignment pass */
+.admin-page-actions .ceami-app-switcher-slot{display:flex;flex:0 0 auto}
+.admin-page-actions .ceami-app-switcher-trigger{box-shadow:none!important}
+.admin-page-actions>*{position:relative;z-index:1}
+
+@media(max-width:760px){
+  .admin-page-header{position:relative!important;padding-right:48px!important}
+  .admin-page-actions{width:100%!important;position:static!important;justify-content:flex-start!important}
+  .admin-page-actions>.ceami-app-switcher-slot{position:absolute!important;right:0!important;top:0!important}
+  .admin-page-actions>.ceami-app-switcher-slot .ceami-app-switcher-trigger{width:40px!important;height:40px!important;padding:0!important;justify-content:center!important}
+  .admin-page-actions>.ceami-app-switcher-slot .ceami-app-switcher-trigger span{display:none!important}
+  .admin-page-actions>button,.admin-page-actions>a{max-width:100%}
+}
+
+@media(max-width:959px){
+  .ceami-app-switcher-trigger{box-shadow:none!important}
+  .member-v3-content,.social-content,.visitors-content,.ceami-module-body{overflow-x:clip}
+}

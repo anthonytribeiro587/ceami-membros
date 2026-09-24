@@ -121,9 +121,12 @@ export default function AccountSecurityClient() {
   return (
     <main className="account-page">
       <section className="account-shell">
-        <Link href="/?selecionar=1" className="account-back">
-          <ArrowLeft size={16} /> Aplicativos
-        </Link>
+        <div className="account-toolbar">
+          <Link href="/?selecionar=1" className="account-back">
+            <ArrowLeft size={16} /> Aplicativos
+          </Link>
+          <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
+        </div>
 
         <header className="account-header">
           <span>CONTA CEAMI</span>

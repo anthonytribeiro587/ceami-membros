@@ -67,7 +67,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_active, course_only, visitors_only')
+      .select('is_active')
       .eq('id', data.user.id)
       .maybeSingle();
 

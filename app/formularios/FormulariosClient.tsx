@@ -40,6 +40,10 @@ type FormRow = {
   event_details: string;
   price: number | string | null;
   active: boolean;
+  ticketing_enabled: boolean;
+  capacity: number | null;
+  event_start_at: string | null;
+  event_location: string;
   created_at: string;
 };
 
@@ -82,6 +86,10 @@ type FormDraft = {
   eventDetails: string;
   price: string;
   active: boolean;
+  ticketingEnabled: boolean;
+  capacity: string;
+  eventStartAt: string;
+  eventLocation: string;
   fields: FieldDraft[];
 };
 
@@ -130,6 +138,10 @@ function blankDraft(): FormDraft {
     eventDetails: '',
     price: '',
     active: true,
+    ticketingEnabled: false,
+    capacity: '',
+    eventStartAt: '',
+    eventLocation: '',
     fields: [
       { ...newField('Nome completo'), key: 'nome_completo' },
       { ...newField('Telefone / WhatsApp'), key: 'telefone', field_type: 'phone' },
@@ -193,6 +205,13 @@ function initials(value: string) {
 
 function localDateKey(value: string) {
   return new Date(value).toLocaleDateString('en-CA');
+}
+
+function dateTimeLocalValue(value: string | null | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 type PaymentStatus = 'pending' | 'paid' | 'exempt';
@@ -394,6 +413,10 @@ export default function FormulariosClient() {
       eventDetails: form.event_details || '',
       price: form.price == null ? '' : String(form.price),
       active: form.active,
+      ticketingEnabled: form.ticketing_enabled === true,
+      capacity: form.capacity == null ? '' : String(form.capacity),
+      eventStartAt: dateTimeLocalValue(form.event_start_at),
+      eventLocation: form.event_location || '',
       fields: formFields.length ? formFields : [newField('Nome completo')],
     });
   }
@@ -488,6 +511,14 @@ export default function FormulariosClient() {
       return;
     }
 
+    if (draft.ticketingEnabled && draft.capacity.trim()) {
+      const capacity = Number(draft.capacity);
+      if (!Number.isInteger(capacity) || capacity <= 0) {
+        setToast('Informe uma capacidade válida');
+        return;
+      }
+    }
+
     setSaving(true);
 
     const formPayload = {
@@ -497,6 +528,10 @@ export default function FormulariosClient() {
       event_details: draft.eventDetails.trim(),
       price: draft.price.trim() ? Number(draft.price.replace(',', '.')) : null,
       active: draft.active,
+      ticketing_enabled: draft.ticketingEnabled,
+      capacity: draft.ticketingEnabled && draft.capacity.trim() ? Number(draft.capacity) : null,
+      event_start_at: draft.eventStartAt ? new Date(draft.eventStartAt).toISOString() : null,
+      event_location: draft.eventLocation.trim(),
     };
 
     let formId = draft.id;
@@ -533,7 +568,7 @@ export default function FormulariosClient() {
     }
 
     setDraft(null);
-    setToast('Formulário salvo');
+    setToast('Evento salvo');
     await loadData();
     setSaving(false);
   }
@@ -544,7 +579,7 @@ export default function FormulariosClient() {
       setToast(error.message);
       return;
     }
-    setToast(form.active ? 'Formulário pausado' : 'Formulário publicado');
+    setToast(form.active ? 'Evento pausado' : 'Evento publicado');
     await loadData();
   }
 
@@ -751,6 +786,30 @@ export default function FormulariosClient() {
             <label>
               <span>Valor (opcional)</span>
               <input inputMode="decimal" value={draft.price} onChange={(e) => updateDraft({ price: e.target.value.replace(/[^0-9,.]/g, '') })} placeholder="35,00" />
+            </label>
+            <label>
+              <span>Data e horário</span>
+              <input type="datetime-local" value={draft.eventStartAt} onChange={(e) => updateDraft({ eventStartAt: e.target.value })} />
+            </label>
+            <label className="wide">
+              <span>Local do evento</span>
+              <input value={draft.eventLocation} onChange={(e) => updateDraft({ eventLocation: e.target.value })} placeholder="Ex.: Templo CEAMI — Sapucaia do Sul" />
+            </label>
+            <label className="forms-active-toggle">
+              <span>Ingressos e check-in</span>
+              <button type="button" className={draft.ticketingEnabled ? 'active' : ''} onClick={() => updateDraft({ ticketingEnabled: !draft.ticketingEnabled })}>
+                <i /> {draft.ticketingEnabled ? 'Ativado' : 'Desativado'}
+              </button>
+            </label>
+            <label>
+              <span>Capacidade {draft.ticketingEnabled ? '(opcional)' : ''}</span>
+              <input
+                inputMode="numeric"
+                disabled={!draft.ticketingEnabled}
+                value={draft.capacity}
+                onChange={(e) => updateDraft({ capacity: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder={draft.ticketingEnabled ? 'Ex.: 120' : 'Ative os ingressos'}
+              />
             </label>
             <label className="forms-active-toggle">
               <span>Disponibilidade</span>
@@ -1027,7 +1086,7 @@ export default function FormulariosClient() {
               return (
                 <article className="forms-card" key={form.id}>
                   <div className="forms-card-main">
-                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span><small>{count} resposta{count === 1 ? '' : 's'}</small></div>
+                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span>{form.ticketing_enabled && <span className="forms-badge active">Ingressos</span>}<small>{count} inscrição{count === 1 ? '' : 'ões'}</small></div>
                     <h2>{form.title}</h2>
                     <p>{form.description || 'Sem descrição.'}</p>
                     <code>/f/{form.slug}</code>
@@ -1036,6 +1095,7 @@ export default function FormulariosClient() {
                     <button type="button" onClick={() => void copyLink(form)}><Copy size={16} />Copiar link</button>
                     <a href={`/f/${form.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={16} />Abrir</a>
                     <button type="button" className="responses-primary" onClick={() => openResponses(form.id)}><UsersRound size={16} />Ver inscrições</button>
+                    {form.ticketing_enabled && <a href={`/eventos/checkin?evento=${form.id}`}><CheckCircle2 size={16} />Check-in</a>}
                     <button type="button" onClick={() => editForm(form)}><Pencil size={16} />Editar</button>
                     <button type="button" className="secondary" onClick={() => void toggleActive(form)}>{form.active ? 'Pausar' : 'Publicar'}</button>
                   </div>

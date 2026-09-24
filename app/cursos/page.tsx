@@ -7,6 +7,7 @@ import './courses.css';
 import './course-table.css';
 import './course-table-portal.css';
 import './course-deletion.css';
+import '../ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Cursos',

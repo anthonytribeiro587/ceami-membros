@@ -54,6 +54,7 @@ export default function CeamiAppSwitcher() {
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [allowed, setAllowed] = useState<CeamiModuleKey[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (isHiddenPath(pathname)) return;
@@ -72,11 +73,12 @@ export default function CeamiAppSwitcher() {
       if (!active || !profile?.is_active || profile.course_only || profile.visitors_only) return;
 
       if (profile.role === 'admin') {
+        setIsAdmin(true);
         setAllowed(MODULES.map((module) => module.key));
         return;
       }
 
-      const { data: rows } = await supabase
+      const { data: rows, error: accessError } = await supabase
         .from('profile_module_access')
         .select('module_key, can_access')
         .eq('profile_id', authData.user.id)
@@ -88,8 +90,12 @@ export default function CeamiAppSwitcher() {
         .filter((key) => MODULES.some((module) => module.key === key));
 
       if (keys.length) setAllowed(keys);
-      else if (profile.social_only) setAllowed(['social']);
-      else setAllowed(['members']);
+      else if (accessError) {
+        if (profile.social_only) setAllowed(['social']);
+        else setAllowed(['members']);
+      } else {
+        setAllowed([]);
+      }
     })();
 
     return () => {
@@ -142,6 +148,11 @@ export default function CeamiAppSwitcher() {
             ))}
           </div>
 
+          {isAdmin && (
+            <Link href="/acessos" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>
+              Gerenciar acessos
+            </Link>
+          )}
           <Link href="/?selecionar=1" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>
             Ver todos os aplicativos
           </Link>

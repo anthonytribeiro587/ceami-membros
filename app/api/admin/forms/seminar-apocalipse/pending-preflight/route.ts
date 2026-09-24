@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
 import { consumeRateLimit, getServiceClient, requestComesFromSameSite } from '@/lib/server/security';
 
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
   if (!requestComesFromSameSite(request)) {
     return NextResponse.json({ error: 'Origem não autorizada.' }, { status: 403 });
   }
-  if ((await getCurrentUiRole()) !== 'admin') {
+  if (!(await hasCurrentModuleAccess('events', true))) {
     return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
   }
   if (!(await consumeRateLimit(request, 'seminar_pending_preflight', 60, 6))) {

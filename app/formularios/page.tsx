@@ -1,27 +1,5 @@
-import AdminRouteShell from '@/app/components/AdminRouteShell';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
-import FormulariosClient from './FormulariosClient';
-import InlinePaymentsEnhancement from './InlinePaymentsEnhancement';
-import EditSubmissionEnhancement from './EditSubmissionEnhancement';
-import SeminarDataSync from './SeminarDataSync';
-import ResponseSortEnhancement from './ResponseSortEnhancement';
-import SeminarPrintReport from './SeminarPrintReport';
-import MobileFormsCompactEnhancement from './MobileFormsCompactEnhancement';
-import SeminarFileTrackingShortcut from './SeminarFileTrackingShortcut';
-import './formularios.css';
+import { redirect } from 'next/navigation';
 
-export default async function FormulariosPage() {
-  const role = await getCurrentUiRole();
-  return (
-    <AdminRouteShell initialRole={role}>
-      <SeminarFileTrackingShortcut />
-      <FormulariosClient />
-      <InlinePaymentsEnhancement />
-      <EditSubmissionEnhancement />
-      <SeminarDataSync />
-      <ResponseSortEnhancement />
-      <SeminarPrintReport />
-      <MobileFormsCompactEnhancement />
-    </AdminRouteShell>
-  );
+export default function FormulariosLegacyPage() {
+  redirect('/eventos');
 }

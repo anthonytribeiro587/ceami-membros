@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import {
   consumeRateLimit,
   getServiceClient,
@@ -76,7 +76,7 @@ async function authorize(request: NextRequest, limitKey: string, limit: number) 
   if (!requestComesFromSameSite(request)) {
     return NextResponse.json({ error: 'Origem não autorizada.' }, { status: 403 });
   }
-  if ((await getCurrentUiRole()) !== 'admin') {
+  if (!(await hasCurrentModuleAccess('events', true))) {
     return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
   }
   if (!(await consumeRateLimit(request, limitKey, 60, limit))) {

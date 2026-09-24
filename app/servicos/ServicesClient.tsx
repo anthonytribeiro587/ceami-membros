@@ -522,7 +522,7 @@ export default function ServicesClient() {
     <main className="services-admin-page">
       <header className="services-admin-header">
         <div>
-          <span>CEAMI MEMBROS</span>
+          <span>CEAMI SERVIÇOS</span>
           <h1><Wrench /> Serviços</h1>
           <p>Receba pedidos da comunidade e acompanhe o que já foi atendido.</p>
         </div>

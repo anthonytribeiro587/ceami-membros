@@ -6,26 +6,23 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Cake,
   CalendarCheck2,
-  ClipboardList,
   GraduationCap,
-  HeartHandshake,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageCircle,
   Users,
   Workflow,
-  Wrench,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { UiRole } from '@/lib/types/ui-role';
 
 const MAIN_LINKS = [
-  { href: '/?screen=dashboard', label: 'Início', icon: LayoutDashboard },
-  { href: '/?screen=members', label: 'Membros', icon: Users },
-  { href: '/?screen=birthdays', label: 'Aniversários', icon: Cake },
-  { href: '/?screen=messages', label: 'Mensagens', icon: MessageCircle },
+  { href: '/membros?screen=dashboard', label: 'Início', icon: LayoutDashboard },
+  { href: '/membros?screen=members', label: 'Membros', icon: Users },
+  { href: '/membros?screen=birthdays', label: 'Aniversários', icon: Cake },
+  { href: '/membros?screen=messages', label: 'Mensagens', icon: MessageCircle },
 ] as const;
 
 type AdminRouteShellProps = {
@@ -81,8 +78,6 @@ export default function AdminRouteShell({
 
   const showMainLinks = role !== 'course';
   const showIntegra = role === 'admin';
-  const showForms = role === 'admin' || pathname.startsWith('/formularios');
-  const showServices = role === 'admin' || pathname.startsWith('/servicos');
   const showAutomations = role === 'admin' || pathname.startsWith('/automacoes');
   const showCourses =
     role === 'admin' || role === 'course' || pathname.startsWith('/cursos');
@@ -121,32 +116,6 @@ export default function AdminRouteShell({
             </Link>
           )}
 
-          {showServices && (
-            <Link
-              href="/servicos"
-              prefetch
-              className={pathname === '/servicos' ? 'active' : ''}
-              aria-current={pathname === '/servicos' ? 'page' : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              <Wrench size={19} />
-              <span>Serviços</span>
-            </Link>
-          )}
-
-          {showForms && (
-            <Link
-              href="/formularios"
-              prefetch
-              className={pathname.startsWith('/formularios') ? 'active' : ''}
-              aria-current={pathname.startsWith('/formularios') ? 'page' : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              <ClipboardList size={19} />
-              <span>Formulários</span>
-            </Link>
-          )}
-
           {showAutomations && (
             <Link
               href="/automacoes"
@@ -173,12 +142,6 @@ export default function AdminRouteShell({
             </Link>
           )}
 
-          {role === 'admin' && (
-            <Link href="/social" prefetch onClick={() => setMenuOpen(false)}>
-              <HeartHandshake size={19} />
-              <span>CEAMI Social</span>
-            </Link>
-          )}
         </nav>
 
         <div className="member-v3-sidebar-bottom">

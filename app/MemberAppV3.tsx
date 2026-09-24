@@ -9,12 +9,10 @@ import {
   BookOpenCheck,
   Cake,
   CalendarCheck2,
-  ClipboardList,
   Check,
   ChevronRight,
   Church,
   GraduationCap,
-  HeartHandshake,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -31,7 +29,6 @@ import {
   UserRound,
   Users,
   Workflow,
-  Wrench,
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -373,18 +370,6 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
           )}
 
           {isAdmin && (
-            <Link href="/servicos" prefetch onClick={() => setMenuOpen(false)}>
-              <Wrench size={19} /><span>Serviços</span>
-            </Link>
-          )}
-
-          {isAdmin && (
-            <Link href="/formularios" prefetch onClick={() => setMenuOpen(false)}>
-              <ClipboardList size={19} /><span>Formulários</span>
-            </Link>
-          )}
-
-          {isAdmin && (
             <Link href="/automacoes" prefetch onClick={() => setMenuOpen(false)}>
               <Workflow size={19} /><span>Automações</span>
             </Link>
@@ -396,11 +381,6 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
             </Link>
           )}
 
-          {isAdmin && (
-            <Link href="/social" prefetch onClick={() => setMenuOpen(false)}>
-              <HeartHandshake size={19} /><span>CEAMI Social</span>
-            </Link>
-          )}
         </nav>
 
         <div className="member-v3-sidebar-bottom">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import { getEvolutionConnectionState } from '@/lib/server/evolution-guard';
 import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
 import { waitForEvolutionMessageDelivery } from '@/lib/server/evolution-message-delivery';
@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
   if (!requestComesFromSameSite(request)) {
     return NextResponse.json({ error: 'Origem não autorizada.' }, { status: 403 });
   }
-  if ((await getCurrentUiRole()) !== 'admin') {
+  if (!(await hasCurrentModuleAccess('events', true))) {
     return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
   }
   if (!(await consumeRateLimit(request, 'seminar_pdf_real_batch', 60, 6))) {

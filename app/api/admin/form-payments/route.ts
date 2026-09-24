@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import {
   getServiceClient,
   publicErrorMessage,
@@ -61,8 +61,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Origem da solicitação não autorizada.' }, { status: 403 });
   }
 
-  const role = await getCurrentUiRole();
-  if (role !== 'admin') {
+  const canManageEvents = await hasCurrentModuleAccess('events', true);
+  if (!canManageEvents) {
     return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
   }
 

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function FormPaymentsPage() {
-  redirect('/formularios');
+  redirect('/eventos');
 }

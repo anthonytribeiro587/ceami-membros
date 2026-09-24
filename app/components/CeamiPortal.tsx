@@ -12,6 +12,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import {
   CEAMI_MODULE_PATHS,
   type CeamiModuleAccess,
@@ -57,7 +58,15 @@ const DEFINITIONS: ModuleDefinition[] = [
   },
 ];
 
-export default function CeamiPortal({ modules, isAdmin }: { modules: CeamiModuleAccess[]; isAdmin: boolean }) {
+export default function CeamiPortal({
+  modules,
+  isAdmin,
+  fullName,
+}: {
+  modules: CeamiModuleAccess[];
+  isAdmin: boolean;
+  fullName: string;
+}) {
   const router = useRouter();
   const allowed = new Set(modules.map((module) => module.moduleKey));
   const visible = DEFINITIONS.filter((module) => allowed.has(module.key));
@@ -81,6 +90,14 @@ export default function CeamiPortal({ modules, isAdmin }: { modules: CeamiModule
     window.localStorage.setItem('ceami:last-module', moduleKey);
   }
 
+  async function signOut() {
+    window.localStorage.removeItem('ceami:last-module');
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace('/login');
+    router.refresh();
+  }
+
   return (
     <main className="ceami-portal">
       <section className="ceami-portal-hero">
@@ -101,12 +118,18 @@ export default function CeamiPortal({ modules, isAdmin }: { modules: CeamiModule
           </p>
         </div>
 
-        {isAdmin && (
-          <Link href="/acessos" className="ceami-portal-admin">
-            <ShieldCheck size={17} />
-            Gerenciar acessos
-          </Link>
-        )}
+        <div className="ceami-portal-account">
+          <span>{fullName || 'Conta CEAMI'}</span>
+          {isAdmin && (
+            <Link href="/acessos" className="ceami-portal-admin">
+              <ShieldCheck size={17} />
+              Gerenciar acessos
+            </Link>
+          )}
+          <button type="button" onClick={() => void signOut()}>
+            <LogOut size={16} /> Sair
+          </button>
+        </div>
       </section>
 
       <section className="ceami-portal-modules" aria-label="Aplicativos CEAMI">

@@ -121,7 +121,6 @@ export async function getCurrentUiRole(): Promise<UiRole> {
   const access = await loadCurrentAccess();
   if (!access) return null;
   if (access.role === 'admin') return 'admin';
-  if (access.modules.some((module) => module.moduleKey === 'courses')) return 'course';
   return 'member';
 }
 

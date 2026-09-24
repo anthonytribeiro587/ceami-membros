@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CalendarDays,
+  GraduationCap,
+  Handshake,
   HeartHandshake,
   LoaderCircle,
   Search,
@@ -37,6 +39,8 @@ const MODULES: Array<{ key: CeamiModuleKey; label: string; icon: LucideIcon }> =
   { key: 'social', label: 'Social', icon: HeartHandshake },
   { key: 'events', label: 'Eventos', icon: CalendarDays },
   { key: 'services', label: 'Serviços', icon: Wrench },
+  { key: 'welcome', label: 'Acolhimentos', icon: Handshake },
+  { key: 'courses', label: 'Cursos', icon: GraduationCap },
 ];
 
 function roleLabel(role: string) {
@@ -96,7 +100,7 @@ export default function AccessManagementClient() {
   }
 
   async function toggle(profile: Profile, moduleKey: CeamiModuleKey) {
-    if (profile.role === 'admin' || profile.course_only || profile.visitors_only || !profile.is_active) return;
+    if (profile.role === 'admin' || !profile.is_active) return;
 
     const enabled = !hasAccess(profile, moduleKey);
     const savingKey = `${profile.id}:${moduleKey}`;
@@ -138,7 +142,7 @@ export default function AccessManagementClient() {
           </Link>
           <span>ADMINISTRAÇÃO MASTER</span>
           <h1><ShieldCheck /> Acessos dos aplicativos</h1>
-          <p>Defina quais módulos cada conta pode abrir. Uma mesma pessoa pode ter acesso a vários aplicativos.</p>
+          <p>Defina quais módulos cada conta pode abrir. Uma mesma pessoa pode ter acesso a vários aplicativos com o mesmo login.</p>
         </div>
       </header>
 
@@ -161,58 +165,50 @@ export default function AccessManagementClient() {
         <div className="access-loading"><LoaderCircle className="access-spin" /> Carregando acessos...</div>
       ) : (
         <section className="access-list">
-          {visible.map((profile) => {
-            const legacy = profile.course_only ? 'Cursos' : profile.visitors_only ? 'Visitantes' : '';
-            return (
-              <article key={profile.id} className="access-user">
-                <div className="access-user-info">
-                  <div className="access-avatar">
-                    {profile.full_name.trim().slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <strong>{profile.full_name}</strong>
-                    <span>
-                      {roleLabel(profile.role)}
-                      {!profile.is_active && ' • Inativo'}
-                      {legacy && ` • Portal ${legacy}`}
-                    </span>
-                  </div>
+          {visible.map((profile) => (
+            <article key={profile.id} className="access-user">
+              <div className="access-user-info">
+                <div className="access-avatar">
+                  {profile.full_name.trim().slice(0, 2).toUpperCase()}
                 </div>
-
-                <div className="access-modules">
-                  {MODULES.map(({ key, label, icon: Icon }) => {
-                    const enabled = hasAccess(profile, key);
-                    const disabled =
-                      profile.role === 'admin' ||
-                      profile.course_only ||
-                      profile.visitors_only ||
-                      !profile.is_active;
-                    const savingKey = `${profile.id}:${key}`;
-
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        className={enabled ? 'active' : ''}
-                        disabled={disabled || saving === savingKey}
-                        onClick={() => void toggle(profile, key)}
-                        aria-pressed={enabled}
-                      >
-                        {saving === savingKey ? <LoaderCircle className="access-spin" size={17} /> : <Icon size={17} />}
-                        <span>{label}</span>
-                        <small>{profile.role === 'admin' ? 'Master' : enabled ? 'Liberado' : 'Sem acesso'}</small>
-                      </button>
-                    );
-                  })}
+                <div>
+                  <strong>{profile.full_name}</strong>
+                  <span>
+                    {roleLabel(profile.role)}
+                    {!profile.is_active && ' • Inativo'}
+                  </span>
                 </div>
-              </article>
-            );
-          })}
+              </div>
+
+              <div className="access-modules">
+                {MODULES.map(({ key, label, icon: Icon }) => {
+                  const enabled = hasAccess(profile, key);
+                  const disabled = profile.role === 'admin' || !profile.is_active;
+                  const savingKey = `${profile.id}:${key}`;
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={enabled ? 'active' : ''}
+                      disabled={disabled || saving === savingKey}
+                      onClick={() => void toggle(profile, key)}
+                      aria-pressed={enabled}
+                    >
+                      {saving === savingKey ? <LoaderCircle className="access-spin" size={17} /> : <Icon size={17} />}
+                      <span>{label}</span>
+                      <small>{profile.role === 'admin' ? 'Master' : enabled ? 'Liberado' : 'Sem acesso'}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </article>
+          ))}
         </section>
       )}
 
       <p className="access-footnote">
-        Contas exclusivas de Cursos e Visitantes continuam sendo administradas nos portais atuais até a próxima etapa da migração.
+        Acolhimentos e Cursos agora fazem parte da mesma matriz de permissões da CEAMI.
       </p>
     </main>
   );

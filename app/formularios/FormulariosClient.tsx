@@ -47,6 +47,15 @@ type FormRow = {
   created_at: string;
 };
 
+type TicketRow = {
+  id: string;
+  form_id: string;
+  submission_id: string;
+  ticket_code: string;
+  checked_in_at: string | null;
+  created_at: string;
+};
+
 type FieldRow = {
   id: string;
   form_id: string;
@@ -307,6 +316,7 @@ export default function FormulariosClient() {
   const [forms, setForms] = useState<FormRow[]>([]);
   const [fields, setFields] = useState<FieldRow[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -355,10 +365,11 @@ export default function FormulariosClient() {
     setLoading(true);
     setLoadError('');
 
-    const [formsResult, fieldsResult, submissionsResult] = await Promise.all([
+    const [formsResult, fieldsResult, submissionsResult, ticketsResult] = await Promise.all([
       supabase.from('forms').select('*').order('created_at', { ascending: false }),
       supabase.from('form_fields').select('*').order('sort_order', { ascending: true }),
       supabase.from('form_submissions').select('*').order('created_at', { ascending: false }),
+      supabase.from('event_tickets').select('id, form_id, submission_id, ticket_code, checked_in_at, created_at').order('created_at', { ascending: false }),
     ]);
 
     if (formsResult.error) {
@@ -385,6 +396,11 @@ export default function FormulariosClient() {
     setSubmissions(
       ((submissionsResult.data || []) as SubmissionRow[]).filter(
         (submission) => !serviceFormIds.has(submission.form_id),
+      ),
+    );
+    setTickets(
+      ((ticketsResult.data || []) as TicketRow[]).filter(
+        (ticket) => visibleFormIds.has(ticket.form_id),
       ),
     );
     setLoading(false);
@@ -663,6 +679,10 @@ export default function FormulariosClient() {
     : [];
   const responseChoiceFields = responseFields.filter((field) => field.field_type === 'yes_no' || field.field_type === 'select');
   const apostilaField = responseFields.find((field) => field.key === 'apostila' || normalizeSearch(field.label).includes('apostila')) || null;
+  const responseTickets = responseForm
+    ? tickets.filter((ticket) => ticket.form_id === responseForm.id)
+    : [];
+  const checkedInTickets = responseTickets.filter((ticket) => Boolean(ticket.checked_in_at));
   const todayKey = new Date().toLocaleDateString('en-CA');
   const todayResponses = responseRows.filter((submission) => localDateKey(submission.created_at) === todayKey).length;
   const apostilaYes = apostilaField
@@ -878,6 +898,8 @@ export default function FormulariosClient() {
                 <article className="positive"><CheckCircle2 /><div><span>Querem apostila</span><strong>{apostilaYes}</strong></div></article>
                 <article><XCircle /><div><span>Sem apostila</span><strong>{apostilaNo}</strong></div></article>
               </>
+            ) : responseForm.ticketing_enabled ? (
+              <article className="positive"><CheckCircle2 /><div><span>Check-ins</span><strong>{checkedInTickets.length} / {responseTickets.length}</strong></div></article>
             ) : (
               <article><ClipboardList /><div><span>Perguntas</span><strong>{responseFields.length}</strong></div></article>
             )}
@@ -959,6 +981,7 @@ export default function FormulariosClient() {
                 const due = dueForSubmission(responseForm, submission);
                 const material = responseForm.slug === SEMINAR_SLUG ? materialInfo(submission.answers) : null;
                 const correctionMessage = correctionFromAnswers(submission.answers);
+                const ticket = tickets.find((item) => item.submission_id === submission.id) || null;
                 return (
                   <article className="forms-response-card" key={submission.id} data-submission-id={submission.id}>
                     <div className="forms-response-avatar">{initials(name)}</div>
@@ -970,6 +993,13 @@ export default function FormulariosClient() {
                       {correctionMessage && (
                         <div className="ceami-correction-badge" data-ceami-native-correction-badge={submission.id}>
                           <span>!</span><strong>Correção solicitada</strong>
+                        </div>
+                      )}
+                      {ticket && (
+                        <div className={`ceami-ticket-badge ${ticket.checked_in_at ? 'checked' : ''}`}>
+                          <span>🎟</span>
+                          <strong>{ticket.ticket_code}</strong>
+                          <small>{ticket.checked_in_at ? 'Check-in realizado' : 'Aguardando check-in'}</small>
                         </div>
                       )}
                       <div
@@ -1046,6 +1076,16 @@ export default function FormulariosClient() {
                   </div>
                   <button type="button" onClick={() => setSelectedSubmissionId(null)} aria-label="Fechar"><X /></button>
                 </header>
+                {(() => {
+                  const ticket = tickets.find((item) => item.submission_id === selectedSubmission.id);
+                  return ticket ? (
+                    <div className={`ceami-ticket-detail ${ticket.checked_in_at ? 'checked' : ''}`}>
+                      <span>INGRESSO</span>
+                      <strong>{ticket.ticket_code}</strong>
+                      <small>{ticket.checked_in_at ? `Check-in em ${new Date(ticket.checked_in_at).toLocaleString('pt-BR')}` : 'Ainda não utilizado'}</small>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="forms-response-detail-list">
                   {responseFields.map((field) => (
                     <div key={field.id}>

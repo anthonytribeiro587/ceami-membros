@@ -141,6 +141,7 @@ export default function CoursesWorkspace() {
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [selectedClass, setSelectedClass] = useState<CourseClass | null>(null);
   const [role, setRole] = useState('visualizador');
+  const [moduleManager, setModuleManager] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -148,7 +149,7 @@ export default function CoursesWorkspace() {
   const [courseModal, setCourseModal] = useState(false);
   const [classModal, setClassModal] = useState(false);
 
-  const canManage = ['admin', 'secretaria', 'pastor', 'lider'].includes(role);
+  const canManage = role === 'admin' || moduleManager;
 
   useEffect(() => {
     void load();
@@ -176,8 +177,14 @@ export default function CoursesWorkspace() {
 
     setUserId(user.id);
 
-    const [profileResult, courseResult, classResult, memberResult] = await Promise.all([
+    const [profileResult, accessResult, courseResult, classResult, memberResult] = await Promise.all([
       supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('profile_module_access')
+        .select('access_level, can_access')
+        .eq('profile_id', user.id)
+        .eq('module_key', 'courses')
+        .maybeSingle(),
       supabase.from('courses').select('*').order('name'),
       supabase
         .from('course_classes')
@@ -198,6 +205,10 @@ export default function CoursesWorkspace() {
     }
 
     setRole(profileResult.data?.role || 'visualizador');
+    setModuleManager(
+      profileResult.data?.role === 'admin' ||
+        (accessResult.data?.can_access === true && accessResult.data?.access_level === 'manager'),
+    );
     setCourses((courseResult.data || []) as Course[]);
     setClasses(
       ((classResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
@@ -263,7 +274,8 @@ export default function CoursesWorkspace() {
   return (
     <main className="courses-page">
       <AdminPageHeader
-        title="Cursos e presença"
+        eyebrow="CEAMI CURSOS"
+        title="Cursos e frequência"
         description="Organize turmas, aulas, alunos, chamada manual e check-in por QR Code."
         actions={
           <div className="courses-actions">

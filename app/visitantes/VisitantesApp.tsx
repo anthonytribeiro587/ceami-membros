@@ -35,7 +35,6 @@ type Profile = {
   id: string;
   full_name: string;
   role: string;
-  visitors_only: boolean;
   is_active: boolean;
 };
 
@@ -161,7 +160,7 @@ function followupLabel(value: Visitor['followup_status']) {
 function friendlyError(value: unknown) {
   const message = String(value || '');
   if (message.includes('WhatsApp válido')) return 'Informe um WhatsApp válido com DDD.';
-  if (message.includes('Acesso restrito')) return 'Este usuário não possui acesso ao CEAMI Visitantes.';
+  if (message.includes('Acesso restrito')) return 'Este usuário não possui acesso ao CEAMI Acolhimentos.';
   return message || 'Não foi possível concluir a operação.';
 }
 
@@ -219,24 +218,33 @@ export default function VisitantesApp() {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
     if (!user) {
-      router.replace('/visitantes/login');
+      router.replace('/login?next=/acolhimentos');
       setLoading(false);
       return;
     }
 
-    const [profileResult, visitorsResult, visitsResult, followupsResult] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, role, visitors_only, is_active').eq('id', user.id).maybeSingle(),
+    const [profileResult, accessResult, visitorsResult, visitsResult, followupsResult] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, role, is_active').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('profile_module_access')
+        .select('access_level, can_access')
+        .eq('profile_id', user.id)
+        .eq('module_key', 'welcome')
+        .maybeSingle(),
       supabase.from('visitors').select('*').eq('status', 'ativo').order('last_visit_on', { ascending: false }).order('updated_at', { ascending: false }),
       supabase.from('visitor_visits').select('*').order('created_at', { ascending: false }).limit(1500),
       supabase.from('visitor_followups').select('*').order('created_at', { ascending: false }).limit(1500),
     ]);
 
-    const allowed = profileResult.data?.is_active === true &&
-      (profileResult.data?.role === 'admin' || profileResult.data?.visitors_only === true);
+    const allowed =
+      profileResult.data?.is_active === true &&
+      (
+        profileResult.data?.role === 'admin' ||
+        (accessResult.data?.can_access === true && accessResult.data?.access_level === 'manager')
+      );
 
     if (profileResult.error || !allowed) {
-      await supabase.auth.signOut();
-      router.replace('/visitantes/login?acesso=negado');
+      router.replace('/?selecionar=1&acesso=negado');
       setLoading(false);
       return;
     }
@@ -462,7 +470,7 @@ export default function VisitantesApp() {
 
   async function signOut() {
     await supabase.auth.signOut();
-    router.replace('/visitantes/login');
+    router.replace('/login');
     router.refresh();
   }
 
@@ -483,7 +491,7 @@ export default function VisitantesApp() {
     return (
       <main className="visitors-loading">
         <img src="/brand/ceami-icon.svg?v=official-2" alt="" />
-        <strong>CEAMI Visitantes</strong>
+        <strong>CEAMI Acolhimentos</strong>
         <span>Carregando acolhimento...</span>
       </main>
     );
@@ -494,7 +502,7 @@ export default function VisitantesApp() {
       <aside className="visitors-sidebar">
         <div className="visitors-sidebar-brand">
           <img src="/brand/ceami-icon.svg?v=official-2" alt="" />
-          <div><strong>CEAMI</strong><span>Visitantes</span></div>
+          <div><strong>CEAMI</strong><span>Acolhimentos</span></div>
         </div>
         <nav>
           <button type="button" className={screen === 'home' ? 'active' : ''} onClick={() => setScreen('home')}><Home /><span>Início</span></button>
@@ -510,7 +518,7 @@ export default function VisitantesApp() {
       </aside>
 
       <header className="visitors-topbar">
-        {screen !== 'home' ? <button type="button" className="visitors-back" onClick={() => setScreen('home')}><ArrowLeft /></button> : <div className="visitors-mobile-brand"><img src="/brand/ceami-icon.svg?v=official-2" alt="" /><strong>CEAMI <span>Visitantes</span></strong></div>}
+        {screen !== 'home' ? <button type="button" className="visitors-back" onClick={() => setScreen('home')}><ArrowLeft /></button> : <div className="visitors-mobile-brand"><img src="/brand/ceami-icon.svg?v=official-2" alt="" /><strong>CEAMI <span>Acolhimentos</span></strong></div>}
         <h1>{title}</h1>
         <button type="button" className="visitors-refresh" onClick={() => void load()} aria-label="Atualizar"><RefreshCw /></button>
       </header>
@@ -519,7 +527,7 @@ export default function VisitantesApp() {
         {screen === 'home' && (
           <section className="visitors-home">
             <div className="visitors-welcome">
-              <span>CEAMI VISITANTES</span>
+              <span>CEAMI ACOLHIMENTOS</span>
               <h2>{greeting()}, equipe de acolhimento! <b>👋</b></h2>
               <p>O que tal continuar acolhendo hoje?</p>
             </div>

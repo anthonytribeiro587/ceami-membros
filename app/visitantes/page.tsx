@@ -1,5 +1,5 @@
-import VisitantesApp from './VisitantesApp';
+import { redirect } from 'next/navigation';
 
-export default function VisitantesPage() {
-  return <VisitantesApp />;
+export default function VisitantesLegacyPage() {
+  redirect('/acolhimentos');
 }

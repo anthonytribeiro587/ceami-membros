@@ -35,16 +35,14 @@ export default function LoginPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('is_active, course_only, visitors_only')
+        .select('is_active')
         .eq('id', data.user.id)
         .maybeSingle();
 
       if (!active || !profile?.is_active) return;
 
       const nextPath = safeNextPath(params.get('next'));
-      if (profile.visitors_only) router.replace('/visitantes');
-      else if (profile.course_only) router.replace('/cursos');
-      else router.replace(nextPath || '/');
+      router.replace(nextPath || '/');
       router.refresh();
     })();
 
@@ -69,7 +67,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_active, course_only, visitors_only')
+      .select('is_active')
       .eq('id', data.user.id)
       .maybeSingle();
 
@@ -83,9 +81,7 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const nextPath = safeNextPath(params.get('next'));
 
-    if (profile.visitors_only) router.replace('/visitantes');
-    else if (profile.course_only) router.replace('/cursos');
-    else router.replace(nextPath || '/');
+    router.replace(nextPath || '/');
 
     router.refresh();
   }

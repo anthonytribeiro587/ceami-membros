@@ -5,8 +5,11 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays,
+  GraduationCap,
   Grid2X2,
+  Handshake,
   HeartHandshake,
+  KeyRound,
   LogOut,
   Users,
   Wrench,
@@ -28,6 +31,8 @@ const MODULES: Array<{
   { key: 'social', label: 'Social', icon: HeartHandshake },
   { key: 'events', label: 'Eventos', icon: CalendarDays },
   { key: 'services', label: 'Serviços', icon: Wrench },
+  { key: 'welcome', label: 'Acolhimentos', icon: Handshake },
+  { key: 'courses', label: 'Cursos', icon: GraduationCap },
 ];
 
 const HIDDEN_PREFIXES = [
@@ -72,7 +77,7 @@ export default function CeamiAppSwitcher() {
         .eq('id', authData.user.id)
         .maybeSingle();
 
-      if (!active || !profile?.is_active || profile.course_only || profile.visitors_only) return;
+      if (!active || !profile?.is_active) return;
       setProfileName(String(profile.full_name || ''));
 
       if (profile.role === 'admin') {
@@ -94,7 +99,9 @@ export default function CeamiAppSwitcher() {
 
       if (keys.length) setAllowed(keys);
       else if (accessError) {
-        if (profile.social_only) setAllowed(['social']);
+        if (profile.visitors_only) setAllowed(['welcome']);
+        else if (profile.course_only) setAllowed(['courses']);
+        else if (profile.social_only) setAllowed(['social']);
         else setAllowed(['members']);
       } else {
         setAllowed([]);
@@ -157,6 +164,9 @@ export default function CeamiAppSwitcher() {
             ))}
           </div>
 
+          <Link href="/conta" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>
+            <KeyRound size={14} /> Minha conta e senha
+          </Link>
           {isAdmin && (
             <Link href="/acessos" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>
               Gerenciar acessos

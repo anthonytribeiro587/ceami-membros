@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Cake,
   CalendarCheck2,
-  GraduationCap,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -76,11 +75,9 @@ export default function AdminRouteShell({
     router.refresh();
   }
 
-  const showMainLinks = role !== 'course';
+  const showMainLinks = true;
   const showIntegra = role === 'admin';
   const showAutomations = role === 'admin' || pathname.startsWith('/automacoes');
-  const showCourses =
-    role === 'admin' || role === 'course' || pathname.startsWith('/cursos');
 
   return (
     <div className="member-v3-shell admin-route-shell">
@@ -129,18 +126,6 @@ export default function AdminRouteShell({
             </Link>
           )}
 
-          {showCourses && (
-            <Link
-              href="/cursos"
-              prefetch
-              className={pathname.startsWith('/cursos') ? 'active' : ''}
-              aria-current={pathname.startsWith('/cursos') ? 'page' : undefined}
-              onClick={() => setMenuOpen(false)}
-            >
-              <GraduationCap size={19} />
-              <span>Cursos</span>
-            </Link>
-          )}
 
         </nav>
 
@@ -175,22 +160,15 @@ export default function AdminRouteShell({
       </section>
 
       <nav
-        className={`member-v3-bottom-nav admin-route-bottom-nav ${showMainLinks ? '' : 'course-only'}`}
+        className="member-v3-bottom-nav admin-route-bottom-nav"
         aria-label="Navegação móvel"
       >
-        {showMainLinks ? (
-          MAIN_LINKS.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} prefetch>
-              <Icon size={19} />
-              <span>{label}</span>
-            </Link>
-          ))
-        ) : (
-          <Link href="/cursos" prefetch className={pathname.startsWith('/cursos') ? 'active' : ''}>
-            <GraduationCap size={19} />
-            <span>Cursos</span>
+        {MAIN_LINKS.map(({ href, label, icon: Icon }) => (
+          <Link key={href} href={href} prefetch>
+            <Icon size={19} />
+            <span>{label}</span>
           </Link>
-        )}
+        ))}
         <button
           type="button"
           className="active"

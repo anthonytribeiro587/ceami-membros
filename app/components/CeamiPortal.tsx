@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   CalendarDays,
+  GraduationCap,
+  Handshake,
   HeartHandshake,
+  KeyRound,
   LogOut,
   ShieldCheck,
   Users,
@@ -56,6 +59,20 @@ const DEFINITIONS: ModuleDefinition[] = [
     eyebrow: 'ATENDIMENTOS',
     description: 'Solicitações da comunidade e acompanhamento dos atendimentos.',
     icon: Wrench,
+  },
+  {
+    key: 'welcome',
+    name: 'Acolhimentos',
+    eyebrow: 'RECEPÇÃO E CUIDADO',
+    description: 'Visitantes, retornos, contatos e acompanhamento da equipe de acolhimento.',
+    icon: Handshake,
+  },
+  {
+    key: 'courses',
+    name: 'Cursos',
+    eyebrow: 'FREQUÊNCIA E TURMAS',
+    description: 'Turmas, aulas, alunos, presença manual e check-in por QR Code.',
+    icon: GraduationCap,
   },
 ];
 
@@ -121,6 +138,10 @@ export default function CeamiPortal({
 
         <div className="ceami-portal-account">
           <span>{fullName || 'Conta CEAMI'}</span>
+          <Link href="/conta" className="ceami-portal-admin">
+            <KeyRound size={17} />
+            Minha conta
+          </Link>
           {isAdmin && (
             <Link href="/acessos" className="ceami-portal-admin">
               <ShieldCheck size={17} />

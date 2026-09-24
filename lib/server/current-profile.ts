@@ -74,7 +74,7 @@ async function loadCurrentAccess(): Promise<CurrentCeamiAccess | null> {
         accessLevel: 'manager' as CeamiModuleAccessLevel,
       })),
     );
-  } else if (!profile.course_only && !profile.visitors_only) {
+  } else {
     const { data: accessRows, error: accessError } = await supabase
       .from('profile_module_access')
       .select('module_key, access_level, can_access')
@@ -89,9 +89,11 @@ async function loadCurrentAccess(): Promise<CurrentCeamiAccess | null> {
       modules.push({ moduleKey, accessLevel });
     }
 
-    // Compatibilidade durante a transição caso a matriz ainda não exista para um perfil antigo.
+    // Compatibilidade temporária para perfis criados antes da matriz de módulos.
     if (accessError && modules.length === 0) {
-      if (profile.social_only) modules.push({ moduleKey: 'social', accessLevel: 'manager' });
+      if (profile.visitors_only) modules.push({ moduleKey: 'welcome', accessLevel: 'manager' });
+      else if (profile.course_only) modules.push({ moduleKey: 'courses', accessLevel: 'manager' });
+      else if (profile.social_only) modules.push({ moduleKey: 'social', accessLevel: 'manager' });
       else modules.push({ moduleKey: 'members', accessLevel: 'viewer' });
     }
   }
@@ -119,7 +121,6 @@ export async function getCurrentUiRole(): Promise<UiRole> {
   const access = await loadCurrentAccess();
   if (!access) return null;
   if (access.role === 'admin') return 'admin';
-  if (access.courseOnly) return 'course';
   return 'member';
 }
 

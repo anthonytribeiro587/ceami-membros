@@ -12,8 +12,8 @@ import {
   Check,
   ChevronRight,
   Church,
-  GraduationCap,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Mail,
   MapPin,
@@ -375,11 +375,6 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
             </Link>
           )}
 
-          {isAdmin && (
-            <Link href="/cursos" prefetch onClick={() => setMenuOpen(false)}>
-              <GraduationCap size={19} /><span>Cursos</span>
-            </Link>
-          )}
 
         </nav>
 
@@ -570,7 +565,7 @@ function Dashboard({ members, onOpen, onRefresh, onNew }: {
           </div>
           <div className="member-v3-quick-actions">
             <button type="button" onClick={onNew}><UserRound /><span>Novo membro</span></button>
-            <button type="button" onClick={() => window.location.assign('/cursos')}><GraduationCap /><span>Ver cursos</span></button>
+            <button type="button" onClick={() => window.location.assign('/?selecionar=1')}><LayoutGrid /><span>Aplicativos</span></button>
           </div>
         </aside>
       </div>

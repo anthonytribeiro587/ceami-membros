@@ -119,6 +119,8 @@
 .ceami-portal-card-social .ceami-portal-card-icon { background: #e1edf0; color: #0a4f65; }
 .ceami-portal-card-events .ceami-portal-card-icon { background: #f4e8d4; color: #785322; }
 .ceami-portal-card-services .ceami-portal-card-icon { background: #e5ebe1; color: #315a3a; }
+.ceami-portal-card-welcome .ceami-portal-card-icon { background: #e7eef6; color: #315c82; }
+.ceami-portal-card-courses .ceami-portal-card-icon { background: #e7f0e9; color: #285b43; }
 
 .ceami-portal-card-copy span {
   display: block;
@@ -238,7 +240,10 @@
 .ceami-app-switcher-grid a:hover { background: #efebe4; }
 
 .ceami-app-switcher-all {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin-top: 10px;
   padding: 10px 4px 2px;
   color: #65543e;

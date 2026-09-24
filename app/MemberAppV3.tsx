@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Church,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Mail,
   MapPin,

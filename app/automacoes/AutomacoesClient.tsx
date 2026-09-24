@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
-  Bot,
   Cake,
   CalendarDays,
   Check,
@@ -16,7 +15,6 @@ import {
   Pencil,
   Play,
   Plus,
-  Repeat2,
   Save,
   Send,
   Settings2,
@@ -30,7 +28,7 @@ import type { UiRole } from '@/lib/types/ui-role';
 
 type AutomationType = 'birthday' | 'reading_plan' | 'custom';
 type ScheduleType = 'daily' | 'weekly' | 'monthly';
-type AutomationView = 'settings' | 'calendar' | 'history';
+type AutomationView = 'overview' | 'settings' | 'message' | 'calendar' | 'history';
 
 type Automation = {
   id: string;
@@ -246,7 +244,7 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
   const [entries, setEntries] = useState<ReadingEntry[]>([]);
   const [readingLoading, setReadingLoading] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ReadingEntry | null>(null);
-  const [activeView, setActiveView] = useState<AutomationView>('settings');
+  const [activeView, setActiveView] = useState<AutomationView>('overview');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -295,7 +293,7 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
     });
     setMessage('');
     setError('');
-    setActiveView('settings');
+    setActiveView('overview');
   }, [selected]);
 
   const loadReadings = useCallback(async (targetMonth: string) => {
@@ -515,15 +513,15 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
       <section className="automation-summary">
         <article>
           <span><Workflow /></span>
-          <div><small>Automações ativas</small><strong>{data.automations.filter((item) => item.enabled).length}</strong></div>
+          <div><small>Ativas</small><strong>{data.automations.filter((item) => item.enabled).length} de {data.automations.length}</strong></div>
         </article>
         <article>
           <span><Send /></span>
-          <div><small>Instância conectada</small><strong>{data.evolution.instance || 'Não configurada'}</strong></div>
+          <div><small>WhatsApp</small><strong>{data.evolution.instance || 'Não configurada'}</strong></div>
         </article>
         <article>
           <span><CalendarDays /></span>
-          <div><small>Leitura de hoje</small><strong>{data.today.reading || 'Não cadastrada'}</strong></div>
+          <div><small>Hoje</small><strong>{data.today.reading || data.today.displayDate}</strong></div>
         </article>
       </section>
 
@@ -575,31 +573,27 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
             </label>
           </header>
 
-          <div className="automation-status-grid">
-            <article>
-              <Repeat2 />
-              <div>
-                <small>Programação</small>
-                <strong>{scheduleDescription({ ...selected, ...draft })}</strong>
-              </div>
-            </article>
-            <article>
-              <History />
-              <div><small>Última execução</small><strong>{formatDateTime(selected.lastSentAt)}</strong></div>
-            </article>
-            <article className={selected.lastStatus === 'failed' ? 'failed' : ''}>
-              <Bot />
-              <div><small>Status</small><strong>{statusText(selected.lastStatus)}</strong></div>
-            </article>
-          </div>
-
           <nav className="automation-workspace-tabs" aria-label="Áreas da automação">
+            <button
+              type="button"
+              className={activeView === 'overview' ? 'active' : ''}
+              onClick={() => setActiveView('overview')}
+            >
+              <Workflow /> Resumo
+            </button>
             <button
               type="button"
               className={activeView === 'settings' ? 'active' : ''}
               onClick={() => setActiveView('settings')}
             >
               <Settings2 /> Configuração
+            </button>
+            <button
+              type="button"
+              className={activeView === 'message' ? 'active' : ''}
+              onClick={() => setActiveView('message')}
+            >
+              <MessageSquareText /> Mensagem
             </button>
             {selected.type === 'reading_plan' && (
               <button
@@ -620,59 +614,177 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
             </button>
           </nav>
 
-          {activeView === 'settings' && (
-            <div className="automation-form-grid">
-              <section className="automation-card">
+          {activeView === 'overview' && (
+            <div className="automation-overview-grid">
+              <section className="automation-card automation-overview-main">
                 <div className="automation-card-title">
-                  <Settings2 />
+                  <Workflow />
                   <div>
-                    <h3>{selected.canDelete ? 'Editar automação' : 'Configuração'}</h3>
-                    <p>Defina frequência, horário, destino e conteúdo.</p>
+                    <h3>Resumo da automação</h3>
+                    <p>Confira rapidamente se está pronta para funcionar.</p>
                   </div>
                 </div>
 
-                <div className="automation-two-fields">
-                  <label>
-                    <span>Nome da automação</span>
-                    <input
-                      value={draft.name}
-                      onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                    />
-                  </label>
-                  <label>
-                    <span>Horário de envio</span>
-                    <input
-                      type="time"
-                      value={draft.sendTime}
-                      onChange={(event) => setDraft({ ...draft, sendTime: event.target.value })}
-                    />
-                  </label>
+                <div className="automation-overview-rows">
+                  <div>
+                    <span>Programação</span>
+                    <strong>{scheduleDescription({ ...selected, ...draft })}</strong>
+                    <button type="button" onClick={() => setActiveView('settings')}>Editar</button>
+                  </div>
+                  <div>
+                    <span>Destino</span>
+                    <strong>{draft.groupId || 'Grupo não configurado'}</strong>
+                    <button type="button" onClick={() => setActiveView('settings')}>Editar</button>
+                  </div>
+                  <div>
+                    <span>Mensagem</span>
+                    <strong>{draft.messageTemplate.trim() ? 'Configurada' : 'Não configurada'}</strong>
+                    <button type="button" onClick={() => setActiveView('message')}>Abrir</button>
+                  </div>
+                  <div>
+                    <span>Última execução</span>
+                    <strong>{formatDateTime(selected.lastSentAt)}</strong>
+                    <button type="button" onClick={() => setActiveView('history')}>Histórico</button>
+                  </div>
                 </div>
 
-                <ScheduleFields
-                  scheduleType={draft.scheduleType}
-                  weekdays={draft.weekdays}
-                  dayOfMonth={draft.dayOfMonth}
-                  locked={selected.type !== 'custom'}
-                  onChange={(schedule) => setDraft({ ...draft, ...schedule })}
-                />
+                <div className="automation-overview-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={testing || !scheduleIsValid(draft)}
+                    onClick={() => void sendTest()}
+                  >
+                    {testing ? <LoaderCircle className="spin" /> : <Play />} Enviar teste
+                  </button>
+                  <button type="button" className="primary" onClick={() => setActiveView('settings')}>
+                    <Settings2 /> Ajustar configuração
+                  </button>
+                </div>
+              </section>
 
+              <aside className="automation-overview-side">
+                <section className="automation-card automation-today-card">
+                  <span>HOJE</span>
+                  {selected.type === 'birthday' ? (
+                    <>
+                      <strong>{data.today.birthdays.length}</strong>
+                      <h4>{data.today.birthdays.length === 1 ? 'aniversariante' : 'aniversariantes'}</h4>
+                      <p>{data.today.birthdays.length ? data.today.birthdays.map((item) => item.name).join(', ') : 'Nenhum aniversário cadastrado para hoje.'}</p>
+                    </>
+                  ) : selected.type === 'reading_plan' ? (
+                    <>
+                      <strong className="text-value">{data.today.reading || 'Sem leitura'}</strong>
+                      <h4>leitura prevista</h4>
+                      <p>{data.tomorrow.reading ? `Amanhã: ${data.tomorrow.reading}` : 'A leitura de amanhã ainda não está cadastrada.'}</p>
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-value">{scheduleLabel({ ...selected, ...draft })}</strong>
+                      <h4>{draft.enabled ? 'automação ativa' : 'automação pausada'}</h4>
+                      <p>{scheduleDescription({ ...selected, ...draft })}</p>
+                    </>
+                  )}
+                </section>
+
+                <section className="automation-card automation-health-card">
+                  <span>STATUS</span>
+                  <strong className={selected.lastStatus === 'failed' ? 'failed' : ''}>{statusText(selected.lastStatus)}</strong>
+                  <p>{selected.lastError || (data.evolution.configured ? `Evolution conectada em ${data.evolution.instance || 'instância configurada'}.` : 'A Evolution ainda não está completamente configurada.')}</p>
+                </section>
+              </aside>
+            </div>
+          )}
+
+          {activeView === 'settings' && (
+            <section className="automation-card automation-settings-card">
+              <div className="automation-card-title">
+                <Settings2 />
+                <div>
+                  <h3>{selected.canDelete ? 'Configuração da automação' : 'Configuração'}</h3>
+                  <p>Defina agenda, horário e destino. A mensagem é editada em uma área separada.</p>
+                </div>
+              </div>
+
+              <div className="automation-two-fields">
                 <label>
-                  <span>ID do grupo no WhatsApp</span>
+                  <span>Nome da automação</span>
                   <input
-                    value={draft.groupId}
-                    onChange={(event) => setDraft({ ...draft, groupId: event.target.value })}
-                    placeholder="120000000000000000@g.us"
+                    value={draft.name}
+                    onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                   />
-                  <small>O identificador precisa terminar em @g.us.</small>
                 </label>
+                <label>
+                  <span>Horário de envio</span>
+                  <input
+                    type="time"
+                    value={draft.sendTime}
+                    onChange={(event) => setDraft({ ...draft, sendTime: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <ScheduleFields
+                scheduleType={draft.scheduleType}
+                weekdays={draft.weekdays}
+                dayOfMonth={draft.dayOfMonth}
+                locked={selected.type !== 'custom'}
+                onChange={(schedule) => setDraft({ ...draft, ...schedule })}
+              />
+
+              <label>
+                <span>ID do grupo no WhatsApp</span>
+                <input
+                  value={draft.groupId}
+                  onChange={(event) => setDraft({ ...draft, groupId: event.target.value })}
+                  placeholder="120000000000000000@g.us"
+                />
+                <small>O identificador precisa terminar em @g.us.</small>
+              </label>
+
+              <div className="automation-actions">
+                {selected.canDelete && (
+                  <button type="button" className="danger" onClick={() => void deleteAutomation()}>
+                    <Trash2 /> Excluir automação
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={testing || !scheduleIsValid(draft)}
+                  onClick={() => void sendTest()}
+                >
+                  {testing ? <LoaderCircle className="spin" /> : <Play />} Enviar teste
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={saving || !scheduleIsValid(draft)}
+                  onClick={() => void saveAutomation()}
+                >
+                  {saving ? <LoaderCircle className="spin" /> : <Save />} Salvar configuração
+                </button>
+              </div>
+            </section>
+          )}
+
+          {activeView === 'message' && (
+            <div className="automation-message-grid">
+              <section className="automation-card automation-message-editor">
+                <div className="automation-card-title">
+                  <MessageSquareText />
+                  <div>
+                    <h3>Mensagem enviada</h3>
+                    <p>Edite apenas o conteúdo que chegará ao WhatsApp.</p>
+                  </div>
+                </div>
 
                 <label>
-                  <span>Mensagem enviada</span>
+                  <span>Conteúdo da mensagem</span>
                   <textarea
                     value={draft.messageTemplate}
                     onChange={(event) => setDraft({ ...draft, messageTemplate: event.target.value })}
-                    rows={9}
+                    rows={12}
                   />
                 </label>
 
@@ -697,11 +809,6 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
                 </div>
 
                 <div className="automation-actions">
-                  {selected.canDelete && (
-                    <button type="button" className="danger" onClick={() => void deleteAutomation()}>
-                      <Trash2 /> Excluir automação
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="secondary"
@@ -716,7 +823,7 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
                     disabled={saving || !scheduleIsValid(draft)}
                     onClick={() => void saveAutomation()}
                   >
-                    {saving ? <LoaderCircle className="spin" /> : <Save />} Salvar alterações
+                    {saving ? <LoaderCircle className="spin" /> : <Save />} Salvar mensagem
                   </button>
                 </div>
               </section>
@@ -724,7 +831,7 @@ export default function AutomacoesClient({ initialRole }: { initialRole: UiRole 
               <aside className="automation-card automation-preview">
                 <div className="automation-card-title">
                   <MessageSquareText />
-                  <div><h3>Prévia da mensagem</h3><p>Exemplo com os dados de hoje.</p></div>
+                  <div><h3>Prévia</h3><p>Exemplo com os dados de hoje.</p></div>
                 </div>
                 <div className="automation-phone">
                   <header><span>Comunidade CEAMI</span><small>WhatsApp</small></header>

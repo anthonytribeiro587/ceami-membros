@@ -96,7 +96,7 @@ body:has(.member-v3-shell) .site-footer{display:none}
 @media(max-width:760px){
   .member-v3-dashboard{gap:12px}
   .member-v3-hero{padding:18px 16px;border-radius:18px;border-bottom-width:5px}
-  .member-v3-hero span{font-size:8.5px}
+  .member-v3-hero span{font-size:9.5px}
   .member-v3-hero h2{margin:8px 0 7px;font-size:21px;line-height:1.15}
   .member-v3-hero p{font-size:12px;line-height:1.45}
   .member-v3-hero-actions{gap:7px;margin-top:15px}
@@ -231,4 +231,87 @@ body:has(.member-v3-shell) .site-footer{display:none}
   .admin-pagination{align-items:flex-start;flex-direction:column;padding-top:11px}
   .admin-pagination-controls{width:100%;justify-content:space-between}
   .admin-pagination button{min-width:32px;height:32px;padding:0 8px}
+}
+
+
+/* Integra — workspace operacional, sem pilha de cards */
+.member-v3-integra-page{gap:12px!important;max-width:1180px;margin-inline:auto}
+.integra-tabs{
+  width:max-content;max-width:100%;display:flex;gap:2px;padding:3px;
+  border:1px solid #dce5ea;border-radius:7px;background:#eef2f4;overflow-x:auto
+}
+.integra-tabs button{
+  min-height:34px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;
+  border:0;border-radius:5px;background:transparent;color:#687f8f;
+  font-size:11px;font-weight:700;white-space:nowrap
+}
+.integra-tabs button.active{background:#fff;color:#0b4f7e;box-shadow:0 1px 3px rgba(8,48,78,.07)}
+.integra-overview{padding:16px!important;border-radius:9px!important}
+.integra-overview-head{align-items:center!important}
+.integra-eyebrow{display:block;color:#f26222;font-size:9px;font-weight:800;letter-spacing:.1em}
+.integra-overview-head h2,.integra-participants-panel h2,.integra-consult h2{font-size:18px!important}
+.integra-refresh{min-height:38px!important;padding:0 12px!important;border-radius:6px!important;font-size:10px!important}
+.integra-overview-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(240px,.45fr);gap:12px;margin-top:13px}
+.integra-form-access{min-width:0;display:grid;grid-template-columns:142px minmax(0,1fr);gap:16px;align-items:center;padding:14px;border:1px solid #e1e8ec;border-radius:8px;background:#fafcfd}
+.integra-qr{display:grid;place-items:center;padding:8px;background:#fff;border:1px solid #e2e9ed;border-radius:7px}
+.integra-qr img{display:block;width:100%;max-width:126px;aspect-ratio:1}
+.integra-qr.compact img{max-width:112px}
+.integra-form-copy>span,.integra-consult-link>div:last-child>span,.integra-message-panel>span{color:#f26222;font-size:9px;font-weight:800;letter-spacing:.09em}
+.integra-form-copy h3,.integra-consult-link h3{margin:4px 0 5px;color:#0b3555;font-size:15px}
+.integra-form-copy p{margin:0 0 9px;color:#748895;font-size:11px;line-height:1.45}
+.integra-form-copy code,.integra-consult-link code{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#60798b;font-size:9.5px}
+.integra-inline-actions{display:flex;gap:6px;margin-top:11px}
+.integra-inline-actions button,.integra-inline-actions a{
+  min-height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0 10px;
+  border:1px solid #d7e2e8;border-radius:6px;background:#fff;color:#164e75;text-decoration:none;
+  font-size:10.5px;font-weight:700
+}
+.integra-inline-actions button:first-child{background:#0b4f7e;border-color:#0b4f7e;color:#fff}
+.integra-today{padding:15px;border-left:3px solid #f26222;background:#fff;border-top:1px solid #e2e8ec;border-right:1px solid #e2e8ec;border-bottom:1px solid #e2e8ec;border-radius:0 8px 8px 0}
+.integra-today>span{color:#f26222;font-size:9px;font-weight:800;letter-spacing:.1em}
+.integra-today>strong{display:block;margin-top:8px;color:#0b4f7e;font-size:31px;line-height:1}
+.integra-today h3{margin:5px 0 7px;color:#0b3555;font-size:12px}
+.integra-today p,.integra-today-note{color:#718693;font-size:10.5px;line-height:1.5}
+.integra-today p{margin:0}
+.integra-today-note{margin-top:11px;padding-top:10px;border-top:1px solid #edf1f3}
+.integra-metrics{margin:0!important}
+.integra-history-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:12px}
+.integra-history-panel,.integra-participants-panel{padding:15px!important;border-radius:9px!important}
+.integra-history-list .member-v3-row.is-selected{background:#f6f8f9!important;box-shadow:inset 2px 0 0 #f26222}
+.integra-history-list .member-v3-avatar{width:34px!important;height:34px!important;border-radius:6px!important}
+.integra-history-list .member-v3-row{min-height:51px!important}
+.integra-empty-copy{padding:22px 4px;color:#738692;font-size:10px}
+.integra-empty-state{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#82929d}
+.integra-empty-state strong{margin-top:7px;color:#34566e;font-size:11px}
+.integra-empty-state span{max-width:250px;margin-top:3px;font-size:9px;line-height:1.45}
+.integra-consult{padding:16px!important;border-radius:9px!important}
+.integra-consult-grid{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr);gap:12px;margin-top:13px}
+.integra-consult-link{display:grid;grid-template-columns:128px minmax(0,1fr);gap:14px;align-items:center;padding:13px;border:1px solid #e1e8ec;border-radius:8px;background:#fafcfd}
+.integra-message-panel{padding:14px;border:1px solid #e1e8ec;border-radius:8px;background:#fff}
+.integra-message-panel>p{max-height:190px;margin:8px 0 0;overflow:auto;white-space:pre-line;color:#486476;font-size:10.5px;line-height:1.55}
+.integra-message-panel>small{display:block;margin-top:10px;color:#82939f;font-size:8.5px;line-height:1.45}
+
+@media(max-width:900px){
+  .integra-overview-grid,.integra-history-layout,.integra-consult-grid{grid-template-columns:1fr}
+  .integra-today{border-left-width:2px}
+}
+@media(max-width:620px){
+  .member-v3-integra-page{gap:9px!important}
+  .integra-tabs{width:100%}
+  .integra-tabs button{flex:1;justify-content:center;padding:0 8px}
+  .integra-overview,.integra-history-panel,.integra-participants-panel,.integra-consult{padding:11px!important}
+  .integra-overview-head{align-items:flex-start!important}
+  .integra-overview-head .member-v3-primary{width:auto!important}
+  .integra-form-access,.integra-consult-link{grid-template-columns:96px minmax(0,1fr);gap:10px;padding:10px}
+  .integra-qr{padding:5px}
+  .integra-form-copy h3,.integra-consult-link h3{font-size:13px}
+  .integra-form-copy p{display:none}
+  .integra-inline-actions{display:grid;grid-template-columns:1fr 1fr}
+  .integra-inline-actions>*{min-width:0;padding:0 6px!important}
+  .integra-today>strong{font-size:27px}
+  .integra-message-panel>p{max-height:150px}
+}
+@media(max-width:390px){
+  .integra-form-access,.integra-consult-link{grid-template-columns:78px minmax(0,1fr)}
+  .integra-inline-actions{grid-template-columns:1fr}
 }

@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CalendarDays,
-  Check,
   GraduationCap,
   Handshake,
   HeartHandshake,
@@ -174,15 +173,17 @@ export default function AccessManagementClient() {
   return (
     <main className="access-page">
       <header className="access-header">
-        <div>
+        <div className="access-header-top">
           <Link href="/?selecionar=1" className="access-back">
             <ArrowLeft size={16} /> Aplicativos
           </Link>
+          <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
+        </div>
+        <div className="access-header-copy">
           <span>ADMINISTRAÇÃO MASTER</span>
           <h1><ShieldCheck /> Acessos dos aplicativos</h1>
-          <p>Escolha um aplicativo e gerencie quem pode acessá-lo. Administradores Master mantêm acesso total à plataforma.</p>
+          <p>Defina quem pode abrir cada módulo da CEAMI. Contas Master mantêm acesso total.</p>
         </div>
-        <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
       </header>
 
       <section className="access-workspace">
@@ -228,7 +229,7 @@ export default function AccessManagementClient() {
             <div className="access-table-wrap">
               <table className="access-table">
                 <thead>
-                  <tr><th>Usuário</th><th>Perfil</th><th>Nível</th><th>Status</th><th>Acesso</th></tr>
+                  <tr><th>Usuário</th><th>Perfil</th><th>Nível</th><th>Acesso</th></tr>
                 </thead>
                 <tbody>
                   {visible.map((profile) => {
@@ -241,16 +242,15 @@ export default function AccessManagementClient() {
 
                     return (
                       <tr key={profile.id}>
-                        <td>
+                        <td data-label="Usuário">
                           <div className="access-person">
                             <span>{initials(profile.full_name)}</span>
                             <div><strong>{profile.full_name}</strong><small>{profile.is_active ? 'Conta ativa' : 'Conta inativa'}</small></div>
                           </div>
                         </td>
-                        <td><span className="access-role">{roleLabel(profile.role)}</span></td>
-                        <td><span className="access-level">{level}</span></td>
-                        <td><span className={enabled ? 'access-status allowed' : 'access-status denied'}>{enabled ? <Check size={13} /> : null}{enabled ? 'Liberado' : 'Sem acesso'}</span></td>
-                        <td>
+                        <td data-label="Perfil"><span className="access-role">{roleLabel(profile.role)}</span></td>
+                        <td data-label="Nível"><span className="access-level">{level}</span></td>
+                        <td data-label="Acesso">
                           <button
                             type="button"
                             className={enabled ? 'access-toggle active' : 'access-toggle'}
@@ -260,7 +260,7 @@ export default function AccessManagementClient() {
                             aria-label={enabled ? `Revogar acesso de ${profile.full_name}` : `Liberar acesso de ${profile.full_name}`}
                           >
                             <span />
-                            <small>{locked ? 'Master' : enabled ? 'Revogar' : 'Liberar'}</small>
+                            <small>{locked ? 'Master' : enabled ? 'Liberado' : 'Liberar'}</small>
                             {saving === savingKey && <LoaderCircle className="access-spin access-toggle-spin" size={14} />}
                           </button>
                         </td>

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Grid2X2,
   HeartHandshake,
+  LogOut,
   Users,
   Wrench,
   X,
@@ -55,6 +56,7 @@ export default function CeamiAppSwitcher() {
   const [open, setOpen] = useState(false);
   const [allowed, setAllowed] = useState<CeamiModuleKey[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [profileName, setProfileName] = useState('');
 
   useEffect(() => {
     if (isHiddenPath(pathname)) return;
@@ -66,11 +68,12 @@ export default function CeamiAppSwitcher() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_active, course_only, social_only, visitors_only')
+        .select('full_name, role, is_active, course_only, social_only, visitors_only')
         .eq('id', authData.user.id)
         .maybeSingle();
 
       if (!active || !profile?.is_active || profile.course_only || profile.visitors_only) return;
+      setProfileName(String(profile.full_name || ''));
 
       if (profile.role === 'admin') {
         setIsAdmin(true);
@@ -119,6 +122,12 @@ export default function CeamiAppSwitcher() {
     setOpen(false);
   }
 
+  async function signOut() {
+    window.localStorage.removeItem('ceami:last-module');
+    await supabase.auth.signOut();
+    window.location.assign('/login');
+  }
+
   return (
     <div className="ceami-app-switcher" ref={panelRef}>
       <button
@@ -156,6 +165,13 @@ export default function CeamiAppSwitcher() {
           <Link href="/?selecionar=1" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>
             Ver todos os aplicativos
           </Link>
+
+          <div className="ceami-app-switcher-account">
+            <span>{profileName || 'Conta CEAMI'}</span>
+            <button type="button" onClick={() => void signOut()}>
+              <LogOut size={15} /> Sair
+            </button>
+          </div>
         </div>
       )}
     </div>

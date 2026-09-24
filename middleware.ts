@@ -22,7 +22,7 @@ const PUBLIC_API_PATHS = [
   '/api/automations/automatic',
 ];
 
-const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais'];
+const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/acessos'];
 const ADMIN_API_PATHS = [
   '/api/admin',
   '/api/birthdays/test',

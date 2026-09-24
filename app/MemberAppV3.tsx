@@ -221,7 +221,15 @@ export default function MemberAppV3({ initialIsAdmin = false }: { initialIsAdmin
   }, []);
 
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get('screen');
+    const params = new URLSearchParams(window.location.search);
+    const requestedMember = params.get('member');
+    if (requestedMember) {
+      setScreen('members');
+      setProfileId(requestedMember);
+      return;
+    }
+
+    const requested = params.get('screen');
     if (requested === 'integra' || (requested && NAV.some(([key]) => key === requested))) {
       setScreen(requested as Screen);
       setProfileId(null);

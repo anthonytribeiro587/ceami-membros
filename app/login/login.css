@@ -1,1 +1,86 @@
-.login-page{min-height:100dvh;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#f7f8f8,#edf1f2);color:#173746}.login-card{width:min(430px,100%);background:#fff;border:1px solid #e3e9eb;border-radius:26px;padding:30px;box-shadow:0 24px 70px rgba(23,55,70,.14)}.login-brand{display:flex;align-items:center;gap:12px;margin-bottom:34px}.login-brand>div{width:52px;height:52px;border-radius:17px;background:#df6034;color:#fff;display:grid;place-items:center;font-weight:900}.login-brand span,.login-brand strong,.login-brand small{display:block}.login-brand strong{font-size:20px}.login-brand small{color:#7a8a91;margin-top:2px}.login-copy>span{font-size:10px;font-weight:900;letter-spacing:.15em;color:#df6034}.login-copy h1{margin:7px 0 5px;font-size:30px}.login-copy p{margin:0 0 24px;color:#71838c;line-height:1.5}.login-card form{display:grid;gap:16px}.login-card label>span{display:block;font-size:12px;font-weight:850;margin-bottom:7px}.login-card label>div{display:flex;align-items:center;gap:10px;border:1px solid #d9e2e6;border-radius:14px;padding:0 14px}.login-card input{width:100%;border:0;outline:0;padding:14px 0;font-size:16px;background:transparent}.login-card form>button{border:0;border-radius:14px;padding:14px;background:#df6034;color:#fff;font-weight:900}.login-card form>button:disabled{opacity:.65}.login-error{margin:0;color:#b42318;background:#fff0ee;padding:11px 13px;border-radius:12px;font-size:13px}.login-note{display:block;text-align:center;margin-top:20px;color:#8a989f;line-height:1.4}@media(max-width:520px){.login-page{padding:14px;align-items:end}.login-card{border-radius:26px 26px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));width:100%}.login-copy h1{font-size:27px}}
+.login-page{
+  min-height:100dvh;
+  display:grid;
+  place-items:center;
+  padding:28px;
+  background:
+    radial-gradient(circle at 12% 10%,rgba(11,79,141,.10),transparent 34%),
+    radial-gradient(circle at 88% 82%,rgba(255,104,22,.09),transparent 30%),
+    #f3f7fa;
+  color:#082f59;
+}
+.login-shell{
+  width:min(1040px,100%);
+  min-height:610px;
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #dce6ee;
+  border-radius:26px;
+  box-shadow:0 28px 80px rgba(8,47,89,.13);
+}
+.login-showcase{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:40px;
+  padding:42px;
+  overflow:hidden;
+  color:#fff;
+  background:
+    radial-gradient(circle at 96% 8%,rgba(255,255,255,.10),transparent 240px),
+    linear-gradient(145deg,#073866,#0b4f8d);
+}
+.login-showcase:after{
+  content:"";
+  position:absolute;
+  width:360px;
+  height:360px;
+  right:-170px;
+  bottom:-190px;
+  border:44px solid rgba(255,255,255,.04);
+  border-radius:50%;
+}
+.login-showcase-brand,.login-mobile-brand{display:flex;align-items:center;gap:12px}
+.login-showcase-brand img,.login-mobile-brand img{width:46px;height:46px}
+.login-showcase-brand>div,.login-mobile-brand>div{display:grid;gap:2px}
+.login-showcase-brand strong{font-size:20px}
+.login-showcase-brand span{color:#c9dfef;font-size:11px;font-weight:700}
+.login-showcase-copy{position:relative;z-index:1}
+.login-showcase-copy>span,.login-copy>span{font-size:9.5px;font-weight:900;letter-spacing:.15em;color:#ff9a61}
+.login-showcase-copy h1{margin:9px 0 12px;font-size:clamp(34px,4vw,48px);line-height:1.02;letter-spacing:-.045em}
+.login-showcase-copy p{max-width:520px;margin:0;color:#d3e4f0;font-size:13px;line-height:1.65}
+.login-showcase-points{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.login-showcase-points>div{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.07)}
+.login-showcase-points svg{color:#ff9a61}
+.login-showcase-points span strong,.login-showcase-points span small{display:block}
+.login-showcase-points span strong{font-size:10.5px}
+.login-showcase-points span small{margin-top:2px;color:#c9dfef;font-size:8.5px}
+.login-panel{align-self:center;padding:48px}
+.login-mobile-brand{display:none;margin-bottom:30px}
+.login-mobile-brand strong{font-size:19px}.login-mobile-brand span{color:#728699;font-size:10px;font-weight:700}
+.login-copy h2{margin:7px 0 4px;font-size:29px;letter-spacing:-.035em}
+.login-copy p{margin:0 0 26px;color:#728699;font-size:12px}
+.login-panel form{display:grid;gap:15px}
+.login-panel label>span{display:block;margin-bottom:6px;color:#315674;font-size:10.5px;font-weight:850}
+.login-panel label>div{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 13px;border:1px solid #cfdee9;border-radius:12px;background:#fbfdfe;color:#7790a3}
+.login-panel label>div:focus-within{border-color:#8ab0cf;box-shadow:0 0 0 3px rgba(35,105,165,.07)}
+.login-panel input{width:100%;border:0;outline:0;padding:13px 0;background:transparent;color:#123a5d;font:inherit;font-size:14px}
+.login-panel form>button{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;border:0;border-radius:12px;background:#ff6816;color:#fff;font:inherit;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 9px 22px rgba(255,104,22,.18)}
+.login-panel form>button:disabled{opacity:.62;cursor:wait}
+.login-error{margin:0;padding:10px 12px;color:#9a3e34;background:#fff0ed;border:1px solid #edcec8;border-radius:11px;font-size:11px}
+.login-note{display:block;margin-top:18px;color:#8494a1;font-size:9.5px;line-height:1.5}
+@media(max-width:780px){
+  .login-page{align-items:stretch;padding:0;background:#f3f7fa}
+  .login-shell{min-height:100dvh;display:block;border:0;border-radius:0;box-shadow:none}
+  .login-showcase{display:none}
+  .login-panel{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom))}
+  .login-mobile-brand{display:flex}
+  .login-copy h2{font-size:30px}
+  .login-copy p{margin-bottom:24px}
+  .login-panel label>div{min-height:52px}
+  .login-panel input{font-size:16px}
+  .login-panel form>button{min-height:52px}
+}

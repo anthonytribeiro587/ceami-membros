@@ -9,6 +9,8 @@ import {
   Clock3,
   Copy,
   GraduationCap,
+  Award,
+  LayoutDashboard,
   MapPin,
   Plus,
   Printer,
@@ -86,6 +88,19 @@ type Attendance = {
 };
 
 type Tab = 'students' | 'lessons' | 'frequency';
+type CoursesArea = 'overview' | 'classes' | 'students' | 'graduates';
+
+type CourseEnrollmentOverview = {
+  id: string;
+  member_id: string;
+  class_id: string;
+  status: Enrollment['status'];
+  enrolled_at: string | null;
+  member: MemberOption;
+  className: string;
+  classStatus: CourseClass['status'] | null;
+  courseName: string;
+};
 
 const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: 'Presente',
@@ -139,6 +154,9 @@ export default function CoursesWorkspace() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [classes, setClasses] = useState<CourseClass[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
+  const [enrollments, setEnrollments] = useState<CourseEnrollmentOverview[]>([]);
+  const [area, setArea] = useState<CoursesArea>('overview');
+  const [courseQuery, setCourseQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<CourseClass | null>(null);
   const [role, setRole] = useState('visualizador');
   const [moduleManager, setModuleManager] = useState(false);
@@ -177,7 +195,7 @@ export default function CoursesWorkspace() {
 
     setUserId(user.id);
 
-    const [profileResult, accessResult, courseResult, classResult, memberResult] = await Promise.all([
+    const [profileResult, accessResult, courseResult, classResult, memberResult, enrollmentResult] = await Promise.all([
       supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
       supabase
         .from('profile_module_access')
@@ -191,13 +209,18 @@ export default function CoursesWorkspace() {
         .select('*, courses(name)')
         .order('created_at', { ascending: false }),
       supabase.rpc('get_course_member_options'),
+      supabase
+        .from('course_enrollments')
+        .select('id, member_id, class_id, status, enrolled_at, members(id, full_name, phone)')
+        .order('enrolled_at', { ascending: false }),
     ]);
 
-    if (courseResult.error || classResult.error || memberResult.error) {
+    if (courseResult.error || classResult.error || memberResult.error || enrollmentResult.error) {
       setError(
         courseResult.error?.message ||
           classResult.error?.message ||
           memberResult.error?.message ||
+          enrollmentResult.error?.message ||
           'Não foi possível carregar os cursos.',
       );
       setLoading(false);
@@ -210,21 +233,40 @@ export default function CoursesWorkspace() {
         (accessResult.data?.can_access === true && accessResult.data?.access_level === 'manager'),
     );
     setCourses((courseResult.data || []) as Course[]);
-    setClasses(
-      ((classResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
-        id: String(row.id),
-        course_id: String(row.course_id),
-        name: String(row.name),
-        organizer_name: row.organizer_name ? String(row.organizer_name) : null,
-        location: row.location ? String(row.location) : null,
-        start_date: row.start_date ? String(row.start_date) : null,
-        end_date: row.end_date ? String(row.end_date) : null,
-        minimum_attendance: Number(row.minimum_attendance || 75),
-        status: row.status as CourseClass['status'],
-        courseName: nestedName(row.courses),
-      })),
-    );
+    const normalizedClasses = ((classResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
+      id: String(row.id),
+      course_id: String(row.course_id),
+      name: String(row.name),
+      organizer_name: row.organizer_name ? String(row.organizer_name) : null,
+      location: row.location ? String(row.location) : null,
+      start_date: row.start_date ? String(row.start_date) : null,
+      end_date: row.end_date ? String(row.end_date) : null,
+      minimum_attendance: Number(row.minimum_attendance || 75),
+      status: row.status as CourseClass['status'],
+      courseName: nestedName(row.courses),
+    }));
+
+    const classMap = new Map(normalizedClasses.map((item) => [item.id, item]));
+    setClasses(normalizedClasses);
     setMembers((memberResult.data || []) as MemberOption[]);
+    setEnrollments(
+      ((enrollmentResult.data || []) as Array<Record<string, unknown>>).map((row) => {
+        const rawMember = Array.isArray(row.members) ? row.members[0] : row.members;
+        const member = rawMember as MemberOption;
+        const classInfo = classMap.get(String(row.class_id));
+        return {
+          id: String(row.id),
+          member_id: String(row.member_id),
+          class_id: String(row.class_id),
+          status: row.status as Enrollment['status'],
+          enrolled_at: row.enrolled_at ? String(row.enrolled_at) : null,
+          member,
+          className: classInfo?.name || 'Turma',
+          classStatus: classInfo?.status || null,
+          courseName: classInfo?.courseName || 'Curso',
+        };
+      }),
+    );
     setLoading(false);
   }
 
@@ -255,6 +297,20 @@ export default function CoursesWorkspace() {
     }
   }
 
+  const activeEnrollments = enrollments.filter((item) => item.status === 'enrolled');
+  const completedEnrollments = enrollments.filter((item) => item.status === 'completed');
+  const uniqueStudents = new Set(activeEnrollments.map((item) => item.member_id)).size;
+  const uniqueGraduates = new Set(completedEnrollments.map((item) => item.member_id)).size;
+  const normalizedCourseQuery = courseQuery.trim().toLocaleLowerCase('pt-BR');
+  const visibleEnrollments = enrollments.filter((item) =>
+    !normalizedCourseQuery ||
+    `${item.member?.full_name || ''} ${item.member?.phone || ''} ${item.courseName} ${item.className}`
+      .toLocaleLowerCase('pt-BR')
+      .includes(normalizedCourseQuery),
+  );
+  const visibleStudents = visibleEnrollments.filter((item) => item.status !== 'completed');
+  const visibleGraduates = visibleEnrollments.filter((item) => item.status === 'completed');
+
   if (selectedClass && userId) {
     return (
       <ClassWorkspace
@@ -262,7 +318,10 @@ export default function CoursesWorkspace() {
         members={members}
         userId={userId}
         canManage={canManage}
-        onBack={() => setSelectedClass(null)}
+        onBack={() => {
+          setSelectedClass(null);
+          void load();
+        }}
         onChanged={async (message) => {
           await refreshClasses();
           setToast(message);
@@ -301,56 +360,97 @@ export default function CoursesWorkspace() {
 
       {!loading && !error && (
         <>
-          <section className="courses-metrics">
-            <article>
-              <BookOpen />
-              <div><small>Cursos</small><strong>{courses.length}</strong></div>
-            </article>
-            <article>
-              <GraduationCap />
-              <div><small>Turmas ativas</small><strong>{classes.filter((item) => item.status === 'open').length}</strong></div>
-            </article>
-            <article>
-              <Users />
-              <div><small>Membros disponíveis</small><strong>{members.length}</strong></div>
-            </article>
+          <nav className="courses-area-nav" aria-label="Áreas do CEAMI Cursos">
+            <button type="button" className={area === 'overview' ? 'active' : ''} onClick={() => setArea('overview')}><LayoutDashboard size={17} /><span>Visão geral</span></button>
+            <button type="button" className={area === 'classes' ? 'active' : ''} onClick={() => setArea('classes')}><GraduationCap size={17} /><span>Turmas</span><small>{classes.length}</small></button>
+            <button type="button" className={area === 'students' ? 'active' : ''} onClick={() => setArea('students')}><Users size={17} /><span>Alunos</span><small>{uniqueStudents}</small></button>
+            <button type="button" className={area === 'graduates' ? 'active' : ''} onClick={() => setArea('graduates')}><Award size={17} /><span>Formados</span><small>{uniqueGraduates}</small></button>
+          </nav>
+
+          <section className="courses-metrics courses-metrics-four">
+            <article><BookOpen /><div><small>Cursos</small><strong>{courses.length}</strong></div></article>
+            <article><GraduationCap /><div><small>Turmas em andamento</small><strong>{classes.filter((item) => item.status === 'open').length}</strong></div></article>
+            <article><Users /><div><small>Alunos ativos</small><strong>{uniqueStudents}</strong></div></article>
+            <article><Award /><div><small>Formados</small><strong>{uniqueGraduates}</strong></div></article>
           </section>
 
-          <section className="courses-panel">
-            <div className="courses-panel-head">
-              <div>
-                <h2>Turmas</h2>
-                <p>Abra uma turma para adicionar alunos, criar aulas e registrar presenças.</p>
-              </div>
-            </div>
+          {area === 'overview' && (
+            <div className="courses-overview-grid">
+              <section className="courses-panel">
+                <div className="courses-panel-head">
+                  <div><h2>Turmas recentes</h2><p>Acompanhe rapidamente o andamento das turmas.</p></div>
+                  <button type="button" className="courses-inline-link" onClick={() => setArea('classes')}>Ver todas</button>
+                </div>
+                {classes.length ? (
+                  <div className="courses-compact-classes">
+                    {classes.slice(0, 5).map((item) => (
+                      <button type="button" key={item.id} onClick={() => setSelectedClass(item)}>
+                        <span className={`status-dot ${item.status}`} />
+                        <div><strong>{item.name}</strong><small>{item.courseName} · {classStatusLabel(item.status)}</small></div>
+                        <ArrowLeft className="courses-row-arrow" size={17} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="courses-empty compact"><GraduationCap size={30} /><h3>Nenhuma turma cadastrada</h3><p>Crie um curso e abra a primeira turma.</p></div>
+                )}
+              </section>
 
-            {classes.length ? (
-              <div className="class-grid">
-                {classes.map((item) => (
-                  <article className="class-card" key={item.id}>
-                    <div className="class-card-head">
-                      <span className={`status-pill ${item.status}`}>{classStatusLabel(item.status)}</span>
-                      <GraduationCap size={22} />
-                    </div>
-                    <small>{item.courseName}</small>
-                    <h3>{item.name}</h3>
-                    <div className="class-meta">
-                      <span><CalendarDays size={16} />{formatDate(item.start_date)} até {formatDate(item.end_date)}</span>
-                      {item.location && <span><MapPin size={16} />{item.location}</span>}
-                      {item.organizer_name && <span><Users size={16} />{item.organizer_name}</span>}
-                    </div>
-                    <button type="button" onClick={() => setSelectedClass(item)}>Abrir turma</button>
+              <section className="courses-panel courses-members-source">
+                <div className="courses-members-source-icon"><Users /></div>
+                <span>BASE INTEGRADA</span>
+                <h2>Os alunos vêm do CEAMI Membros</h2>
+                <p>{members.length} pessoas estão disponíveis para matrícula. Dados pessoais são mantidos em um único cadastro.</p>
+                <a href="/membros?screen=members">Abrir CEAMI Membros</a>
+              </section>
+            </div>
+          )}
+
+          {area === 'classes' && (
+            <section className="courses-panel">
+              <div className="courses-panel-head">
+                <div><h2>Turmas</h2><p>Abra uma turma para gerenciar alunos, aulas, frequência e QR Code.</p></div>
+              </div>
+              {classes.length ? (
+                <div className="class-grid">
+                  {classes.map((item) => <CourseClassCard key={item.id} item={item} onOpen={() => setSelectedClass(item)} />)}
+                </div>
+              ) : (
+                <div className="courses-empty"><GraduationCap size={36} /><h3>Nenhuma turma cadastrada</h3><p>Cadastre um curso e depois abra a primeira turma.</p></div>
+              )}
+            </section>
+          )}
+
+          {(area === 'students' || area === 'graduates') && (
+            <section className="courses-panel">
+              <div className="courses-panel-head courses-directory-head">
+                <div>
+                  <h2>{area === 'students' ? 'Alunos' : 'Formados'}</h2>
+                  <p>{area === 'students' ? 'Matrículas vinculadas aos membros da CEAMI.' : 'Pessoas que já concluíram uma turma.'}</p>
+                </div>
+                <div className="courses-directory-search"><Search size={17} /><input value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} placeholder="Buscar pessoa, curso ou turma" /></div>
+              </div>
+
+              <div className="courses-directory">
+                {(area === 'students' ? visibleStudents : visibleGraduates).map((item) => (
+                  <article key={item.id}>
+                    <div className="student-avatar">{item.member.full_name.split(' ').slice(0,2).map((part) => part[0]).join('').toUpperCase()}</div>
+                    <div className="courses-directory-person"><strong>{item.member.full_name}</strong><span>{item.member.phone || 'Sem telefone cadastrado'}</span></div>
+                    <div className="courses-directory-course"><small>{item.courseName}</small><strong>{item.className}</strong></div>
+                    <span className={`status-pill ${item.status}`}>{item.status === 'completed' ? 'Formado' : item.status === 'withdrawn' ? 'Desistente' : 'Matriculado'}</span>
+                    <a href={`/membros?screen=members&member=${item.member_id}`}>Ver no Membros</a>
                   </article>
                 ))}
+                {(area === 'students' ? visibleStudents : visibleGraduates).length === 0 && (
+                  <div className="courses-empty compact">
+                    {area === 'students' ? <Users size={32} /> : <Award size={32} />}
+                    <h3>{area === 'students' ? 'Nenhum aluno encontrado' : 'Nenhum formado ainda'}</h3>
+                    <p>{courseQuery ? 'Tente outro termo de busca.' : area === 'students' ? 'As matrículas aparecerão aqui.' : 'Ao concluir uma turma, os formados aparecerão aqui.'}</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="courses-empty">
-                <GraduationCap size={36} />
-                <h3>Nenhuma turma cadastrada</h3>
-                <p>Cadastre um curso e depois abra a primeira turma.</p>
-              </div>
-            )}
-          </section>
+            </section>
+          )}
         </>
       )}
 
@@ -381,6 +481,25 @@ export default function CoursesWorkspace() {
 
       {toast && <div className="courses-toast"><Check size={17} />{toast}</div>}
     </main>
+  );
+}
+
+function CourseClassCard({ item, onOpen }: { item: CourseClass; onOpen: () => void }) {
+  return (
+    <article className="class-card">
+      <div className="class-card-head">
+        <span className={`status-pill ${item.status}`}>{classStatusLabel(item.status)}</span>
+        <GraduationCap size={22} />
+      </div>
+      <small>{item.courseName}</small>
+      <h3>{item.name}</h3>
+      <div className="class-meta">
+        <span><CalendarDays size={16} />{formatDate(item.start_date)} até {formatDate(item.end_date)}</span>
+        {item.location && <span><MapPin size={16} />{item.location}</span>}
+        {item.organizer_name && <span><Users size={16} />{item.organizer_name}</span>}
+      </div>
+      <button type="button" onClick={onOpen}>Abrir turma</button>
+    </article>
   );
 }
 
@@ -587,6 +706,23 @@ function ClassWorkspace({
     await loadClassData();
   }
 
+  async function updateEnrollmentStatus(enrollment: Enrollment, status: Enrollment['status']) {
+    const { error: statusError } = await supabase
+      .from('course_enrollments')
+      .update({ status })
+      .eq('id', enrollment.id);
+
+    if (statusError) return setError(statusError.message);
+    await loadClassData();
+    await onChanged(
+      status === 'completed'
+        ? `${enrollment.member.full_name} marcado como formado`
+        : status === 'withdrawn'
+          ? `${enrollment.member.full_name} marcado como desistente`
+          : `${enrollment.member.full_name} voltou para matriculado`,
+    );
+  }
+
   async function setClassStatus(status: CourseClass['status']) {
     const { error: statusError } = await supabase
       .from('course_classes')
@@ -694,7 +830,20 @@ function ClassWorkspace({
               <article key={item.id}>
                 <div className="student-avatar">{item.member.full_name.split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</div>
                 <div><strong>{item.member.full_name}</strong><span>{item.member.phone || 'Sem telefone cadastrado'}</span></div>
-                <span className={`status-pill ${item.status}`}>{item.status === 'enrolled' ? 'Matriculado' : item.status === 'completed' ? 'Concluiu' : 'Desistente'}</span>
+                {canManage ? (
+                  <select
+                    className={`course-enrollment-status ${item.status}`}
+                    value={item.status}
+                    onChange={(event) => void updateEnrollmentStatus(item, event.target.value as Enrollment['status'])}
+                    aria-label={`Situação de ${item.member.full_name}`}
+                  >
+                    <option value="enrolled">Matriculado</option>
+                    <option value="completed">Formado</option>
+                    <option value="withdrawn">Desistente</option>
+                  </select>
+                ) : (
+                  <span className={`status-pill ${item.status}`}>{item.status === 'enrolled' ? 'Matriculado' : item.status === 'completed' ? 'Formado' : 'Desistente'}</span>
+                )}
                 {canManage && <button type="button" className="icon-danger" onClick={() => void removeEnrollment(item)} aria-label="Remover aluno"><Trash2 size={17} /></button>}
               </article>
             ))}

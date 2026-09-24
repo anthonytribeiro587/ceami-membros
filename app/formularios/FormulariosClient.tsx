@@ -40,6 +40,19 @@ type FormRow = {
   event_details: string;
   price: number | string | null;
   active: boolean;
+  ticketing_enabled: boolean;
+  capacity: number | null;
+  event_start_at: string | null;
+  event_location: string;
+  created_at: string;
+};
+
+type TicketRow = {
+  id: string;
+  form_id: string;
+  submission_id: string;
+  ticket_code: string;
+  checked_in_at: string | null;
   created_at: string;
 };
 
@@ -82,6 +95,10 @@ type FormDraft = {
   eventDetails: string;
   price: string;
   active: boolean;
+  ticketingEnabled: boolean;
+  capacity: string;
+  eventStartAt: string;
+  eventLocation: string;
   fields: FieldDraft[];
 };
 
@@ -130,6 +147,10 @@ function blankDraft(): FormDraft {
     eventDetails: '',
     price: '',
     active: true,
+    ticketingEnabled: false,
+    capacity: '',
+    eventStartAt: '',
+    eventLocation: '',
     fields: [
       { ...newField('Nome completo'), key: 'nome_completo' },
       { ...newField('Telefone / WhatsApp'), key: 'telefone', field_type: 'phone' },
@@ -193,6 +214,13 @@ function initials(value: string) {
 
 function localDateKey(value: string) {
   return new Date(value).toLocaleDateString('en-CA');
+}
+
+function dateTimeLocalValue(value: string | null | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 type PaymentStatus = 'pending' | 'paid' | 'exempt';
@@ -288,6 +316,7 @@ export default function FormulariosClient() {
   const [forms, setForms] = useState<FormRow[]>([]);
   const [fields, setFields] = useState<FieldRow[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -336,17 +365,18 @@ export default function FormulariosClient() {
     setLoading(true);
     setLoadError('');
 
-    const [formsResult, fieldsResult, submissionsResult] = await Promise.all([
+    const [formsResult, fieldsResult, submissionsResult, ticketsResult] = await Promise.all([
       supabase.from('forms').select('*').order('created_at', { ascending: false }),
       supabase.from('form_fields').select('*').order('sort_order', { ascending: true }),
       supabase.from('form_submissions').select('*').order('created_at', { ascending: false }),
+      supabase.from('event_tickets').select('id, form_id, submission_id, ticket_code, checked_in_at, created_at').order('created_at', { ascending: false }),
     ]);
 
     if (formsResult.error) {
       setLoadError(
         formsResult.error.code === '42P01'
           ? 'A estrutura de Formulários ainda não foi criada no Supabase. Execute a migration 202608310001_dynamic_forms.sql.'
-          : `Não foi possível carregar os formulários: ${formsResult.error.message}`,
+          : `Não foi possível carregar os eventos: ${formsResult.error.message}`,
       );
       setLoading(false);
       return;
@@ -366,6 +396,11 @@ export default function FormulariosClient() {
     setSubmissions(
       ((submissionsResult.data || []) as SubmissionRow[]).filter(
         (submission) => !serviceFormIds.has(submission.form_id),
+      ),
+    );
+    setTickets(
+      ((ticketsResult.data || []) as TicketRow[]).filter(
+        (ticket) => visibleFormIds.has(ticket.form_id),
       ),
     );
     setLoading(false);
@@ -394,6 +429,10 @@ export default function FormulariosClient() {
       eventDetails: form.event_details || '',
       price: form.price == null ? '' : String(form.price),
       active: form.active,
+      ticketingEnabled: form.ticketing_enabled === true,
+      capacity: form.capacity == null ? '' : String(form.capacity),
+      eventStartAt: dateTimeLocalValue(form.event_start_at),
+      eventLocation: form.event_location || '',
       fields: formFields.length ? formFields : [newField('Nome completo')],
     });
   }
@@ -474,7 +513,7 @@ export default function FormulariosClient() {
   async function saveForm() {
     if (!draft || saving) return;
     if (!draft.title.trim()) {
-      setToast('Informe o nome do formulário');
+      setToast('Informe o nome do evento');
       return;
     }
     if (!draft.fields.length || draft.fields.some((field) => !field.label.trim())) {
@@ -488,6 +527,14 @@ export default function FormulariosClient() {
       return;
     }
 
+    if (draft.ticketingEnabled && draft.capacity.trim()) {
+      const capacity = Number(draft.capacity);
+      if (!Number.isInteger(capacity) || capacity <= 0) {
+        setToast('Informe uma capacidade válida');
+        return;
+      }
+    }
+
     setSaving(true);
 
     const formPayload = {
@@ -497,6 +544,10 @@ export default function FormulariosClient() {
       event_details: draft.eventDetails.trim(),
       price: draft.price.trim() ? Number(draft.price.replace(',', '.')) : null,
       active: draft.active,
+      ticketing_enabled: draft.ticketingEnabled,
+      capacity: draft.ticketingEnabled && draft.capacity.trim() ? Number(draft.capacity) : null,
+      event_start_at: draft.eventStartAt ? new Date(draft.eventStartAt).toISOString() : null,
+      event_location: draft.eventLocation.trim(),
     };
 
     let formId = draft.id;
@@ -510,7 +561,7 @@ export default function FormulariosClient() {
     } else {
       const { data, error } = await supabase.from('forms').insert(formPayload).select('id').single();
       if (error || !data?.id) {
-        setToast(error?.code === '23505' ? 'Esse link já está sendo usado' : error?.message || 'Erro ao criar formulário');
+        setToast(error?.code === '23505' ? 'Esse link já está sendo usado' : error?.message || 'Erro ao criar evento');
         setSaving(false);
         return;
       }
@@ -533,7 +584,7 @@ export default function FormulariosClient() {
     }
 
     setDraft(null);
-    setToast('Formulário salvo');
+    setToast('Evento salvo');
     await loadData();
     setSaving(false);
   }
@@ -544,7 +595,7 @@ export default function FormulariosClient() {
       setToast(error.message);
       return;
     }
-    setToast(form.active ? 'Formulário pausado' : 'Formulário publicado');
+    setToast(form.active ? 'Evento pausado' : 'Evento publicado');
     await loadData();
   }
 
@@ -604,11 +655,23 @@ export default function FormulariosClient() {
   function exportCsv(form: FormRow) {
     const formFields = fields.filter((field) => field.form_id === form.id).sort((a, b) => a.sort_order - b.sort_order);
     const rows = submissions.filter((submission) => submission.form_id === form.id);
-    const header = ['Data', ...formFields.map((field) => field.label)].map(csvEscape).join(';');
-    const body = rows.map((submission) => [
-      new Date(submission.created_at).toLocaleString('pt-BR'),
-      ...formFields.map((field) => submission.answers?.[field.key] ?? ''),
-    ].map(csvEscape).join(';'));
+    const ticketColumns = form.ticketing_enabled ? ['Ingresso', 'Check-in'] : [];
+    const header = ['Data', ...ticketColumns, ...formFields.map((field) => field.label)].map(csvEscape).join(';');
+    const body = rows.map((submission) => {
+      const ticket = tickets.find((item) => item.submission_id === submission.id);
+      const ticketValues = form.ticketing_enabled
+        ? [
+            ticket?.ticket_code || '',
+            ticket?.checked_in_at ? new Date(ticket.checked_in_at).toLocaleString('pt-BR') : '',
+          ]
+        : [];
+
+      return [
+        new Date(submission.created_at).toLocaleString('pt-BR'),
+        ...ticketValues,
+        ...formFields.map((field) => submission.answers?.[field.key] ?? ''),
+      ].map(csvEscape).join(';');
+    });
     const csv = `\uFEFF${[header, ...body].join('\n')}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -628,6 +691,10 @@ export default function FormulariosClient() {
     : [];
   const responseChoiceFields = responseFields.filter((field) => field.field_type === 'yes_no' || field.field_type === 'select');
   const apostilaField = responseFields.find((field) => field.key === 'apostila' || normalizeSearch(field.label).includes('apostila')) || null;
+  const responseTickets = responseForm
+    ? tickets.filter((ticket) => ticket.form_id === responseForm.id)
+    : [];
+  const checkedInTickets = responseTickets.filter((ticket) => Boolean(ticket.checked_in_at));
   const todayKey = new Date().toLocaleDateString('en-CA');
   const todayResponses = responseRows.filter((submission) => localDateKey(submission.created_at) === todayKey).length;
   const apostilaYes = apostilaField
@@ -702,12 +769,12 @@ export default function FormulariosClient() {
     <div className="forms-admin-page">
       <header className="forms-admin-header">
         <div>
-          <span>CEAMI • FORMULÁRIOS</span>
-          <h1>Formulários e inscrições</h1>
-          <p>Crie um formulário, gere o link e acompanhe as respostas sem precisar alterar o sistema.</p>
+          <span>CEAMI EVENTOS</span>
+          <h1>Eventos e inscrições</h1>
+          <p>Crie um evento, publique o link de inscrição e acompanhe participantes e pagamentos em um só lugar.</p>
         </div>
         <button type="button" onClick={() => { setResponsesFormId(null); setDraft(blankDraft()); }}>
-          <FilePlus2 size={18} /> Novo formulário
+          <FilePlus2 size={18} /> Novo evento
         </button>
       </header>
 
@@ -724,8 +791,8 @@ export default function FormulariosClient() {
         <section className="forms-builder">
           <div className="forms-builder-top">
             <div>
-              <span>{draft.id ? 'EDITANDO FORMULÁRIO' : 'NOVO FORMULÁRIO'}</span>
-              <h2>{draft.title || 'Formulário sem título'}</h2>
+              <span>{draft.id ? 'EDITANDO EVENTO' : 'NOVO EVENTO'}</span>
+              <h2>{draft.title || 'Evento sem título'}</h2>
               <p>Você cuida das perguntas. O sistema cuida das chaves internas automaticamente.</p>
             </div>
             <button type="button" className="icon" onClick={() => setDraft(null)} aria-label="Fechar"><X /></button>
@@ -733,7 +800,7 @@ export default function FormulariosClient() {
 
           <div className="forms-builder-grid">
             <label>
-              <span>Nome do formulário</span>
+              <span>Nome do evento</span>
               <input value={draft.title} onChange={(e) => updateDraft({ title: e.target.value, slug: draft.id ? draft.slug : slugify(e.target.value) })} placeholder="Ex.: Conferência de Jovens 2026" />
             </label>
             <label>
@@ -752,6 +819,30 @@ export default function FormulariosClient() {
               <span>Valor (opcional)</span>
               <input inputMode="decimal" value={draft.price} onChange={(e) => updateDraft({ price: e.target.value.replace(/[^0-9,.]/g, '') })} placeholder="35,00" />
             </label>
+            <label>
+              <span>Data e horário</span>
+              <input type="datetime-local" value={draft.eventStartAt} onChange={(e) => updateDraft({ eventStartAt: e.target.value })} />
+            </label>
+            <label className="wide">
+              <span>Local do evento</span>
+              <input value={draft.eventLocation} onChange={(e) => updateDraft({ eventLocation: e.target.value })} placeholder="Ex.: Templo CEAMI — Sapucaia do Sul" />
+            </label>
+            <label className="forms-active-toggle">
+              <span>Ingressos e check-in</span>
+              <button type="button" className={draft.ticketingEnabled ? 'active' : ''} onClick={() => updateDraft({ ticketingEnabled: !draft.ticketingEnabled })}>
+                <i /> {draft.ticketingEnabled ? 'Ativado' : 'Desativado'}
+              </button>
+            </label>
+            <label>
+              <span>Capacidade {draft.ticketingEnabled ? '(opcional)' : ''}</span>
+              <input
+                inputMode="numeric"
+                disabled={!draft.ticketingEnabled}
+                value={draft.capacity}
+                onChange={(e) => updateDraft({ capacity: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder={draft.ticketingEnabled ? 'Ex.: 120' : 'Ative os ingressos'}
+              />
+            </label>
             <label className="forms-active-toggle">
               <span>Disponibilidade</span>
               <button type="button" className={draft.active ? 'active' : ''} onClick={() => updateDraft({ active: !draft.active })}>
@@ -761,7 +852,7 @@ export default function FormulariosClient() {
           </div>
 
           <div className="forms-fields-head">
-            <div><h3>Campos do formulário</h3><p>Monte as perguntas na mesma ordem em que a pessoa irá responder.</p></div>
+            <div><h3>Campos da inscrição</h3><p>Monte as perguntas na mesma ordem em que a pessoa irá responder.</p></div>
             <button type="button" className="secondary" onClick={() => updateDraft({ fields: [...draft.fields, newField()] })}><Plus size={17} />Adicionar campo</button>
           </div>
 
@@ -794,7 +885,7 @@ export default function FormulariosClient() {
 
           <footer className="forms-builder-actions">
             <button type="button" className="secondary" onClick={() => setDraft(null)}>Cancelar</button>
-            <button type="button" onClick={() => void saveForm()} disabled={saving}>{saving ? <LoaderCircle className="forms-spin" size={18} /> : <Save size={18} />}{saving ? 'Salvando...' : 'Salvar formulário'}</button>
+            <button type="button" onClick={() => void saveForm()} disabled={saving}>{saving ? <LoaderCircle className="forms-spin" size={18} /> : <Save size={18} />}{saving ? 'Salvando...' : 'Salvar evento'}</button>
           </footer>
         </section>
       ) : !loadError && responseForm ? (
@@ -819,6 +910,8 @@ export default function FormulariosClient() {
                 <article className="positive"><CheckCircle2 /><div><span>Querem apostila</span><strong>{apostilaYes}</strong></div></article>
                 <article><XCircle /><div><span>Sem apostila</span><strong>{apostilaNo}</strong></div></article>
               </>
+            ) : responseForm.ticketing_enabled ? (
+              <article className="positive"><CheckCircle2 /><div><span>Check-ins</span><strong>{checkedInTickets.length} / {responseTickets.length}</strong></div></article>
             ) : (
               <article><ClipboardList /><div><span>Perguntas</span><strong>{responseFields.length}</strong></div></article>
             )}
@@ -900,6 +993,7 @@ export default function FormulariosClient() {
                 const due = dueForSubmission(responseForm, submission);
                 const material = responseForm.slug === SEMINAR_SLUG ? materialInfo(submission.answers) : null;
                 const correctionMessage = correctionFromAnswers(submission.answers);
+                const ticket = tickets.find((item) => item.submission_id === submission.id) || null;
                 return (
                   <article className="forms-response-card" key={submission.id} data-submission-id={submission.id}>
                     <div className="forms-response-avatar">{initials(name)}</div>
@@ -911,6 +1005,13 @@ export default function FormulariosClient() {
                       {correctionMessage && (
                         <div className="ceami-correction-badge" data-ceami-native-correction-badge={submission.id}>
                           <span>!</span><strong>Correção solicitada</strong>
+                        </div>
+                      )}
+                      {ticket && (
+                        <div className={`ceami-ticket-badge ${ticket.checked_in_at ? 'checked' : ''}`}>
+                          <span>🎟</span>
+                          <strong>{ticket.ticket_code}</strong>
+                          <small>{ticket.checked_in_at ? 'Check-in realizado' : 'Aguardando check-in'}</small>
                         </div>
                       )}
                       <div
@@ -987,6 +1088,16 @@ export default function FormulariosClient() {
                   </div>
                   <button type="button" onClick={() => setSelectedSubmissionId(null)} aria-label="Fechar"><X /></button>
                 </header>
+                {(() => {
+                  const ticket = tickets.find((item) => item.submission_id === selectedSubmission.id);
+                  return ticket ? (
+                    <div className={`ceami-ticket-detail ${ticket.checked_in_at ? 'checked' : ''}`}>
+                      <span>INGRESSO</span>
+                      <strong>{ticket.ticket_code}</strong>
+                      <small>{ticket.checked_in_at ? `Check-in em ${new Date(ticket.checked_in_at).toLocaleString('pt-BR')}` : 'Ainda não utilizado'}</small>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="forms-response-detail-list">
                   {responseFields.map((field) => (
                     <div key={field.id}>
@@ -1016,7 +1127,7 @@ export default function FormulariosClient() {
       ) : !loadError ? (
         <>
           <section className="forms-summary">
-            <div><ClipboardList /><span><strong>{forms.length}</strong> formulários</span></div>
+            <div><ClipboardList /><span><strong>{forms.length}</strong> eventos</span></div>
             <div><UsersRound /><span><strong>{submissions.length}</strong> respostas recebidas</span></div>
             <div><span className="forms-status-dot" /><span><strong>{forms.filter((form) => form.active).length}</strong> publicados</span></div>
           </section>
@@ -1027,7 +1138,7 @@ export default function FormulariosClient() {
               return (
                 <article className="forms-card" key={form.id}>
                   <div className="forms-card-main">
-                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span><small>{count} resposta{count === 1 ? '' : 's'}</small></div>
+                    <div className="forms-card-title-row"><span className={form.active ? 'forms-badge active' : 'forms-badge'}>{form.active ? 'Publicado' : 'Pausado'}</span>{form.ticketing_enabled && <span className="forms-badge active">Ingressos</span>}<small>{count} {count === 1 ? 'inscrição' : 'inscrições'}</small></div>
                     <h2>{form.title}</h2>
                     <p>{form.description || 'Sem descrição.'}</p>
                     <code>/f/{form.slug}</code>
@@ -1036,13 +1147,14 @@ export default function FormulariosClient() {
                     <button type="button" onClick={() => void copyLink(form)}><Copy size={16} />Copiar link</button>
                     <a href={`/f/${form.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={16} />Abrir</a>
                     <button type="button" className="responses-primary" onClick={() => openResponses(form.id)}><UsersRound size={16} />Ver inscrições</button>
+                    {form.ticketing_enabled && <a href={`/eventos/checkin?evento=${form.id}`}><CheckCircle2 size={16} />Check-in</a>}
                     <button type="button" onClick={() => editForm(form)}><Pencil size={16} />Editar</button>
                     <button type="button" className="secondary" onClick={() => void toggleActive(form)}>{form.active ? 'Pausar' : 'Publicar'}</button>
                   </div>
                 </article>
               );
             }) : (
-              <div className="forms-empty"><ClipboardList /><h3>Nenhum formulário criado</h3><p>Crie o primeiro e o sistema gera o link público automaticamente.</p><button type="button" onClick={() => setDraft(blankDraft())}><Plus size={17} />Criar formulário</button></div>
+              <div className="forms-empty"><ClipboardList /><h3>Nenhum evento criado</h3><p>Crie o primeiro evento e o sistema gera o link público de inscrição automaticamente.</p><button type="button" onClick={() => setDraft(blankDraft())}><Plus size={17} />Criar evento</button></div>
             )}
           </section>
         </>

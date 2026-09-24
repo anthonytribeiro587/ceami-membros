@@ -1,7 +1,13 @@
-import MemberAppV3 from './MemberAppV3';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import CeamiPortal from './components/CeamiPortal';
+import { getCurrentCeamiAccess } from '@/lib/server/current-profile';
 
 export default async function Page() {
-  const role = await getCurrentUiRole();
-  return <MemberAppV3 initialIsAdmin={role === 'admin'} />;
+  const access = await getCurrentCeamiAccess();
+  return (
+    <CeamiPortal
+      modules={access?.modules || []}
+      isAdmin={access?.role === 'admin'}
+      fullName={access?.fullName || ''}
+    />
+  );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import { getServiceClient, requestComesFromSameSite } from '@/lib/server/security';
 
 const SLUG = 'seminario-apocalipse-2026';
@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Origem não autorizada.' }, { status: 403 });
   }
 
-  const role = await getCurrentUiRole();
-  if (role !== 'admin') {
+  const canManageEvents = await hasCurrentModuleAccess('events', true);
+  if (!canManageEvents) {
     return NextResponse.json({ error: 'Acesso restrito ao administrador.' }, { status: 403 });
   }
 

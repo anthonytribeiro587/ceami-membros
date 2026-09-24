@@ -25,6 +25,10 @@ type PublicForm = {
   event_details: string;
   price: number | null;
   active: boolean;
+  ticketing_enabled: boolean;
+  capacity: number | null;
+  event_start_at: string | null;
+  event_location: string;
   form_fields: FormField[] | null;
 };
 
@@ -93,6 +97,7 @@ export default function PublicFormClient({ slug }: { slug: string }) {
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const [submissionId, setSubmissionId] = useState('');
+  const [ticketCode, setTicketCode] = useState('');
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionMessage, setCorrectionMessage] = useState('');
   const [correctionSending, setCorrectionSending] = useState(false);
@@ -104,7 +109,7 @@ export default function PublicFormClient({ slug }: { slug: string }) {
     void (async () => {
       const { data, error: loadError } = await supabase
         .from('forms')
-        .select('id, title, slug, description, event_details, price, active, form_fields(id, key, label, field_type, required, placeholder, options, sort_order)')
+        .select('id, title, slug, description, event_details, price, active, ticketing_enabled, capacity, event_start_at, event_location, form_fields(id, key, label, field_type, required, placeholder, options, sort_order)')
         .eq('slug', slug)
         .eq('active', true)
         .maybeSingle();
@@ -141,7 +146,7 @@ export default function PublicFormClient({ slug }: { slug: string }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers, website: '' }),
     });
-    const payload = (await response.json().catch(() => ({}))) as { error?: string; submissionId?: string };
+    const payload = (await response.json().catch(() => ({}))) as { error?: string; submissionId?: string; ticketCode?: string | null };
 
     if (!response.ok) {
       setError(payload.error || 'Não foi possível concluir sua inscrição.');
@@ -150,6 +155,7 @@ export default function PublicFormClient({ slug }: { slug: string }) {
     }
 
     setSubmissionId(payload.submissionId || '');
+    setTicketCode(payload.ticketCode || '');
     setSent(true);
     setSending(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -201,6 +207,13 @@ export default function PublicFormClient({ slug }: { slug: string }) {
           <CheckCircle2 size={54} />
           <span>INSCRIÇÃO RECEBIDA</span>
           <h1>Pronto! Sua inscrição foi registrada.</h1>
+          {ticketCode && (
+            <div className="public-form-ticket">
+              <span>SEU INGRESSO</span>
+              <strong>{ticketCode}</strong>
+              <small>Guarde este código para apresentar no check-in do evento.</small>
+            </div>
+          )}
           {isSeminar && bookletPrice > 0 ? (
             <p>Sua opção de inscrição foi registrada no valor de <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(bookletPrice)}</strong>. Após o pagamento, envie o comprovante para a equipe da CEAMI confirmar no sistema.</p>
           ) : (
@@ -224,7 +237,7 @@ export default function PublicFormClient({ slug }: { slug: string }) {
             </div>
           ) : null}
         </section>
-        <style>{`.public-form-correction-box,.public-form-correction-success{width:100%;margin-top:22px;border-radius:14px;padding:14px 15px}.public-form-correction-box{border:1px solid #e5d8c8;background:#fbf8f3}.public-form-correction-success{border:1px solid #cfe2d2;background:#edf6ef;color:#376c42;display:flex;gap:9px;align-items:flex-start}.public-form-correction-success div,.public-form-correction-title>div{display:grid;gap:2px}.public-form-correction-success span,.public-form-correction-title span{font-size:12px;color:#70665d}.public-form-correction-title{display:flex;align-items:flex-start;gap:9px}.public-form-correction-title svg{color:#8a5a16}.public-form-correction-box>button,.public-form-correction-editor button{min-height:40px;border:0;border-radius:10px;padding:0 12px;background:#70491b;color:#fff;font-weight:800;display:inline-flex;align-items:center;gap:7px;justify-content:center}.public-form-correction-box>button{margin-top:11px}.public-form-correction-editor{margin-top:11px;display:grid;gap:8px}.public-form-correction-editor textarea{width:100%;min-height:92px;border:1px solid #ddd4c8;border-radius:10px;padding:10px 11px;resize:vertical;font:inherit}.public-form-correction-editor small{color:#9b3c2d}.public-form-correction-editor>div{display:flex;justify-content:flex-end;gap:8px}.public-form-correction-editor button.secondary{background:#fff;color:#5f544a;border:1px solid #ddd4c8}`}</style>
+        <style>{`.public-form-ticket{width:100%;margin:18px 0 4px;padding:18px;border:1px solid #d9c7aa;border-radius:16px;background:#fffaf1;display:grid;gap:5px;text-align:center}.public-form-ticket span{font-size:10px;letter-spacing:.15em;font-weight:900;color:#8a6a3e}.public-form-ticket strong{font-size:24px;letter-spacing:.06em;color:#4e3920}.public-form-ticket small{font-size:11px;color:#75695b}.public-form-correction-box,.public-form-correction-success{width:100%;margin-top:22px;border-radius:14px;padding:14px 15px}.public-form-correction-box{border:1px solid #e5d8c8;background:#fbf8f3}.public-form-correction-success{border:1px solid #cfe2d2;background:#edf6ef;color:#376c42;display:flex;gap:9px;align-items:flex-start}.public-form-correction-success div,.public-form-correction-title>div{display:grid;gap:2px}.public-form-correction-success span,.public-form-correction-title span{font-size:12px;color:#70665d}.public-form-correction-title{display:flex;align-items:flex-start;gap:9px}.public-form-correction-title svg{color:#8a5a16}.public-form-correction-box>button,.public-form-correction-editor button{min-height:40px;border:0;border-radius:10px;padding:0 12px;background:#70491b;color:#fff;font-weight:800;display:inline-flex;align-items:center;gap:7px;justify-content:center}.public-form-correction-box>button{margin-top:11px}.public-form-correction-editor{margin-top:11px;display:grid;gap:8px}.public-form-correction-editor textarea{width:100%;min-height:92px;border:1px solid #ddd4c8;border-radius:10px;padding:10px 11px;resize:vertical;font:inherit}.public-form-correction-editor small{color:#9b3c2d}.public-form-correction-editor>div{display:flex;justify-content:flex-end;gap:8px}.public-form-correction-editor button.secondary{background:#fff;color:#5f544a;border:1px solid #ddd4c8}`}</style>
       </main>
     );
   }
@@ -245,7 +258,14 @@ export default function PublicFormClient({ slug }: { slug: string }) {
 
         <div className="public-form-event-box">
           <p>{isSeminar ? SEMINAR_DETAILS : form.event_details}</p>
+          {!isSeminar && form.event_start_at && (
+            <strong>
+              Data: {new Date(form.event_start_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+            </strong>
+          )}
+          {!isSeminar && form.event_location && <strong>Local: {form.event_location}</strong>}
           {!isSeminar && form.price !== null && <strong>Valor: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(form.price))}</strong>}
+          {!isSeminar && form.ticketing_enabled && form.capacity && <small>Evento com vagas limitadas.</small>}
         </div>
 
         <form onSubmit={submit}>

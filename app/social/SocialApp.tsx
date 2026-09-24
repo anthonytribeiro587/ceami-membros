@@ -700,7 +700,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
   async function signOut() {
     if (demoMode) { setToast('No sistema real, este botão encerra a sessão.'); return; }
     await supabase.auth.signOut();
-    router.replace('/social/login');
+    router.replace('/login');
     router.refresh();
   }
 
@@ -1072,7 +1072,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
 
       <div className="social-content">
         {error && (
-          <section className="social-setup-alert"><AlertTriangle /><div><strong>CEAMI Social ainda não está ativo no banco</strong><p>{error}</p><small>A interface já está pronta; falta aplicar a migration no Supabase do CEAMI Membros.</small></div></section>
+          <section className="social-setup-alert"><AlertTriangle /><div><strong>CEAMI Social ainda não está ativo no banco</strong><p>{error}</p><small>A interface já está pronta; falta aplicar a migration no Supabase da CEAMI.</small></div></section>
         )}
 
         {screen === 'home' && (
@@ -1414,7 +1414,7 @@ export default function SocialApp({ demoMode = false }: { demoMode?: boolean }) 
               <button type="button" onClick={() => setScreen('products')}><Package /><span><strong>Produtos</strong><small>Cadastre itens e defina estoque mínimo.</small></span><ChevronRight /></button>
               <button type="button" onClick={() => void refreshData()}><RefreshCw /><span><strong>Atualizar dados</strong><small>Busca as informações mais recentes do estoque.</small></span><ChevronRight /></button>
             </div>
-            <button type="button" className="social-signout" onClick={() => void signOut()}><LogOut />Sair do CEAMI Social</button>
+            <button type="button" className="social-signout" onClick={() => void signOut()}><LogOut />Sair da CEAMI</button>
           </section>
         )}
       </div>

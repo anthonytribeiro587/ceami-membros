@@ -1,11 +1,15 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LockKeyhole, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import './login.css';
+
+function safeNextPath(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '';
+  return value;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,11 +20,38 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('acesso') !== 'aguardando-aprovacao') return;
     const supabase = createClient();
-    void supabase.auth.signOut();
-    setError('Esta conta ainda não foi aprovada pela administração da CEAMI.');
-  }, []);
+
+    if (params.get('acesso') === 'aguardando-aprovacao') {
+      void supabase.auth.signOut();
+      setError('Esta conta ainda não foi aprovada pela administração da CEAMI.');
+      return;
+    }
+
+    let active = true;
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!active || !data.user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_active, course_only, visitors_only')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      if (!active || !profile?.is_active) return;
+
+      const nextPath = safeNextPath(params.get('next'));
+      if (profile.visitors_only) router.replace('/visitantes');
+      else if (profile.course_only) router.replace('/cursos');
+      else router.replace(nextPath || '/');
+      router.refresh();
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +69,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_active, course_only, social_only')
+      .select('is_active, course_only, visitors_only')
       .eq('id', data.user.id)
       .maybeSingle();
 
@@ -49,29 +80,55 @@ export default function LoginPage() {
       return;
     }
 
-    if (profile.social_only) {
-      router.replace('/social');
-    } else if (profile.course_only) {
-      router.replace('/cursos');
-    } else {
-      router.replace('/');
-    }
+    const params = new URLSearchParams(window.location.search);
+    const nextPath = safeNextPath(params.get('next'));
+
+    if (profile.visitors_only) router.replace('/visitantes');
+    else if (profile.course_only) router.replace('/cursos');
+    else router.replace(nextPath || '/');
+
     router.refresh();
   }
 
   return (
     <main className="login-page">
       <section className="login-card">
-        <div className="login-brand"><div>CE</div><span><strong>CEAMI</strong><small>Gestão de membros</small></span></div>
-        <div className="login-copy"><span>ACESSO RESTRITO</span><h1>Entre no painel</h1><p>Use o acesso fornecido pela administração da igreja.</p></div>
+        <div className="login-brand">
+          <div>CE</div>
+          <span>
+            <strong>CEAMI</strong>
+            <small>Central de aplicativos</small>
+          </span>
+        </div>
+
+        <div className="login-copy">
+          <span>ACESSO ÚNICO</span>
+          <h1>Entre na plataforma CEAMI</h1>
+          <p>Use uma única conta para acessar todos os módulos liberados para você.</p>
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <label><span>E-mail</span><div><Mail size={18}/><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email" /></div></label>
-          <label><span>Senha</span><div><LockKeyhole size={18}/><input type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password" /></div></label>
+          <label>
+            <span>E-mail</span>
+            <div>
+              <Mail size={18} />
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
+            </div>
+          </label>
+          <label>
+            <span>Senha</span>
+            <div>
+              <LockKeyhole size={18} />
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
+            </div>
+          </label>
           {error && <p className="login-error">{error}</p>}
           <button disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
         </form>
-        <small className="login-note">As páginas do Integra e de consulta continuam públicas.</small>
-        <Link className="login-note" href="/social/login">Acesso exclusivo do CEAMI Social</Link>
+
+        <small className="login-note">
+          Depois do login, a CEAMI mostra somente os aplicativos permitidos para sua conta.
+        </small>
       </section>
     </main>
   );

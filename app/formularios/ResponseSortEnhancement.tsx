@@ -23,7 +23,7 @@ function parsePtBrDate(value: string) {
 
 export default function ResponseSortEnhancement() {
   useEffect(() => {
-    if (!window.location.pathname.startsWith('/formularios')) return;
+    if (!window.location.pathname.startsWith('/eventos') && !window.location.pathname.startsWith('/formularios')) return;
 
     let mode = (window.localStorage.getItem(SORT_KEY) as SortMode | null) || 'newest';
     let scheduled = 0;

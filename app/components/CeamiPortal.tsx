@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   HeartHandshake,
+  ShieldCheck,
   Users,
   Wrench,
   type LucideIcon,
@@ -56,7 +57,7 @@ const DEFINITIONS: ModuleDefinition[] = [
   },
 ];
 
-export default function CeamiPortal({ modules }: { modules: CeamiModuleAccess[] }) {
+export default function CeamiPortal({ modules, isAdmin }: { modules: CeamiModuleAccess[]; isAdmin: boolean }) {
   const router = useRouter();
   const allowed = new Set(modules.map((module) => module.moduleKey));
   const visible = DEFINITIONS.filter((module) => allowed.has(module.key));
@@ -99,6 +100,13 @@ export default function CeamiPortal({ modules }: { modules: CeamiModuleAccess[] 
             para o seu perfil sem sair e entrar novamente.
           </p>
         </div>
+
+        {isAdmin && (
+          <Link href="/acessos" className="ceami-portal-admin">
+            <ShieldCheck size={17} />
+            Gerenciar acessos
+          </Link>
+        )}
       </section>
 
       <section className="ceami-portal-modules" aria-label="Aplicativos CEAMI">

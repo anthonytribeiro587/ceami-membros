@@ -520,7 +520,10 @@ export default function VisitantesApp() {
       <header className="visitors-topbar">
         {screen !== 'home' ? <button type="button" className="visitors-back" onClick={() => setScreen('home')}><ArrowLeft /></button> : <div className="visitors-mobile-brand"><img src="/brand/ceami-icon.svg?v=official-2" alt="" /><strong>CEAMI <span>Acolhimentos</span></strong></div>}
         <h1>{title}</h1>
-        <button type="button" className="visitors-refresh" onClick={() => void load()} aria-label="Atualizar"><RefreshCw /></button>
+        <div className="visitors-topbar-actions">
+          <div id="ceami-app-switcher-slot" className="ceami-app-switcher-slot" />
+          <button type="button" className="visitors-refresh" onClick={() => void load()} aria-label="Atualizar"><RefreshCw /></button>
+        </div>
       </header>
 
       <section className="visitors-content">

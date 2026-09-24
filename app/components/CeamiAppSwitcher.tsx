@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarDays,
   GraduationCap,
@@ -54,6 +55,16 @@ function isHiddenPath(pathname: string) {
   return HIDDEN_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 }
 
+function moduleFromPath(pathname: string): CeamiModuleKey | null {
+  if (pathname.startsWith('/membros')) return 'members';
+  if (pathname.startsWith('/social')) return 'social';
+  if (pathname.startsWith('/eventos') || pathname.startsWith('/formularios')) return 'events';
+  if (pathname.startsWith('/servicos')) return 'services';
+  if (pathname.startsWith('/acolhimentos') || pathname.startsWith('/visitantes')) return 'welcome';
+  if (pathname.startsWith('/cursos')) return 'courses';
+  return null;
+}
+
 export default function CeamiAppSwitcher() {
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
@@ -62,6 +73,8 @@ export default function CeamiAppSwitcher() {
   const [allowed, setAllowed] = useState<CeamiModuleKey[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profileName, setProfileName] = useState('');
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
     if (isHiddenPath(pathname)) return;
@@ -122,7 +135,45 @@ export default function CeamiAppSwitcher() {
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
-  if (isHiddenPath(pathname) || allowed.length === 0) return null;
+  useEffect(() => {
+    if (isHiddenPath(pathname)) {
+      setPortalTarget(null);
+      setPortalReady(true);
+      return;
+    }
+
+    let frame = 0;
+    let observer: MutationObserver | null = null;
+    let timeoutId = 0;
+
+    const syncTarget = () => {
+      const nextTarget = document.getElementById('ceami-app-switcher-slot');
+      setPortalTarget(nextTarget);
+      setPortalReady(true);
+      return Boolean(nextTarget);
+    };
+
+    frame = window.requestAnimationFrame(() => {
+      if (syncTarget()) return;
+
+      observer = new MutationObserver(() => {
+        if (syncTarget()) observer?.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      timeoutId = window.setTimeout(() => observer?.disconnect(), 3000);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [pathname]);
+
+  if (isHiddenPath(pathname) || allowed.length === 0 || !portalReady) return null;
+
+  const currentModule = moduleFromPath(pathname);
 
   function remember(moduleKey: CeamiModuleKey) {
     window.localStorage.setItem('ceami:last-module', moduleKey);
@@ -135,8 +186,11 @@ export default function CeamiAppSwitcher() {
     window.location.assign('/login');
   }
 
-  return (
-    <div className="ceami-app-switcher" ref={panelRef}>
+  const switcher = (
+    <div
+      className={`ceami-app-switcher ${portalTarget ? 'ceami-app-switcher-inline' : 'ceami-app-switcher-floating'}`}
+      ref={panelRef}
+    >
       <button
         type="button"
         className="ceami-app-switcher-trigger"
@@ -156,12 +210,22 @@ export default function CeamiAppSwitcher() {
           </div>
 
           <div className="ceami-app-switcher-grid">
-            {MODULES.filter((module) => allowed.includes(module.key)).map(({ key, label, icon: Icon }) => (
-              <Link key={key} href={CEAMI_MODULE_PATHS[key]} onClick={() => remember(key)}>
-                <Icon size={20} />
-                <span>{label}</span>
-              </Link>
-            ))}
+            {MODULES.filter((module) => allowed.includes(module.key)).map(({ key, label, icon: Icon }) => {
+              const isCurrent = currentModule === key;
+              return (
+                <Link
+                  key={key}
+                  href={CEAMI_MODULE_PATHS[key]}
+                  onClick={() => remember(key)}
+                  className={isCurrent ? 'current' : ''}
+                  aria-current={isCurrent ? 'page' : undefined}
+                >
+                  <Icon size={18} />
+                  <span>{label}</span>
+                  {isCurrent && <small>Atual</small>}
+                </Link>
+              );
+            })}
           </div>
 
           <Link href="/conta" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>
@@ -186,4 +250,6 @@ export default function CeamiAppSwitcher() {
       )}
     </div>
   );
+
+  return portalTarget ? createPortal(switcher, portalTarget) : switcher;
 }

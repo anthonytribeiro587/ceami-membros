@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import AccountSecurityClient from './AccountSecurityClient';
+import '../ceami-saas.css';
 import './conta.css';
 
 export const metadata: Metadata = {

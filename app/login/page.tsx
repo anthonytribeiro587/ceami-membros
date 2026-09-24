@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LockKeyhole, Mail } from 'lucide-react';
+import { ArrowRight, LayoutGrid, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import './login.css';
 
@@ -80,51 +80,69 @@ export default function LoginPage() {
 
     const params = new URLSearchParams(window.location.search);
     const nextPath = safeNextPath(params.get('next'));
-
     router.replace(nextPath || '/');
-
     router.refresh();
   }
 
   return (
     <main className="login-page">
-      <section className="login-card">
-        <div className="login-brand">
-          <div>CE</div>
-          <span>
-            <strong>CEAMI</strong>
-            <small>Central de aplicativos</small>
-          </span>
-        </div>
+      <section className="login-shell">
+        <aside className="login-showcase">
+          <div className="login-showcase-brand">
+            <img src="/brand/ceami-icon.svg?v=official-2" alt="CEAMI" />
+            <div><strong>CEAMI</strong><span>Plataforma integrada</span></div>
+          </div>
 
-        <div className="login-copy">
-          <span>ACESSO ÚNICO</span>
-          <h1>Entre na plataforma CEAMI</h1>
-          <p>Use uma única conta para acessar todos os módulos liberados para você.</p>
-        </div>
+          <div className="login-showcase-copy">
+            <span>UM ACESSO. TODA A CEAMI.</span>
+            <h1>Entre uma vez.<br />Trabalhe em qualquer módulo.</h1>
+            <p>Membros, Social, Eventos, Serviços, Acolhimentos e Cursos compartilham a mesma conta e as permissões do seu perfil.</p>
+          </div>
 
-        <form onSubmit={handleSubmit}>
-          <label>
-            <span>E-mail</span>
-            <div>
-              <Mail size={18} />
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
-            </div>
-          </label>
-          <label>
-            <span>Senha</span>
-            <div>
-              <LockKeyhole size={18} />
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
-            </div>
-          </label>
-          {error && <p className="login-error">{error}</p>}
-          <button disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
-        </form>
+          <div className="login-showcase-points">
+            <div><LayoutGrid size={18} /><span><strong>6 aplicativos</strong><small>Uma experiência única</small></span></div>
+            <div><ShieldCheck size={18} /><span><strong>Acesso por perfil</strong><small>Você vê somente o que foi liberado</small></span></div>
+          </div>
+        </aside>
 
-        <small className="login-note">
-          Depois do login, a CEAMI mostra somente os aplicativos permitidos para sua conta.
-        </small>
+        <section className="login-panel">
+          <div className="login-mobile-brand">
+            <img src="/brand/ceami-icon.svg?v=official-2" alt="CEAMI" />
+            <div><strong>CEAMI</strong><span>Central de aplicativos</span></div>
+          </div>
+
+          <div className="login-copy">
+            <span>ACESSO À PLATAFORMA</span>
+            <h2>Bem-vindo de volta</h2>
+            <p>Use sua conta CEAMI para continuar.</p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <label>
+              <span>E-mail</span>
+              <div>
+                <Mail size={18} />
+                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" placeholder="seu@email.com" />
+              </div>
+            </label>
+            <label>
+              <span>Senha</span>
+              <div>
+                <LockKeyhole size={18} />
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" placeholder="Sua senha" />
+              </div>
+            </label>
+            {error && <p className="login-error">{error}</p>}
+            <button disabled={loading}>
+              <span>{loading ? 'Entrando...' : 'Entrar na CEAMI'}</span>
+              {!loading && <ArrowRight size={18} />}
+            </button>
+          </form>
+
+          <small className="login-note">
+            Após entrar, você verá apenas os aplicativos autorizados para sua conta.
+          </small>
+        </section>
       </section>
     </main>
   );

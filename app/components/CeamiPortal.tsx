@@ -117,9 +117,9 @@ export default function CeamiPortal({
   }
 
   return (
-    <main className="ceami-portal">
-      <section className="ceami-portal-hero">
-        <div className="ceami-portal-brand">
+    <main className="ceami-portal ceami-launcher">
+      <header className="ceami-launcher-header">
+        <div className="ceami-launcher-brand">
           <img src="/brand/ceami-icon.svg?v=official-2" alt="CEAMI" />
           <div>
             <strong>CEAMI</strong>
@@ -127,50 +127,40 @@ export default function CeamiPortal({
           </div>
         </div>
 
-        <div className="ceami-portal-copy">
-          <span>UM ACESSO. TODOS OS MÓDULOS.</span>
-          <h1>O que você deseja acessar?</h1>
-          <p>
-            Sua conta é única. Você pode alternar entre os aplicativos liberados
-            para o seu perfil sem sair e entrar novamente.
-          </p>
-        </div>
-
-        <div className="ceami-portal-account">
-          <span>{fullName || 'Conta CEAMI'}</span>
-          <Link href="/conta" className="ceami-portal-admin">
-            <KeyRound size={17} />
-            Minha conta
-          </Link>
+        <div className="ceami-launcher-account">
+          <span className="ceami-launcher-user">{fullName || 'Conta CEAMI'}</span>
+          <Link href="/conta" aria-label="Minha conta"><KeyRound size={17} /><span>Minha conta</span></Link>
           {isAdmin && (
-            <Link href="/acessos" className="ceami-portal-admin">
-              <ShieldCheck size={17} />
-              Gerenciar acessos
-            </Link>
+            <Link href="/acessos" aria-label="Gerenciar acessos"><ShieldCheck size={17} /><span>Acessos</span></Link>
           )}
-          <button type="button" onClick={() => void signOut()}>
-            <LogOut size={16} /> Sair
+          <button type="button" onClick={() => void signOut()} aria-label="Sair">
+            <LogOut size={17} /><span>Sair</span>
           </button>
         </div>
+      </header>
+
+      <section className="ceami-launcher-intro">
+        <span>SEUS APLICATIVOS</span>
+        <h1>Onde você quer trabalhar agora?</h1>
+        <p>Escolha um módulo. Sua sessão continua ativa ao alternar entre eles.</p>
       </section>
 
-      <section className="ceami-portal-modules" aria-label="Aplicativos CEAMI">
+      <section className="ceami-launcher-grid" aria-label="Aplicativos CEAMI">
         {visible.map(({ key, name, eyebrow, description, icon: Icon }) => (
           <Link
             key={key}
             href={CEAMI_MODULE_PATHS[key]}
-            className={`ceami-portal-card ceami-portal-card-${key}`}
+            className={`ceami-launcher-card ceami-launcher-card-${key}`}
             onClick={() => rememberModule(key)}
           >
-            <div className="ceami-portal-card-icon"><Icon size={24} /></div>
-            <div className="ceami-portal-card-copy">
-              <span>{eyebrow}</span>
-              <h2>CEAMI {name}</h2>
-              <p>{description}</p>
+            <div className="ceami-launcher-card-top">
+              <div className="ceami-launcher-card-icon"><Icon size={23} /></div>
+              <ArrowRight className="ceami-launcher-card-arrow" size={19} />
             </div>
-            <div className="ceami-portal-card-action">
-              <span>Acessar</span>
-              <ArrowRight size={18} />
+            <div className="ceami-launcher-card-copy">
+              <span>{eyebrow}</span>
+              <h2>{name}</h2>
+              <p>{description}</p>
             </div>
           </Link>
         ))}
@@ -183,9 +173,9 @@ export default function CeamiPortal({
         )}
       </section>
 
-      <footer className="ceami-portal-note">
-        A CEAMI lembra o último aplicativo usado neste navegador. Para escolher outro,
-        use o seletor de aplicativos dentro de qualquer módulo.
+      <footer className="ceami-launcher-footer">
+        <span>Um login para toda a plataforma.</span>
+        <span>A CEAMI lembra o último módulo usado neste navegador.</span>
       </footer>
     </main>
   );

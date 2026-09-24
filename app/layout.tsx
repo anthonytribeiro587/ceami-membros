@@ -16,6 +16,8 @@ import './course-entry.css';
 import './member-v3.css';
 import './member-details-polish.css';
 import './ceami-suite.css';
+import './ceami-saas.css';
+import './ceami-crafted.css';
 import './integra/privacy-consent.css';
 
 export const metadata: Metadata = {

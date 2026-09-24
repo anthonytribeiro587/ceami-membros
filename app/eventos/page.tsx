@@ -7,7 +7,9 @@ import ResponseSortEnhancement from '@/app/formularios/ResponseSortEnhancement';
 import SeminarPrintReport from '@/app/formularios/SeminarPrintReport';
 import MobileFormsCompactEnhancement from '@/app/formularios/MobileFormsCompactEnhancement';
 import SeminarFileTrackingShortcut from '@/app/formularios/SeminarFileTrackingShortcut';
+import CeamiModuleShell from '@/app/components/CeamiModuleShell';
 import '@/app/formularios/formularios.css';
+import '@/app/ceami-saas.css';
 
 export const metadata: Metadata = {
   title: 'CEAMI Eventos',
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function EventosPage() {
   return (
-    <>
+    <CeamiModuleShell moduleKey="events">
       <SeminarFileTrackingShortcut />
       <FormulariosClient />
       <InlinePaymentsEnhancement />
@@ -25,6 +27,6 @@ export default function EventosPage() {
       <ResponseSortEnhancement />
       <SeminarPrintReport />
       <MobileFormsCompactEnhancement />
-    </>
+    </CeamiModuleShell>
   );
 }

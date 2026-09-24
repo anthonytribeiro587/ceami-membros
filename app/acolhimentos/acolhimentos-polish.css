@@ -1,0 +1,60 @@
+/* CEAMI Acolhimentos — densidade e escala alinhadas à suíte */
+.visitors-page-intro{padding:1px 1px 8px}
+.visitors-page-intro>span{color:var(--ceami-orange)!important;font-size:8.5px!important;letter-spacing:.1em!important}
+.visitors-page-intro h2{margin:5px 0 3px!important;color:var(--ceami-text-strong)!important;font-size:23px!important;font-weight:720!important;letter-spacing:-.025em!important}
+.visitors-page-intro p{max-width:760px;margin:0!important;color:var(--ceami-muted)!important;font-size:10.5px!important;line-height:1.5!important}
+
+@media(min-width:960px){
+  .visitors-followup-list{grid-template-columns:1fr!important;gap:0!important;background:#fff;border:1px solid var(--ceami-line)!important;border-radius:9px!important;overflow:hidden}
+  .visitors-followup-list article{
+    min-height:72px!important;
+    grid-template-columns:36px minmax(0,1fr) auto!important;
+    gap:10px!important;
+    padding:10px 12px!important;
+    border:0!important;
+    border-bottom:1px solid var(--ceami-line-soft)!important;
+    border-radius:0!important;
+    background:#fff!important;
+  }
+  .visitors-followup-list article:last-child{border-bottom:0!important}
+  .visitors-followup-list .visitors-avatar{width:36px!important;height:36px!important;border-radius:6px!important;background:#f1f4f6!important;color:var(--ceami-blue-strong)!important}
+  .visitors-followup-copy strong{font-size:11px!important}
+  .visitors-followup-copy span{font-size:9px!important}
+  .visitors-followup-copy small{font-size:8.5px!important}
+  .visitors-followup-list .visitors-whatsapp{
+    grid-column:3!important;
+    grid-row:1!important;
+    width:auto!important;
+    min-width:92px!important;
+    min-height:34px!important;
+    padding:0 10px!important;
+    border-radius:6px!important;
+    font-size:9px!important;
+  }
+  .visitors-followup-actions{
+    grid-column:2/4!important;
+    display:flex!important;
+    justify-content:flex-start!important;
+    gap:6px!important;
+    margin-top:-4px!important;
+  }
+  .visitors-followup-actions button{
+    width:auto!important;
+    min-height:30px!important;
+    padding:0 9px!important;
+    border-radius:6px!important;
+    font-size:8.5px!important;
+  }
+}
+@media(max-width:959px){
+  .visitors-page-intro h2{font-size:21px!important}
+  .visitors-followup-list{gap:7px!important}
+  .visitors-followup-list article{border-radius:8px!important;padding:10px!important}
+  .visitors-followup-list .visitors-whatsapp{min-height:38px!important;border-radius:6px!important;font-size:9.5px!important}
+  .visitors-followup-actions{gap:5px!important}
+  .visitors-followup-actions button{min-height:36px!important;border-radius:6px!important;font-size:8.5px!important}
+}
+@media(max-width:480px){
+  .visitors-followup-actions{grid-template-columns:1fr 1fr!important}
+  .visitors-followup-actions button:last-child{grid-column:1/-1!important}
+}

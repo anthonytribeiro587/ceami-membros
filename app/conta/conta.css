@@ -1,93 +1,72 @@
-.account-page {
-  min-height: 100vh;
-  padding: 34px 18px 90px;
-  background:
-    radial-gradient(circle at 10% 8%, rgba(174, 136, 87, .13), transparent 30%),
-    #f7f5f1;
-  color: #24211d;
+.account-page{
+  min-height:100dvh;
+  padding:24px 18px 72px;
+  background:#f5f7f8;
+  color:#234158;
 }
-.account-shell { width: min(760px, 100%); margin: 0 auto; }
-.account-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #67543d;
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 850;
+.account-shell{width:min(780px,100%);margin:0 auto}
+.account-toolbar{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.account-back{
+  display:inline-flex;align-items:center;gap:6px;
+  color:#315d7f;text-decoration:none;font-size:10.5px;font-weight:700
 }
-.account-header { display: grid; gap: 7px; padding: 28px 0 24px; border-bottom: 1px solid #ded8cf; }
-.account-header > span { color: #816849; font-size: 10px; font-weight: 900; letter-spacing: .14em; }
-.account-header h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: clamp(30px, 6vw, 44px); letter-spacing: -.045em; }
-.account-header p { margin: 0; max-width: 610px; color: #746d64; font-size: 13px; line-height: 1.55; }
-.account-profile {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  margin-top: 20px;
-  padding: 16px;
-  background: rgba(255,255,255,.85);
-  border: 1px solid #e0dad1;
-  border-radius: 16px;
+.account-header{display:grid;gap:6px;padding:25px 0 21px;border-bottom:1px solid #dfe5e9}
+.account-header>span{color:#f26222;font-size:8.5px;font-weight:800;letter-spacing:.1em}
+.account-header h1{display:flex;align-items:center;gap:9px;margin:0;color:#0b3555;font-size:34px;font-weight:720;letter-spacing:-.035em}
+.account-header h1 svg{color:#115b91}
+.account-header p{margin:0;max-width:620px;color:#758896;font-size:11px;line-height:1.5}
+.account-profile{
+  display:flex;align-items:center;gap:12px;margin-top:16px;padding:13px 14px;
+  background:#fff;border:1px solid #dfe5e9;border-radius:9px
 }
-.account-avatar { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: #ece6dc; color: #68563f; }
-.account-profile > div:last-child { display: grid; gap: 3px; min-width: 0; }
-.account-profile small { color: #887f73; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.account-profile strong { font-size: 15px; }
-.account-profile span { display: flex; align-items: center; gap: 5px; color: #746d64; font-size: 11px; }
-.account-security-card {
-  margin-top: 14px;
-  padding: 22px;
-  background: #fff;
-  border: 1px solid #dfd9d0;
-  border-radius: 19px;
-  box-shadow: 0 18px 45px rgba(41,35,28,.06);
+.account-avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:6px;background:#edf4f8;color:#115b91}
+.account-profile>div:last-child{display:grid;gap:2px;min-width:0}
+.account-profile small{color:#f26222;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.account-profile strong{color:#0b3555;font-size:13px;font-weight:700}
+.account-profile span{display:flex;align-items:center;gap:5px;color:#758896;font-size:9.5px}
+.account-security-card{
+  margin-top:10px;padding:18px;background:#fff;border:1px solid #dfe5e9;border-radius:9px;box-shadow:none
 }
-.account-security-title { display: flex; gap: 12px; align-items: flex-start; padding-bottom: 18px; border-bottom: 1px solid #eee9e2; }
-.account-security-title > div:first-child { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 13px; background: #edf4ef; color: #356047; }
-.account-security-title > div:last-child { display: grid; gap: 3px; }
-.account-security-title span { color: #788276; font-size: 9px; font-weight: 900; letter-spacing: .13em; }
-.account-security-title h2 { margin: 0; font-size: 20px; }
-.account-security-title p { margin: 0; color: #7b746b; font-size: 11px; }
-.account-security-card form { display: grid; gap: 14px; padding-top: 18px; }
-.account-security-card label { display: grid; gap: 6px; }
-.account-security-card label > span { color: #605a51; font-size: 11px; font-weight: 850; }
-.account-security-card label > div {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 48px;
-  padding: 0 13px;
-  border: 1px solid #dcd6cd;
-  border-radius: 12px;
-  background: #fcfbf9;
+.account-security-title{display:flex;gap:11px;align-items:flex-start;padding-bottom:15px;border-bottom:1px solid #edf1f3}
+.account-security-title>div:first-child{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border-radius:6px;background:#edf4f8;color:#115b91}
+.account-security-title>div:last-child{display:grid;gap:2px}
+.account-security-title span{color:#f26222;font-size:8px;font-weight:800;letter-spacing:.09em}
+.account-security-title h2{margin:0;color:#0b3555;font-size:17px;font-weight:720}
+.account-security-title p{margin:0;color:#758896;font-size:9.5px}
+.account-security-card form{display:grid;gap:12px;padding-top:15px}
+.account-security-card label{display:grid;gap:5px}
+.account-security-card label>span{color:#31566f;font-size:9.5px;font-weight:700}
+.account-security-card label>div{
+  min-height:44px;display:flex;align-items:center;gap:8px;padding:0 11px;
+  border:1px solid #d6e0e7;border-radius:7px;background:#fff;color:#7a8f9e
 }
-.account-security-card input { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; }
-.account-security-card label > small { color: #8a8277; font-size: 10px; line-height: 1.45; }
-.account-security-card form > button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  margin-top: 3px;
-  border: 0;
-  border-radius: 12px;
-  background: #4e3d29;
-  color: #fff;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 850;
-  cursor: pointer;
+.account-security-card label>div:focus-within{border-color:#8eb0c8;box-shadow:0 0 0 3px rgba(17,91,145,.07)}
+.account-security-card input{width:100%;border:0;outline:0;background:transparent;color:#173f5c;font:inherit;font-size:12px}
+.account-security-card label>small{color:#8898a4;font-size:8.5px;line-height:1.45}
+.account-security-card form>button{
+  min-height:43px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  margin-top:2px;border:1px solid #0b4f7e;border-radius:7px;background:#0b4f7e;color:#fff;
+  font:inherit;font-size:10.5px;font-weight:750;cursor:pointer
 }
-.account-security-card form > button:disabled { opacity: .6; cursor: wait; }
-.account-message { display: flex; align-items: center; gap: 7px; padding: 11px 12px; border-radius: 11px; font-size: 11px; font-weight: 750; }
-.account-message.error { background: #fff0ed; color: #8d443a; border: 1px solid #edcec8; }
-.account-message.success { background: #eaf4ed; color: #356047; border: 1px solid #cee0d3; }
-.account-security-note { margin: 13px 2px 0; color: #81796e; font-size: 10px; line-height: 1.5; }
-.account-spin { animation: account-spin .8s linear infinite; }
-@keyframes account-spin { to { transform: rotate(360deg); } }
-@media (max-width: 620px) {
-  .account-page { padding: 22px 12px 88px; }
-  .account-security-card { padding: 17px; }
+.account-security-card form>button:hover{background:#083d67}
+.account-security-card form>button:disabled{opacity:.6;cursor:wait}
+.account-message{display:flex;align-items:center;gap:7px;padding:9px 10px;border-radius:7px;font-size:9.5px;font-weight:650}
+.account-message.error{background:#fbefed;color:#9a4237;border:1px solid #ead0cb}
+.account-message.success{background:#edf7f1;color:#297151;border:1px solid #cee3d6}
+.account-security-note{margin:10px 1px 0;color:#83939f;font-size:8.5px;line-height:1.5}
+.account-spin{animation:account-spin .8s linear infinite}@keyframes account-spin{to{transform:rotate(360deg)}}
+@media(max-width:620px){
+  .account-page{padding:14px 12px calc(64px + env(safe-area-inset-bottom))}
+  .account-toolbar{min-height:44px}
+  .account-toolbar .ceami-app-switcher-trigger{width:38px!important;height:38px!important;padding:0!important}
+  .account-toolbar .ceami-app-switcher-trigger span{display:none!important}
+  .account-header{padding:20px 0 17px}
+  .account-header h1{font-size:29px}
+  .account-header p{font-size:10px}
+  .account-profile{padding:11px}
+  .account-security-card{padding:13px}
+  .account-security-title{padding-bottom:12px}
+  .account-security-card label>div{min-height:46px}
+  .account-security-card input{font-size:16px}
+  .account-security-card form>button{min-height:46px}
 }

@@ -107,11 +107,17 @@ test('message history includes every automation type', async () => {
   assert.match(component, /\/api\/messages\/history/);
 });
 
-test('courses and automations use the persistent navigation shell', async () => {
+test('standalone modules stay reachable through the CEAMI launcher while member tools keep their shell', async () => {
   const courses = await read('app/cursos/page.tsx');
+  const rootLayout = await read('app/layout.tsx');
+  const moduleTypes = await read('lib/types/ceami-module.ts');
   const automationsPage = await read('app/automacoes/page.tsx');
   const automationsClient = await read('app/automacoes/AutomacoesClient.tsx');
-  assert.match(courses, /AdminRouteShell/);
+
+  assert.match(courses, /CoursesWorkspace/);
+  assert.doesNotMatch(courses, /AdminRouteShell/);
+  assert.match(rootLayout, /CeamiAppSwitcher/);
+  assert.match(moduleTypes, /courses:\s*'\/cursos'/);
   assert.match(automationsPage, /AutomacoesClient/);
   assert.match(automationsClient, /AdminRouteShell/);
   assert.match(automationsClient, /automation-workspace-tabs/);

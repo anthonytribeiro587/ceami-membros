@@ -55,6 +55,16 @@ function isHiddenPath(pathname: string) {
   return HIDDEN_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
 }
 
+function moduleFromPath(pathname: string): CeamiModuleKey | null {
+  if (pathname.startsWith('/membros')) return 'members';
+  if (pathname.startsWith('/social')) return 'social';
+  if (pathname.startsWith('/eventos') || pathname.startsWith('/formularios')) return 'events';
+  if (pathname.startsWith('/servicos')) return 'services';
+  if (pathname.startsWith('/acolhimentos') || pathname.startsWith('/visitantes')) return 'welcome';
+  if (pathname.startsWith('/cursos')) return 'courses';
+  return null;
+}
+
 export default function CeamiAppSwitcher() {
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
@@ -163,6 +173,8 @@ export default function CeamiAppSwitcher() {
 
   if (isHiddenPath(pathname) || allowed.length === 0 || !portalReady) return null;
 
+  const currentModule = moduleFromPath(pathname);
+
   function remember(moduleKey: CeamiModuleKey) {
     window.localStorage.setItem('ceami:last-module', moduleKey);
     setOpen(false);
@@ -198,12 +210,22 @@ export default function CeamiAppSwitcher() {
           </div>
 
           <div className="ceami-app-switcher-grid">
-            {MODULES.filter((module) => allowed.includes(module.key)).map(({ key, label, icon: Icon }) => (
-              <Link key={key} href={CEAMI_MODULE_PATHS[key]} onClick={() => remember(key)}>
-                <Icon size={20} />
-                <span>{label}</span>
-              </Link>
-            ))}
+            {MODULES.filter((module) => allowed.includes(module.key)).map(({ key, label, icon: Icon }) => {
+              const isCurrent = currentModule === key;
+              return (
+                <Link
+                  key={key}
+                  href={CEAMI_MODULE_PATHS[key]}
+                  onClick={() => remember(key)}
+                  className={isCurrent ? 'current' : ''}
+                  aria-current={isCurrent ? 'page' : undefined}
+                >
+                  <Icon size={18} />
+                  <span>{label}</span>
+                  {isCurrent && <small>Atual</small>}
+                </Link>
+              );
+            })}
           </div>
 
           <Link href="/conta" className="ceami-app-switcher-all" onClick={() => setOpen(false)}>

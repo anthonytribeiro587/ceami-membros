@@ -1,0 +1,1202 @@
+/* ==========================================================================
+   CEAMI SaaS Design System
+   Referência visual: CEAMI Social + CEAMI Acolhimentos
+   ========================================================================== */
+
+:root {
+  --ceami-blue: #0b4f8d;
+  --ceami-blue-strong: #073866;
+  --ceami-blue-soft: #eaf3fb;
+  --ceami-orange: #ff6816;
+  --ceami-orange-strong: #e9580d;
+  --ceami-orange-soft: #fff0e7;
+  --ceami-bg: #f4f7fa;
+  --ceami-surface: #ffffff;
+  --ceami-surface-soft: #f8fafc;
+  --ceami-line: #dce6ee;
+  --ceami-line-soft: #eaf0f4;
+  --ceami-text: #123a5d;
+  --ceami-text-strong: #082f59;
+  --ceami-muted: #728699;
+  --ceami-green: #178957;
+  --ceami-green-soft: #e7f6ee;
+  --ceami-yellow: #bd7300;
+  --ceami-yellow-soft: #fff3da;
+  --ceami-red: #c84c3c;
+  --ceami-red-soft: #fff0ed;
+  --ceami-radius-sm: 10px;
+  --ceami-radius-md: 13px;
+  --ceami-radius-lg: 17px;
+  --ceami-radius-xl: 20px;
+  --ceami-radius-2xl: 24px;
+  --ceami-shadow-card: 0 7px 22px rgba(8, 52, 91, .045);
+  --ceami-shadow-float: 0 16px 44px rgba(8, 47, 89, .12);
+  --ceami-content: 1180px;
+}
+
+/* Base compartilhada ------------------------------------------------------ */
+.member-v3-shell,
+.courses-page,
+.forms-admin-page,
+.services-admin-page,
+.access-page,
+.account-page,
+.ceami-portal {
+  color: var(--ceami-text);
+  background: var(--ceami-bg);
+  font-family: Inter, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+.member-v3-shell *,
+.courses-page *,
+.forms-admin-page *,
+.services-admin-page *,
+.access-page *,
+.account-page *,
+.ceami-portal * {
+  box-sizing: border-box;
+}
+
+.member-v3-shell :where(button,input,select,textarea):focus-visible,
+.courses-page :where(button,input,select,textarea,a):focus-visible,
+.forms-admin-page :where(button,input,select,textarea,a):focus-visible,
+.services-admin-page :where(button,input,select,textarea,a):focus-visible,
+.access-page :where(button,input,a):focus-visible,
+.account-page :where(button,input,a):focus-visible,
+.ceami-portal :where(button,a):focus-visible {
+  outline: 3px solid rgba(255,104,22,.2);
+  outline-offset: 2px;
+}
+
+.courses-page,
+.forms-admin-page,
+.services-admin-page {
+  width: min(var(--ceami-content), calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.forms-admin-page,
+.services-admin-page {
+  min-height: 100dvh;
+}
+
+/* App switcher ------------------------------------------------------------ */
+.ceami-app-switcher-trigger {
+  min-height: 42px;
+  padding: 0 14px;
+  color: var(--ceami-blue-strong);
+  background: rgba(255,255,255,.97);
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-md);
+  box-shadow: 0 8px 26px rgba(8,47,89,.1);
+}
+
+.ceami-app-switcher-panel {
+  width: 330px;
+  padding: 15px;
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-xl);
+  box-shadow: 0 26px 70px rgba(8,47,89,.18);
+}
+
+.ceami-app-switcher-head strong { color: var(--ceami-text-strong); }
+.ceami-app-switcher-head span { color: var(--ceami-muted); }
+
+.ceami-app-switcher-grid {
+  gap: 7px;
+}
+
+.ceami-app-switcher-grid a {
+  min-height: 52px;
+  color: var(--ceami-text);
+  background: #f5f8fb;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.ceami-app-switcher-grid a:hover {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+  border-color: #d2e3f1;
+  transform: translateY(-1px);
+}
+
+.ceami-app-switcher-all { color: var(--ceami-blue); }
+.ceami-app-switcher-account { border-color: var(--ceami-line-soft); }
+.ceami-app-switcher-account > span { color: var(--ceami-muted); }
+
+/* CEAMI Membros ----------------------------------------------------------- */
+.member-v3-shell {
+  --v3-orange: var(--ceami-orange);
+  --v3-orange-dark: var(--ceami-orange-strong);
+  --v3-navy: var(--ceami-blue);
+  --v3-navy-deep: var(--ceami-blue-strong);
+  --v3-green: var(--ceami-green);
+  --v3-bg: var(--ceami-bg);
+  --v3-card: var(--ceami-surface);
+  --v3-line: var(--ceami-line);
+  --v3-muted: var(--ceami-muted);
+  --v3-shadow: var(--ceami-shadow-card);
+  grid-template-columns: 220px minmax(0,1fr);
+}
+
+.member-v3-sidebar {
+  padding: 18px 14px 14px;
+  color: var(--ceami-text);
+  background: #fff;
+  border-right: 1px solid var(--ceami-line);
+  box-shadow: none;
+}
+
+.member-v3-brand {
+  padding: 2px 7px 18px;
+  border-bottom: 1px solid var(--ceami-line-soft);
+}
+
+.member-v3-brand img {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.member-v3-brand strong {
+  color: var(--ceami-blue-strong);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.member-v3-brand span {
+  margin-top: 2px;
+  color: var(--ceami-orange);
+  font-size: 11px;
+  font-weight: 850;
+  opacity: 1;
+}
+
+.member-v3-brand button {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.member-v3-nav {
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.member-v3-nav button,
+.member-v3-nav a {
+  min-height: 42px;
+  padding: 0 11px;
+  color: #5d7488;
+  border-radius: 11px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.member-v3-nav button:hover,
+.member-v3-nav button.active,
+.member-v3-nav a:hover,
+.member-v3-nav a.active {
+  color: var(--ceami-orange-strong);
+  background: var(--ceami-orange-soft);
+  transform: none;
+}
+
+.member-v3-sidebar-bottom {
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ceami-line-soft);
+}
+
+.member-v3-sidebar-bottom small {
+  color: var(--ceami-muted);
+  font-size: 9px;
+}
+
+.member-v3-signout {
+  color: #677c8e;
+  background: #f6f8fa;
+  border: 1px solid var(--ceami-line);
+  border-radius: 11px;
+}
+
+.member-v3-signout:hover {
+  color: var(--ceami-red);
+  background: var(--ceami-red-soft);
+}
+
+.member-v3-content {
+  width: 100%;
+  max-width: calc(var(--ceami-content) + 56px);
+  margin-inline: auto;
+  padding: 26px 28px 88px;
+}
+
+.member-v3-topbar {
+  min-height: 54px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--ceami-line);
+}
+
+.member-v3-topbar span {
+  color: var(--ceami-orange);
+  font-size: 9.5px;
+}
+
+.member-v3-topbar h1 {
+  color: var(--ceami-text-strong);
+  font-size: 24px;
+  letter-spacing: -.03em;
+}
+
+.member-v3-menu,
+.member-v3-notification {
+  color: var(--ceami-blue);
+  background: #fff;
+  border-color: var(--ceami-line);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.member-v3-dashboard { gap: 16px; }
+
+.member-v3-hero {
+  min-height: 190px;
+  padding: 30px;
+  border: 0;
+  border-radius: var(--ceami-radius-xl);
+  background:
+    radial-gradient(circle at 92% 10%, rgba(255,255,255,.09), transparent 230px),
+    linear-gradient(135deg, #0a4380, #0e5796);
+  box-shadow: 0 12px 34px rgba(8,55,100,.13);
+}
+
+.member-v3-hero:after { border-color: rgba(255,255,255,.025); }
+.member-v3-hero span { color: #ffb17f; }
+.member-v3-hero h2 { font-size: 26px; }
+.member-v3-hero p { color: #d6e6f3; }
+
+.member-v3-hero button,
+.member-v3-primary,
+.member-v3-square {
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--ceami-orange);
+  box-shadow: 0 8px 20px rgba(255,104,22,.16);
+}
+
+.member-v3-hero button.ghost {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.22);
+  box-shadow: none;
+}
+
+.member-v3-metrics {
+  gap: 10px;
+}
+
+.member-v3-metrics article,
+.member-v3-panel,
+.member-v3-detail-card,
+.member-v3-faith-card {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.member-v3-metrics article {
+  min-height: 88px;
+  padding: 14px;
+  gap: 11px;
+}
+
+.member-v3-metric-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--ceami-orange-soft);
+  color: var(--ceami-orange);
+}
+
+.member-v3-metrics article:nth-child(2) .member-v3-metric-icon {
+  background: var(--ceami-blue-soft);
+  color: var(--ceami-blue);
+}
+
+.member-v3-metrics article:nth-child(3) .member-v3-metric-icon {
+  background: var(--ceami-green-soft);
+  color: var(--ceami-green);
+}
+
+.member-v3-metrics small { color: var(--ceami-muted); font-size: 11px; }
+.member-v3-metrics strong { color: var(--ceami-text-strong); font-size: 22px; }
+
+.member-v3-panel {
+  padding: 18px;
+}
+
+.member-v3-panel-head h2,
+.member-v3-profile-title h2 {
+  color: var(--ceami-text-strong);
+  letter-spacing: -.025em;
+}
+
+.member-v3-panel-head p { color: var(--ceami-muted); font-size: 12px; }
+
+.member-v3-row {
+  border-color: var(--ceami-line-soft);
+  border-radius: 12px;
+}
+
+.member-v3-row:hover {
+  background: #f8fbfd;
+}
+
+.member-v3-avatar,
+.member-v3-mini-avatar,
+.member-v3-profile-avatar {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.member-v3-search,
+.member-v3-field input,
+.member-v3-field select,
+.member-v3-field textarea {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+}
+
+.member-v3-search:focus-within,
+.member-v3-field input:focus,
+.member-v3-field select:focus,
+.member-v3-field textarea:focus {
+  border-color: #8ab0cf;
+  box-shadow: 0 0 0 3px rgba(35,105,165,.07);
+}
+
+/* Cabeçalhos administrativos compartilhados ----------------------------- */
+.admin-page-header {
+  color: var(--ceami-text);
+}
+
+.admin-page-heading {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ceami-line);
+}
+
+.admin-page-heading-copy > span,
+.admin-page-heading-copy .admin-page-eyebrow {
+  color: var(--ceami-orange);
+}
+
+.admin-page-heading-copy h1 {
+  color: var(--ceami-text-strong);
+  letter-spacing: -.035em;
+}
+
+.admin-page-heading-copy p { color: var(--ceami-muted); }
+
+.admin-page-back {
+  color: var(--ceami-blue);
+  background: #fff;
+  border-color: var(--ceami-line);
+  border-radius: 11px;
+}
+
+/* CEAMI Cursos ------------------------------------------------------------ */
+.courses-page {
+  --course-green: var(--ceami-blue);
+  min-height: 100dvh;
+  padding: 30px 0 90px;
+  color: var(--ceami-text);
+  background: var(--ceami-bg);
+}
+
+.courses-topbar,
+.courses-metrics,
+.courses-panel,
+.courses-error,
+.course-tabs {
+  max-width: var(--ceami-content);
+}
+
+.courses-topbar {
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ceami-line);
+}
+
+.courses-topbar > div:first-child > span {
+  color: var(--ceami-orange);
+  font-size: 10px;
+  letter-spacing: .14em;
+}
+
+.courses-topbar h1 { color: var(--ceami-text-strong); letter-spacing: -.035em; }
+.courses-topbar p { color: var(--ceami-muted); }
+
+.courses-actions button,
+.courses-actions select,
+.class-card > button,
+.lesson-row > button,
+.course-modal-actions button,
+.qr-actions button,
+.attendance-toolbar > button,
+.lesson-footer-actions button {
+  min-height: 43px;
+  border-color: var(--ceami-line);
+  border-radius: 11px;
+  color: var(--ceami-text);
+}
+
+.courses-actions .primary,
+.class-card > button,
+.course-modal-actions .primary,
+.lesson-footer-actions .primary {
+  border-color: var(--ceami-orange);
+  background: var(--ceami-orange);
+  box-shadow: 0 7px 18px rgba(255,104,22,.14);
+}
+
+.courses-metrics { gap: 10px; }
+
+.courses-metrics article {
+  min-height: 88px;
+  padding: 14px;
+  gap: 11px;
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.courses-metrics article > svg {
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  border-radius: 12px;
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.courses-metrics article:first-child > svg {
+  color: var(--ceami-orange);
+  background: var(--ceami-orange-soft);
+}
+
+.courses-metrics article:last-child > svg {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+.courses-metrics small { color: var(--ceami-muted); font-size: 11px; }
+.courses-metrics strong { color: var(--ceami-text-strong); font-size: 22px; }
+
+.courses-panel {
+  padding: 19px;
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.courses-panel-head h2,
+.class-card h3 { color: var(--ceami-text-strong); }
+.courses-panel-head p,
+.class-meta,
+.class-card > small { color: var(--ceami-muted); }
+
+.class-grid { gap: 10px; }
+
+.class-card {
+  border-color: var(--ceami-line);
+  border-radius: 15px;
+  box-shadow: none;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.class-card:hover {
+  border-color: #bed3e4;
+  box-shadow: 0 9px 24px rgba(8,52,91,.07);
+  transform: translateY(-1px);
+}
+
+.status-pill.open {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+.course-modal {
+  border-radius: var(--ceami-radius-xl);
+}
+
+.course-modal input,
+.course-modal textarea,
+.course-modal select {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+}
+
+/* CEAMI Eventos ----------------------------------------------------------- */
+.forms-admin-page {
+  max-width: none;
+  padding: 30px 0 90px;
+  color: var(--ceami-text);
+}
+
+.forms-admin-header {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--ceami-line);
+}
+
+.forms-admin-header span,
+.forms-builder-top span,
+.forms-responses-head span {
+  color: var(--ceami-orange);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.forms-admin-header h1 {
+  margin: 5px 0 5px;
+  color: var(--ceami-text-strong);
+  font-size: 30px;
+  letter-spacing: -.035em;
+}
+
+.forms-admin-header p,
+.forms-builder-top p,
+.forms-responses-head p,
+.forms-fields-head p {
+  color: var(--ceami-muted);
+}
+
+.forms-admin-header > button,
+.forms-builder-actions > button:last-child,
+.forms-empty > button,
+.forms-card-actions .responses-primary {
+  min-height: 43px;
+  border-radius: 11px;
+  color: #fff;
+  background: var(--ceami-orange);
+  border-color: var(--ceami-orange);
+  box-shadow: 0 7px 18px rgba(255,104,22,.14);
+}
+
+.forms-summary {
+  gap: 10px;
+}
+
+.forms-summary > div {
+  min-height: 78px;
+  padding: 13px 15px;
+  border-color: var(--ceami-line);
+  border-radius: 15px;
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.forms-summary svg { color: var(--ceami-blue); }
+.forms-summary span { color: var(--ceami-muted); }
+.forms-summary strong { color: var(--ceami-text-strong); }
+
+.forms-list { gap: 10px; }
+
+.forms-card,
+.forms-builder,
+.forms-responses {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.forms-card {
+  padding: 17px;
+}
+
+.forms-card h2,
+.forms-builder-top h2,
+.forms-responses-head h2 {
+  color: var(--ceami-text-strong);
+  letter-spacing: -.025em;
+}
+
+.forms-card p { color: var(--ceami-muted); }
+
+.forms-card code {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+  border-radius: 8px;
+}
+
+.forms-card-actions button,
+.forms-card-actions a,
+.forms-builder .secondary,
+.forms-responses .secondary {
+  border-color: var(--ceami-line);
+  border-radius: 10px;
+  color: var(--ceami-text);
+  background: #fff;
+}
+
+.forms-badge {
+  color: #65798b;
+  background: #edf2f6;
+}
+
+.forms-badge.active {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+.forms-builder-grid input,
+.forms-builder-grid textarea,
+.forms-field-content input,
+.forms-field-content select,
+.forms-response-search,
+.forms-response-filter select {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+}
+
+.forms-builder-grid input:focus,
+.forms-builder-grid textarea:focus,
+.forms-field-content input:focus,
+.forms-field-content select:focus {
+  border-color: #8ab0cf;
+  box-shadow: 0 0 0 3px rgba(35,105,165,.07);
+}
+
+.forms-field-card {
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+  background: #f9fbfd;
+}
+
+.forms-field-number,
+.forms-response-avatar {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.forms-response-metrics { gap: 10px; }
+
+.forms-response-metrics article {
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.forms-response-metrics article > svg {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.forms-response-metrics article.positive > svg {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+.forms-response-toolbar {
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+  background: #f6f9fb;
+}
+
+.forms-response-card {
+  border-color: var(--ceami-line);
+  border-radius: 14px;
+}
+
+.forms-toast {
+  background: var(--ceami-blue-strong);
+  border-radius: 12px;
+}
+
+/* CEAMI Serviços ---------------------------------------------------------- */
+.services-admin-page {
+  width: min(var(--ceami-content), calc(100% - 48px));
+  margin-inline: auto;
+  padding: 30px 0 90px;
+  color: var(--ceami-text);
+}
+
+.services-admin-header {
+  padding-bottom: 18px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ceami-line);
+}
+
+.services-admin-header > div:first-child > span,
+.services-panel-heading > div > span {
+  color: var(--ceami-orange);
+  font-size: 10px;
+  letter-spacing: .14em;
+}
+
+.services-admin-header h1 {
+  color: var(--ceami-text-strong);
+  font-size: 30px;
+  letter-spacing: -.035em;
+}
+
+.services-admin-header h1 svg { color: var(--ceami-blue); }
+.services-admin-header p,
+.services-panel-heading p { color: var(--ceami-muted); }
+
+.services-admin-header-actions button,
+.services-admin-header-actions a,
+.services-add-field,
+.services-save-bar button {
+  min-height: 43px;
+  border-color: var(--ceami-line);
+  border-radius: 11px;
+  color: var(--ceami-text);
+}
+
+.services-admin-header-actions a,
+.services-save-bar button {
+  color: #fff;
+  background: var(--ceami-orange);
+  border-color: var(--ceami-orange);
+}
+
+.services-tabs {
+  margin-bottom: 16px;
+  padding: 4px;
+  border-color: var(--ceami-line);
+  border-radius: 13px;
+  background: #eef3f7;
+}
+
+.services-tabs button {
+  color: #60788b;
+  border-radius: 10px;
+}
+
+.services-tabs button.active {
+  color: var(--ceami-blue-strong);
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(8,52,91,.07);
+}
+
+.services-tabs button > span {
+  color: var(--ceami-orange-strong);
+  background: var(--ceami-orange-soft);
+}
+
+.services-panel,
+.services-request-card {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.services-panel { padding: 19px; }
+
+.services-panel-heading h2,
+.services-request-main h3 {
+  color: var(--ceami-text-strong);
+}
+
+.services-settings-grid input,
+.services-settings-grid textarea,
+.services-field-editor-grid input,
+.services-field-editor-grid textarea,
+.services-field-editor-grid select,
+.services-request-toolbar label {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+}
+
+.services-summary {
+  gap: 10px;
+}
+
+.services-summary > div {
+  border-color: var(--ceami-line);
+  border-radius: 15px;
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.services-summary span { color: var(--ceami-muted); }
+.services-summary strong { color: var(--ceami-text-strong); }
+
+.services-request-toolbar {
+  border-color: var(--ceami-line);
+  background: #f6f9fb;
+  border-radius: 14px;
+}
+
+.services-request-toolbar > div button {
+  border-color: var(--ceami-line);
+  color: #60788b;
+}
+
+.services-request-toolbar > div button.active {
+  color: #fff;
+  background: var(--ceami-blue);
+  border-color: var(--ceami-blue);
+}
+
+.services-status.aberto {
+  color: var(--ceami-yellow);
+  background: var(--ceami-yellow-soft);
+}
+
+.services-status.concluido {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+/* Administração / Minha conta -------------------------------------------- */
+.access-page {
+  padding: 34px 24px 90px;
+  background:
+    radial-gradient(circle at 7% 4%, rgba(11,79,141,.08), transparent 300px),
+    var(--ceami-bg);
+}
+
+.access-header,
+.access-toolbar,
+.access-list,
+.access-message,
+.access-loading,
+.access-footnote {
+  width: min(var(--ceami-content), 100%);
+}
+
+.access-header { border-color: var(--ceami-line); }
+.access-header > div > span { color: var(--ceami-orange); }
+.access-header h1 { color: var(--ceami-text-strong); }
+.access-header p,
+.access-toolbar > span,
+.access-user-info span,
+.access-footnote { color: var(--ceami-muted); }
+.access-back { color: var(--ceami-blue); }
+
+.access-toolbar label {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-md);
+  box-shadow: none;
+}
+
+.access-user {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.access-avatar {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.access-modules button {
+  min-height: 58px;
+  color: #6b8091;
+  background: #f7f9fb;
+  border-color: #edf1f4;
+  border-radius: 12px;
+}
+
+.access-modules button.active {
+  color: var(--ceami-blue);
+  background: #edf6fd;
+  border-color: #cfe1ef;
+}
+
+.account-page {
+  background:
+    radial-gradient(circle at 8% 5%, rgba(11,79,141,.08), transparent 300px),
+    var(--ceami-bg);
+}
+
+.account-back { color: var(--ceami-blue); }
+.account-header { border-color: var(--ceami-line); }
+.account-header > span { color: var(--ceami-orange); }
+.account-header h1 { color: var(--ceami-text-strong); }
+.account-header p,
+.account-profile span,
+.account-security-title p,
+.account-security-note { color: var(--ceami-muted); }
+
+.account-profile,
+.account-security-card {
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-lg);
+  box-shadow: var(--ceami-shadow-card);
+}
+
+.account-avatar {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.account-security-title > div:first-child {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+}
+
+.account-security-title span { color: var(--ceami-orange); }
+
+.account-security-card label > div {
+  border-color: #cfdee9;
+  border-radius: var(--ceami-radius-md);
+  background: #fff;
+}
+
+.account-security-card form > button {
+  background: var(--ceami-orange);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(255,104,22,.16);
+}
+
+/* Portal CEAMI ------------------------------------------------------------ */
+.ceami-portal {
+  background:
+    radial-gradient(circle at 8% 4%, rgba(11,79,141,.1), transparent 330px),
+    radial-gradient(circle at 92% 12%, rgba(255,104,22,.07), transparent 280px),
+    var(--ceami-bg);
+}
+
+.ceami-portal-hero,
+.ceami-portal-modules,
+.ceami-portal-note { width: min(var(--ceami-content), 100%); }
+
+.ceami-portal-hero { border-color: var(--ceami-line); }
+.ceami-portal-brand strong,
+.ceami-portal-copy h1 { color: var(--ceami-text-strong); }
+.ceami-portal-brand span,
+.ceami-portal-copy p,
+.ceami-portal-card-copy p,
+.ceami-portal-note { color: var(--ceami-muted); }
+.ceami-portal-copy > span { color: var(--ceami-orange); }
+
+.ceami-portal-card {
+  min-height: 158px;
+  border-color: var(--ceami-line);
+  border-radius: var(--ceami-radius-xl);
+  box-shadow: var(--ceami-shadow-card);
+  background: rgba(255,255,255,.94);
+}
+
+.ceami-portal-card:hover {
+  border-color: #bfd4e4;
+  box-shadow: 0 16px 38px rgba(8,52,91,.09);
+}
+
+.ceami-portal-card-icon {
+  color: var(--ceami-blue);
+  background: var(--ceami-blue-soft);
+  border-radius: 14px;
+}
+
+.ceami-portal-card-members .ceami-portal-card-icon,
+.ceami-portal-card-events .ceami-portal-card-icon {
+  color: var(--ceami-orange);
+  background: var(--ceami-orange-soft);
+}
+
+.ceami-portal-card-services .ceami-portal-card-icon,
+.ceami-portal-card-courses .ceami-portal-card-icon {
+  color: var(--ceami-green);
+  background: var(--ceami-green-soft);
+}
+
+.ceami-portal-card-copy > span { color: var(--ceami-orange); }
+.ceami-portal-card-copy h2 { color: var(--ceami-text-strong); }
+.ceami-portal-card-action { color: var(--ceami-blue); }
+
+.ceami-portal-admin,
+.ceami-portal-account > button {
+  color: var(--ceami-blue);
+  background: #fff;
+  border-color: var(--ceami-line);
+}
+
+/* Mobile ------------------------------------------------------------------ */
+@media (max-width: 760px) {
+  .courses-page,
+  .forms-admin-page,
+  .services-admin-page {
+    width: 100%;
+    padding: 20px 12px calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .member-v3-content {
+    max-width: none;
+    padding: 68px 12px calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .member-v3-sidebar {
+    width: min(86vw, 310px);
+    background: #fff;
+    box-shadow: 18px 0 50px rgba(8,47,89,.18);
+  }
+
+  .member-v3-brand button { display: grid; }
+
+  .member-v3-topbar {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+  }
+
+  .member-v3-hero {
+    padding: 21px 18px;
+    border-radius: 19px;
+  }
+
+  .member-v3-hero h2 { font-size: 23px; }
+  .member-v3-hero-actions { gap: 8px; }
+
+  .member-v3-metrics { gap: 8px; }
+  .member-v3-metrics article { min-height: 96px; padding: 12px; }
+  .member-v3-panel { padding: 15px; border-radius: 17px; }
+
+  .member-v3-bottom-nav {
+    left: 8px;
+    right: 8px;
+    bottom: calc(7px + env(safe-area-inset-bottom));
+    height: 64px;
+    border-color: var(--ceami-line);
+    border-radius: 20px;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 12px 32px rgba(7,52,93,.15);
+    backdrop-filter: blur(16px);
+  }
+
+  .member-v3-bottom-nav button.active {
+    color: var(--ceami-orange);
+    background: var(--ceami-orange-soft);
+    border-radius: 14px;
+  }
+
+  .courses-topbar,
+  .forms-admin-header,
+  .services-admin-header {
+    padding-bottom: 15px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--ceami-line);
+  }
+
+  .courses-actions,
+  .services-admin-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .courses-actions button,
+  .services-admin-header-actions button,
+  .services-admin-header-actions a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .courses-metrics,
+  .forms-summary {
+    gap: 8px;
+  }
+
+  .courses-panel,
+  .forms-builder,
+  .forms-responses,
+  .services-panel {
+    padding: 15px;
+    border-radius: 17px;
+  }
+
+  .class-card,
+  .forms-card,
+  .services-request-card {
+    border-radius: 15px;
+  }
+
+  .forms-card-actions,
+  .services-request-actions {
+    width: 100%;
+  }
+
+  .services-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .services-tabs button {
+    justify-content: center;
+    padding-inline: 8px;
+  }
+
+  .access-page,
+  .account-page,
+  .ceami-portal {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .access-user,
+  .account-security-card,
+  .account-profile {
+    border-radius: 16px;
+  }
+
+  .ceami-portal-card {
+    min-height: 140px;
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .ceami-app-switcher {
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .ceami-app-switcher-trigger {
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+  }
+}
+
+@media (max-width: 420px) {
+  .member-v3-metrics,
+  .courses-metrics,
+  .forms-response-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .member-v3-metrics article:last-child,
+  .courses-metrics article:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .courses-actions,
+  .services-admin-header-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .access-modules {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-v3-shell *,
+  .courses-page *,
+  .forms-admin-page *,
+  .services-admin-page *,
+  .access-page *,
+  .account-page *,
+  .ceami-portal * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation-duration: .001ms !important;
+  }
+}

@@ -702,12 +702,12 @@ export default function FormulariosClient() {
     <div className="forms-admin-page">
       <header className="forms-admin-header">
         <div>
-          <span>CEAMI • FORMULÁRIOS</span>
-          <h1>Formulários e inscrições</h1>
-          <p>Crie um formulário, gere o link e acompanhe as respostas sem precisar alterar o sistema.</p>
+          <span>CEAMI EVENTOS</span>
+          <h1>Eventos e inscrições</h1>
+          <p>Crie um evento, publique o link de inscrição e acompanhe participantes e pagamentos em um só lugar.</p>
         </div>
         <button type="button" onClick={() => { setResponsesFormId(null); setDraft(blankDraft()); }}>
-          <FilePlus2 size={18} /> Novo formulário
+          <FilePlus2 size={18} /> Novo evento
         </button>
       </header>
 
@@ -724,8 +724,8 @@ export default function FormulariosClient() {
         <section className="forms-builder">
           <div className="forms-builder-top">
             <div>
-              <span>{draft.id ? 'EDITANDO FORMULÁRIO' : 'NOVO FORMULÁRIO'}</span>
-              <h2>{draft.title || 'Formulário sem título'}</h2>
+              <span>{draft.id ? 'EDITANDO EVENTO' : 'NOVO EVENTO'}</span>
+              <h2>{draft.title || 'Evento sem título'}</h2>
               <p>Você cuida das perguntas. O sistema cuida das chaves internas automaticamente.</p>
             </div>
             <button type="button" className="icon" onClick={() => setDraft(null)} aria-label="Fechar"><X /></button>
@@ -733,7 +733,7 @@ export default function FormulariosClient() {
 
           <div className="forms-builder-grid">
             <label>
-              <span>Nome do formulário</span>
+              <span>Nome do evento</span>
               <input value={draft.title} onChange={(e) => updateDraft({ title: e.target.value, slug: draft.id ? draft.slug : slugify(e.target.value) })} placeholder="Ex.: Conferência de Jovens 2026" />
             </label>
             <label>
@@ -761,7 +761,7 @@ export default function FormulariosClient() {
           </div>
 
           <div className="forms-fields-head">
-            <div><h3>Campos do formulário</h3><p>Monte as perguntas na mesma ordem em que a pessoa irá responder.</p></div>
+            <div><h3>Campos da inscrição</h3><p>Monte as perguntas na mesma ordem em que a pessoa irá responder.</p></div>
             <button type="button" className="secondary" onClick={() => updateDraft({ fields: [...draft.fields, newField()] })}><Plus size={17} />Adicionar campo</button>
           </div>
 
@@ -794,7 +794,7 @@ export default function FormulariosClient() {
 
           <footer className="forms-builder-actions">
             <button type="button" className="secondary" onClick={() => setDraft(null)}>Cancelar</button>
-            <button type="button" onClick={() => void saveForm()} disabled={saving}>{saving ? <LoaderCircle className="forms-spin" size={18} /> : <Save size={18} />}{saving ? 'Salvando...' : 'Salvar formulário'}</button>
+            <button type="button" onClick={() => void saveForm()} disabled={saving}>{saving ? <LoaderCircle className="forms-spin" size={18} /> : <Save size={18} />}{saving ? 'Salvando...' : 'Salvar evento'}</button>
           </footer>
         </section>
       ) : !loadError && responseForm ? (
@@ -1016,7 +1016,7 @@ export default function FormulariosClient() {
       ) : !loadError ? (
         <>
           <section className="forms-summary">
-            <div><ClipboardList /><span><strong>{forms.length}</strong> formulários</span></div>
+            <div><ClipboardList /><span><strong>{forms.length}</strong> eventos</span></div>
             <div><UsersRound /><span><strong>{submissions.length}</strong> respostas recebidas</span></div>
             <div><span className="forms-status-dot" /><span><strong>{forms.filter((form) => form.active).length}</strong> publicados</span></div>
           </section>
@@ -1042,7 +1042,7 @@ export default function FormulariosClient() {
                 </article>
               );
             }) : (
-              <div className="forms-empty"><ClipboardList /><h3>Nenhum formulário criado</h3><p>Crie o primeiro e o sistema gera o link público automaticamente.</p><button type="button" onClick={() => setDraft(blankDraft())}><Plus size={17} />Criar formulário</button></div>
+              <div className="forms-empty"><ClipboardList /><h3>Nenhum evento criado</h3><p>Crie o primeiro evento e o sistema gera o link público de inscrição automaticamente.</p><button type="button" onClick={() => setDraft(blankDraft())}><Plus size={17} />Criar evento</button></div>
             )}
           </section>
         </>

@@ -1,6 +1,12 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { UiRole } from '@/lib/types/ui-role';
+import {
+  CEAMI_MODULE_KEYS,
+  type CeamiModuleAccess,
+  type CeamiModuleAccessLevel,
+  type CeamiModuleKey,
+} from '@/lib/types/ceami-module';
 
 type CookieToSet = {
   name: string;
@@ -8,11 +14,27 @@ type CookieToSet = {
   options: CookieOptions;
 };
 
-/**
- * Retorna apenas uma dica de interface para a renderização inicial.
- * A autorização real continua sendo aplicada pelo middleware e pelas RLS.
- */
-export async function getCurrentUiRole(): Promise<UiRole> {
+type CurrentProfileRow = {
+  id: string;
+  full_name: string;
+  role: string;
+  course_only: boolean;
+  social_only: boolean;
+  visitors_only: boolean;
+  is_active: boolean;
+};
+
+export type CurrentCeamiAccess = {
+  profileId: string;
+  fullName: string;
+  role: string;
+  courseOnly: boolean;
+  socialOnly: boolean;
+  visitorsOnly: boolean;
+  modules: CeamiModuleAccess[];
+};
+
+async function loadCurrentAccess(): Promise<CurrentCeamiAccess | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
@@ -24,8 +46,7 @@ export async function getCurrentUiRole(): Promise<UiRole> {
         return cookieStore.getAll();
       },
       setAll(_cookiesToSet: CookieToSet[]) {
-        // Server Components não podem atualizar cookies. O middleware já
-        // executa a renovação da sessão antes da renderização da página.
+        // O middleware renova a sessão antes da renderização.
       },
     },
   });
@@ -35,14 +56,82 @@ export async function getCurrentUiRole(): Promise<UiRole> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
+  const { data } = await supabase
     .from('profiles')
-    .select('role, course_only, is_active')
+    .select('id, full_name, role, course_only, social_only, visitors_only, is_active')
     .eq('id', user.id)
     .maybeSingle();
 
+  const profile = data as CurrentProfileRow | null;
   if (!profile || profile.is_active !== true) return null;
-  if (profile.role === 'admin') return 'admin';
-  if (profile.course_only) return 'course';
+
+  const modules: CeamiModuleAccess[] = [];
+
+  if (profile.role === 'admin') {
+    modules.push(
+      ...CEAMI_MODULE_KEYS.map((moduleKey) => ({
+        moduleKey,
+        accessLevel: 'manager' as CeamiModuleAccessLevel,
+      })),
+    );
+  } else if (!profile.course_only && !profile.visitors_only) {
+    const { data: accessRows } = await supabase
+      .from('profile_module_access')
+      .select('module_key, access_level, can_access')
+      .eq('profile_id', profile.id)
+      .eq('can_access', true);
+
+    for (const row of accessRows || []) {
+      const moduleKey = String(row.module_key) as CeamiModuleKey;
+      if (!CEAMI_MODULE_KEYS.includes(moduleKey)) continue;
+      const accessLevel: CeamiModuleAccessLevel =
+        row.access_level === 'manager' ? 'manager' : 'viewer';
+      modules.push({ moduleKey, accessLevel });
+    }
+
+    // Compatibilidade durante a transição caso a matriz ainda não exista para um perfil antigo.
+    if (modules.length === 0) {
+      if (profile.social_only) modules.push({ moduleKey: 'social', accessLevel: 'manager' });
+      else modules.push({ moduleKey: 'members', accessLevel: 'viewer' });
+    }
+  }
+
+  return {
+    profileId: profile.id,
+    fullName: profile.full_name,
+    role: profile.role,
+    courseOnly: profile.course_only,
+    socialOnly: profile.social_only,
+    visitorsOnly: profile.visitors_only,
+    modules,
+  };
+}
+
+export async function getCurrentCeamiAccess() {
+  return loadCurrentAccess();
+}
+
+/**
+ * Retorna apenas uma dica de interface para a renderização inicial.
+ * A autorização real continua no middleware e nas RLS.
+ */
+export async function getCurrentUiRole(): Promise<UiRole> {
+  const access = await loadCurrentAccess();
+  if (!access) return null;
+  if (access.role === 'admin') return 'admin';
+  if (access.courseOnly) return 'course';
   return 'member';
+}
+
+export async function hasCurrentModuleAccess(
+  moduleKey: CeamiModuleKey,
+  manage = false,
+): Promise<boolean> {
+  const access = await loadCurrentAccess();
+  if (!access) return false;
+  if (access.role === 'admin') return true;
+
+  const module = access.modules.find((item) => item.moduleKey === moduleKey);
+  if (!module) return false;
+  return !manage || module.accessLevel === 'manager';
 }

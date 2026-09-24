@@ -1,7 +1,17 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/login-cursos', '/social/login', '/visitantes/login', '/social/design-preview', '/integra', '/consultar', '/f', '/servicos/solicitar'];
+const PUBLIC_PAGES = [
+  '/login',
+  '/login-cursos',
+  '/social/login',
+  '/visitantes/login',
+  '/social/design-preview',
+  '/integra',
+  '/consultar',
+  '/f',
+  '/servicos/solicitar',
+];
 const PUBLIC_API_PATHS = [
   '/api/integra',
   '/api/public/check-member',
@@ -11,7 +21,8 @@ const PUBLIC_API_PATHS = [
   '/api/birthdays/automatic',
   '/api/automations/automatic',
 ];
-const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais', '/formularios', '/servicos'];
+
+const ADMIN_PATHS = ['/teste-aniversario', '/ajustes-aniversario', '/automacoes', '/materiais'];
 const ADMIN_API_PATHS = [
   '/api/admin',
   '/api/birthdays/test',
@@ -23,6 +34,13 @@ const ADMIN_API_PATHS = [
   '/api/automations',
 ];
 
+type ModuleKey = 'members' | 'social' | 'events' | 'services';
+
+type RequiredModule = {
+  key: ModuleKey;
+  manage: boolean;
+};
+
 type CookieToSet = {
   name: string;
   value: string;
@@ -31,6 +49,42 @@ type CookieToSet = {
 
 function matchesPath(pathname: string, paths: string[]) {
   return paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function requiredModuleForPath(pathname: string): RequiredModule | null {
+  if (pathname === '/membros' || pathname.startsWith('/membros/')) {
+    return { key: 'members', manage: false };
+  }
+
+  if (pathname === '/social' || pathname.startsWith('/social/')) {
+    return { key: 'social', manage: true };
+  }
+
+  if (
+    pathname === '/eventos' ||
+    pathname.startsWith('/eventos/') ||
+    pathname === '/formularios' ||
+    pathname.startsWith('/formularios/') ||
+    pathname === '/api/admin/forms' ||
+    pathname.startsWith('/api/admin/forms/') ||
+    pathname === '/api/admin/form-submissions' ||
+    pathname.startsWith('/api/admin/form-submissions/') ||
+    pathname === '/api/admin/form-payments' ||
+    pathname.startsWith('/api/admin/form-payments/')
+  ) {
+    return { key: 'events', manage: true };
+  }
+
+  if (
+    pathname === '/servicos' ||
+    pathname.startsWith('/servicos/') ||
+    pathname === '/api/admin/services' ||
+    pathname.startsWith('/api/admin/services/')
+  ) {
+    return { key: 'services', manage: true };
+  }
+
+  return null;
 }
 
 function unavailable() {
@@ -57,7 +111,6 @@ export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Segurança fail-closed: uma configuração quebrada nunca libera o painel.
   if (!url || !key) {
     console.error('Supabase public environment variables are missing.');
     return unavailable();
@@ -92,9 +145,8 @@ export async function middleware(request: NextRequest) {
       ? '/login-cursos'
       : pathname === '/visitantes' || pathname.startsWith('/visitantes/')
         ? '/visitantes/login'
-        : pathname === '/social' || pathname.startsWith('/social/')
-          ? '/social/login'
-          : '/login';
+        : '/login';
+    loginUrl.search = '';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -111,11 +163,7 @@ export async function middleware(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = profile?.visitors_only
-      ? '/visitantes/login'
-      : profile?.social_only
-        ? '/social/login'
-        : '/login';
+    loginUrl.pathname = profile?.visitors_only ? '/visitantes/login' : '/login';
     loginUrl.search = '';
     loginUrl.searchParams.set('acesso', 'aguardando-aprovacao');
     return NextResponse.redirect(loginUrl);
@@ -123,13 +171,11 @@ export async function middleware(request: NextRequest) {
 
   const isAdmin = profile.role === 'admin';
   const isCourseOnly = Boolean(profile.course_only);
-  const isSocialOnly = Boolean(profile.social_only);
   const isVisitorsOnly = Boolean(profile.visitors_only);
   const isCoursesPath = pathname === '/cursos' || pathname.startsWith('/cursos/');
-  const isSocialPath = pathname === '/social' || pathname.startsWith('/social/');
   const isVisitorsPath = pathname === '/visitantes' || pathname.startsWith('/visitantes/');
 
-
+  // Portais legados continuam isolados até serem incorporados à suíte.
   if (isVisitorsPath && !isAdmin && !isVisitorsOnly) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Conta sem acesso ao CEAMI Visitantes.' }, { status: 403 });
@@ -153,37 +199,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(visitorsUrl);
   }
 
-  if (isSocialPath && !isAdmin && !isSocialOnly) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Conta sem acesso ao CEAMI Social.' }, { status: 403 });
-    }
-
-    const socialLoginUrl = request.nextUrl.clone();
-    socialLoginUrl.pathname = '/social/login';
-    socialLoginUrl.search = '';
-    socialLoginUrl.searchParams.set('acesso', 'negado');
-    return NextResponse.redirect(socialLoginUrl);
-  }
-
-  if (isSocialOnly && !isAdmin && !isSocialPath) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Conta restrita ao CEAMI Social.' }, { status: 403 });
-    }
-
-    const socialUrl = request.nextUrl.clone();
-    socialUrl.pathname = '/social';
-    socialUrl.search = '';
-    return NextResponse.redirect(socialUrl);
-  }
-
   if (isCoursesPath && !isAdmin && !isCourseOnly) {
     const coursesLoginUrl = request.nextUrl.clone();
     coursesLoginUrl.pathname = '/login-cursos';
+    coursesLoginUrl.search = '';
     coursesLoginUrl.searchParams.set('acesso', 'negado');
     return NextResponse.redirect(coursesLoginUrl);
   }
 
-  if (isCourseOnly && !isCoursesPath) {
+  if (isCourseOnly && !isAdmin && !isCoursesPath) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Conta restrita ao portal de Cursos.' }, { status: 403 });
     }
@@ -194,8 +218,46 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(coursesUrl);
   }
 
+  const requiredModule = requiredModuleForPath(pathname);
+
+  if (requiredModule && !isAdmin) {
+    const { data: moduleAccess, error: moduleError } = await supabase
+      .from('profile_module_access')
+      .select('access_level, can_access')
+      .eq('profile_id', user.id)
+      .eq('module_key', requiredModule.key)
+      .maybeSingle();
+
+    const legacyFallback =
+      requiredModule.key === 'social'
+        ? profile.social_only === true
+        : requiredModule.key === 'members'
+          ? profile.social_only === false && profile.course_only === false && profile.visitors_only === false
+          : false;
+
+    const canAccess =
+      moduleAccess?.can_access === true &&
+      (!requiredModule.manage || moduleAccess.access_level === 'manager');
+
+    const allowed = moduleError ? legacyFallback : canAccess;
+
+    if (!allowed) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Conta sem acesso a este módulo.' }, { status: 403 });
+      }
+
+      const portalUrl = request.nextUrl.clone();
+      portalUrl.pathname = '/';
+      portalUrl.search = '';
+      portalUrl.searchParams.set('selecionar', '1');
+      portalUrl.searchParams.set('acesso', 'negado');
+      return NextResponse.redirect(portalUrl);
+    }
+  }
+
   const requiresAdmin =
-    matchesPath(pathname, ADMIN_PATHS) || matchesPath(pathname, ADMIN_API_PATHS);
+    !requiredModule &&
+    (matchesPath(pathname, ADMIN_PATHS) || matchesPath(pathname, ADMIN_API_PATHS));
 
   if (requiresAdmin && !isAdmin) {
     if (pathname.startsWith('/api/')) {
@@ -205,10 +267,12 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = '/';
-    homeUrl.searchParams.set('acesso', 'negado');
-    return NextResponse.redirect(homeUrl);
+    const portalUrl = request.nextUrl.clone();
+    portalUrl.pathname = '/';
+    portalUrl.search = '';
+    portalUrl.searchParams.set('selecionar', '1');
+    portalUrl.searchParams.set('acesso', 'negado');
+    return NextResponse.redirect(portalUrl);
   }
 
   return response;

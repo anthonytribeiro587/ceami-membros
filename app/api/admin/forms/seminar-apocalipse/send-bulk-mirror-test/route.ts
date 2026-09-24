@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUiRole } from '@/lib/server/current-profile';
+import { hasCurrentModuleAccess } from '@/lib/server/current-profile';
 import { getEvolutionConnectionState } from '@/lib/server/evolution-guard';
 import { evolutionConfigured, getEvolutionConfig } from '@/lib/server/evolution';
 import { consumeRateLimit, getServiceClient, requestComesFromSameSite } from '@/lib/server/security';
@@ -17,7 +17,7 @@ function allowedJids(p:string){const s=new Set([`${p}@s.whatsapp.net`]);if(p.len
 async function send(media:string,r:Recipient,index:number,total:number){const c=getEvolutionConfig();const response=await fetch(`${c.apiUrl}/message/sendMedia/${encodeURIComponent(c.instance)}`,{method:'POST',headers:{'Content-Type':'application/json',apikey:c.apiKey},body:JSON.stringify({number:TEST_PHONE,mediatype:'document',mimetype:'application/pdf',caption:`🧪 TESTE ESPELHO ${index}/${total}\nDestinatário real: ${r.name}\nMaterial escolhido: ${r.material}\nWhatsApp cadastrado: ${r.phone}\n\nOlá! Segue a apostila digital do Seminário O Fim Pertence a Cristo. 🙏`,media,fileName:FILE_NAME,delay:1800}),cache:'no-store',signal:AbortSignal.timeout(20000)});const raw=await response.text();let payload:unknown={};try{payload=JSON.parse(raw)}catch{}const e=envelope(payload);return response.ok&&!!e.id&&(!e.remoteJid||allowedJids(TEST_PHONE).has(e.remoteJid))&&!['ERROR','FAILED','CANCELED','CANCELLED'].includes(e.status)}
 
 export async function POST(request:NextRequest){
- if(!requestComesFromSameSite(request))return NextResponse.json({error:'Origem da solicitação não autorizada.'},{status:403}); if(await getCurrentUiRole()!=='admin')return NextResponse.json({error:'Acesso restrito ao administrador.'},{status:403});
+ if(!requestComesFromSameSite(request))return NextResponse.json({error:'Origem da solicitação não autorizada.'},{status:403}); if(!(await hasCurrentModuleAccess('events',true)))return NextResponse.json({error:'Acesso restrito ao administrador.'},{status:403});
  if(!await consumeRateLimit(request,'seminar_pdf_bulk_mirror_test',60,12))return NextResponse.json({error:'Aguarde um pouco antes do próximo lote.'},{status:429});
  const connection=await getEvolutionConnectionState();if(!connection.open)return NextResponse.json({error:'O WhatsApp da CEAMI não está conectado.'},{status:409});const c=getEvolutionConfig();if(!evolutionConfigured(c))return NextResponse.json({error:'Evolution API não configurada.'},{status:503});
  const fd=await request.formData();const file=fd.get('file');const start=Math.max(0,Number(fd.get('start')||0)||0);if(!(file instanceof File)||file.type!=='application/pdf')return NextResponse.json({error:'Selecione o PDF do seminário.'},{status:400});if(file.size<=0||file.size>MAX_PDF_BYTES)return NextResponse.json({error:'O PDF deve ter no máximo 8 MB.'},{status:400});
